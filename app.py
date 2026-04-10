@@ -24,6 +24,17 @@ VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "my-scooter-bot-token")
 BOT_DISCLOSURE = os.getenv("BOT_DISCLOSURE", "false").lower() == "true"
 TEAM_NOTIFY_PHONE = os.getenv("TEAM_NOTIFY_PHONE", "")  # Your team's WhatsApp number for alerts
 
+# ─── Phone Number Normalization ────────────────────────────────
+def normalize_phone(phone: str) -> str:
+    """
+    Normalize Mexican phone numbers from 521XXXXXXXXXX to 52XXXXXXXXXX.
+    WhatsApp API sometimes delivers Mexican numbers with an extra '1'
+    after the country code (521...), but messages must be sent to (52...).
+    """
+    if phone and phone.startswith("521") and len(phone) == 13:
+        return "52" + phone[3:]
+    return phone
+
 # ─── Webhook Verification (Meta requires this) ──────────────────
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
@@ -61,7 +72,7 @@ def handle_message():
             return jsonify({"status": "no messages"}), 200
 
         message = messages[0]
-        sender_phone = message.get("from")
+        sender_phone = normalize_phone(message.get("from"))
         message_type = message.get("type")
 
         # Get sender name if available
