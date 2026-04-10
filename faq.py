@@ -49,8 +49,9 @@ FAQ_DATA = [
         "keywords": ["how", "rent", "process", "book", "reserve", "reservation", "rentar", "reservar", "como", "cómo"],
         "question": "What is the scooter rental process?",
         "answer": (
-            "Renting a scooter in Tulum is super easy! 🛵\n\n"
-            "Step 1: Reach out via WhatsApp or tap the Reserve button\n"
+            "Renting with us is super easy! 🛵\n\n"
+            "Step 1: Check out our website for pricing and availability:\n"
+            "👉 rentscootertulum.com\n"
             "Step 2: Pick your ride and lock in your reservation\n"
             "Step 3: Fill out the waiver and make your payment\n"
             "Step 4: Pick up your scooter — and start exploring!\n\n"
@@ -80,8 +81,10 @@ FAQ_DATA = [
         "keywords": ["online", "book online", "reservar en línea", "en linea"],
         "question": "Can I book online?",
         "answer": (
-            "Absolutely! You can book online or right here via WhatsApp. 📲\n\n"
-            "Just tell us your dates and we'll get you set up!"
+            "Absolutely! Head to our booking link to see pricing and availability:\n"
+            "👉 rentscootertulum.com\n\n"
+            "You can select your dates, vehicle type, and delivery location to get exact pricing. 📲\n\n"
+            "Or just message us your dates here and we'll get you set up!"
         ),
     },
 
@@ -90,23 +93,27 @@ FAQ_DATA = [
         "keywords": ["price", "cost", "how much", "rate", "pricing", "precio", "cuanto", "cuánto", "scooter price"],
         "question": "How much does it cost to rent a scooter?",
         "answer": (
-            "Scooter rentals in Tulum start at 400 MXN and go up to 1,500 MXN "
-            "depending on how long you rent and the time of year. 🛵\n\n"
-            "Prices vary by season — longer rentals = better daily rate! 💰\n\n"
-            "For exact pricing, select your dates on our booking site:\n"
+            "Scooter rentals start at 400 MXN and go up to 1,500 MXN per day, "
+            "depending on rental length and season. 🛵\n\n"
+            "Longer rentals = better daily rate! 💰\n\n"
+            "We also offer ATVs (from 900 MXN/day), electric scooters, and cars.\n\n"
+            "Delivery to your hotel/Airbnb is available for an extra fee.\n\n"
+            "For exact pricing based on your dates and delivery location, check out our booking link:\n"
             "👉 rentscootertulum.com\n\n"
-            "Or message us here for a fast quote!"
+            "Or message us your dates for a fast quote!"
         ),
     },
     {
         "keywords": ["atv price", "atv cost", "cuatrimoto precio", "atv rate", "atv how much"],
         "question": "How much does it cost to rent an ATV?",
         "answer": (
-            "Our ATV daily rates range from 900 MXN to 2,200 MXN, "
+            "ATV rentals range from 900 MXN to 2,200 MXN per day, "
             "depending on how many days you rent. 🏍️\n\n"
-            "For exact pricing, select your dates on our booking site:\n"
+            "Want something different? We also have scooters (from 400 MXN/day), electric scooters, and cars!\n\n"
+            "Delivery available for an extra fee.\n\n"
+            "For exact pricing based on your dates, check our booking link:\n"
             "👉 rentscootertulum.com\n\n"
-            "Or message us here for a fast quote!"
+            "Or message us your dates for a quick quote!"
         ),
     },
     {
@@ -132,7 +139,7 @@ FAQ_DATA = [
         "question": "Do you offer long-term or monthly rentals?",
         "answer": (
             "Yes! We offer long-term and monthly rentals. 📅\n\n"
-            "Head to our booking site, select your dates, and you'll "
+            "Head to our booking link, select your dates, and you'll "
             "see the exact cost right away:\n"
             "👉 rentscootertulum.com\n\n"
             "The longer you rent, the better the daily rate!"
@@ -144,9 +151,9 @@ FAQ_DATA = [
         "keywords": ["pay", "payment", "card", "venmo", "cash", "credit", "pago", "pagar", "tarjeta", "efectivo"],
         "question": "How can I pay?",
         "answer": (
-            "We accept Venmo, credit cards, and cash. 💳\n\n"
-            "You're responsible for any transfer or processing fees. "
-            "Simple and flexible — just choose what works best for you!"
+            "We accept Venmo, cash, and credit cards. 💳\n\n"
+            "Credit cards have a 5% processing fee. Venmo and cash have no extra fees!\n\n"
+            "You can pay in USD or MXN — whatever works best for you."
         ),
     },
     {
@@ -154,8 +161,9 @@ FAQ_DATA = [
         "question": "Do I need to leave my passport or a deposit?",
         "answer": (
             "Nope! 🙌 You don't need to leave your passport, ID, or cash.\n\n"
-            "We simply place a card on file for your rental (just $0.50 cents). "
+            "We simply place a credit card on file (Visa or MasterCard) for your rental — just a $0.50 authorization. "
             "That's it — safe, easy, and secure.\n\n"
+            "No credit card? You can leave a $250 USD cash deposit or your passport instead.\n\n"
             "We're the only rental company in Tulum with NO deposits!"
         ),
     },
@@ -163,9 +171,10 @@ FAQ_DATA = [
         "keywords": ["no credit card", "without card", "sin tarjeta", "no card"],
         "question": "Can I rent without a credit card?",
         "answer": (
-            "Yes! But you'll need to leave a $200 USD deposit or your passport "
+            "Yes! But you'll need to leave a $250 USD cash deposit or your passport "
             "as an alternative. 🪪\n\n"
-            "With a credit card on file it's much simpler — just $0.50!"
+            "With a credit card on file (Visa or MasterCard only) it's much simpler — just $0.50!\n\n"
+            "Note: Debit cards, prepaid cards, Revolut, and Wise cards are not accepted for the card-on-file option."
         ),
     },
     {
@@ -364,11 +373,13 @@ FAQ_DATA = [
         "keywords": ["late", "late fee", "tarde", "retraso", "cargo por retraso"],
         "question": "What if I'm late returning it?",
         "answer": (
-            "Late fees apply per hour:\n\n"
+            "Late fees per hour (if you let us know in advance): ⏰\n"
             "🛵 Scooter: 100 MXN/hr\n"
             "🏍️ ATV: 200 MXN/hr\n"
             "🚗 Car: 250 MXN/hr\n\n"
-            "Just give us a heads up if you're running late — "
+            "Unapproved late returns are DOUBLE those rates.\n\n"
+            "Or you can extend for a full extra day at your daily rate (subject to availability).\n\n"
+            "Just give us a heads up before your return time — "
             "we'll always try to work with you!"
         ),
     },
@@ -448,9 +459,10 @@ FAQ_DATA = [
         "question": "What's your cancellation policy?",
         "answer": (
             "Here's how it works:\n\n"
-            "• Cancellations have a 50% fee\n"
-            "• No refunds on the day of rental\n\n"
-            "Need to change your dates? Just let us know and we'll "
+            "• Cancel more than 24 hours before: 50% cancellation fee\n"
+            "• Cancel within 24 hours: 100% of rental cost charged\n"
+            "• No refunds for early returns, unused days, or weather\n\n"
+            "Need to change your dates? Just let us know ASAP and we'll "
             "do our best to adjust your booking! 📅"
         ),
     },
@@ -462,6 +474,7 @@ FAQ_DATA = [
         "answer": (
             "Every vehicle goes out with a full tank! ⛽\n\n"
             "We just ask that you return it full too. "
+            "If not, there's a 315 MXN charge plus the cost of missing fuel.\n\n"
             "We'll show you the closest gas stations when you pick up."
         ),
     },
@@ -488,9 +501,25 @@ FAQ_DATA = [
         "keywords": ["gran cenote", "cobá", "coba"],
         "question": "Can I drive to Gran Cenote?",
         "answer": (
-            "Yes! You can drive to Gran Cenote, but not farther than "
-            "that on the Cobá Road. ✅\n\n"
-            "It's one of the most popular cenotes — you'll love it! 💦"
+            "Yes! You can drive to Gran Cenote — it's one of the most popular cenotes "
+            "and you'll love it! 💦\n\n"
+            "Important: You cannot go past Gran Cenote toward Cobá. Gran Cenote is the "
+            "farthest you can go on that road. ⚠️"
+        ),
+    },
+    {
+        "keywords": ["cenote", "cenotes", "which cenote", "que cenote", "best cenote", "cenote recommend"],
+        "question": "Which cenotes can I visit?",
+        "answer": (
+            "There are amazing cenotes you can visit near Tulum! 💦\n\n"
+            "Gran Cenote is the most popular and the farthest you can go "
+            "on the Cobá Road.\n\n"
+            "⚠️ Please note these restrictions:\n"
+            "• No cenotes past Gran Cenote toward Cobá\n"
+            "• No cenotes past the ruins toward Playa del Carmen\n"
+            "• No cenotes past Vesica toward Bacalar\n"
+            "• Dos Ojos is NOT allowed (too far on highway)\n\n"
+            "Ask us for our map with recommended cenotes! 🗺️"
         ),
     },
     {
@@ -505,9 +534,16 @@ FAQ_DATA = [
         "keywords": ["highway", "carretera", "where can i drive", "restrict", "zones"],
         "question": "Are there areas I'm not allowed to drive?",
         "answer": (
-            "No highways longer than 5–7 minutes are allowed. 🚫\n\n"
-            "You can explore Tulum town, Aldea Zama, the beach zone, "
-            "and up to Gran Cenote on Cobá Road. Just no long highway trips!"
+            "Here are the driving zones to know: ✅🚫\n\n"
+            "✅ Tulum town, Aldea Zama, beach zone — all good!\n"
+            "✅ Gran Cenote — OK (farthest point on Cobá Road)\n"
+            "✅ Beach road — OK (but NOT on the sand)\n\n"
+            "🚫 Past Gran Cenote toward Cobá — NO\n"
+            "🚫 Past the ruins toward Playa del Carmen — NO\n"
+            "🚫 Past Vesica toward Bacalar — NO\n"
+            "🚫 Dos Ojos cenote — too far on highway\n"
+            "🚫 Sian Ka'an — max 5-7 min into the reserve\n\n"
+            "Stick to the safe zones and enjoy the ride! 🛵"
         ),
     },
 
@@ -540,8 +576,9 @@ FAQ_DATA = [
         "answer": (
             "Just message us for help! 📲\n\n"
             "Replacement costs apply:\n"
-            "• Missing key: 300–700 MXN\n"
-            "• Missing/broken helmet: 500 MXN\n\n"
+            "• Missing helmet or clip: 600 MXN\n"
+            "• Missing/broken phone holder: 400 MXN\n"
+            "• Missing AirTag: 800 MXN\n\n"
             "We'll get you sorted out quickly!"
         ),
     },
@@ -596,12 +633,65 @@ FAQ_DATA = [
         "keywords": ["cleaning", "clean", "limpieza", "dirty", "sucio"],
         "question": "Is there a cleaning fee?",
         "answer": (
-            "A cleaning fee applies if the vehicle is returned "
-            "excessively dirty:\n\n"
-            "🛵 Scooter: 200 MXN\n"
-            "🏍️ ATV: 400 MXN\n\n"
+            "A cleaning fee of 250 MXN applies if the vehicle is returned "
+            "with food, sand, garbage, or mud. 🧹\n\n"
             "Normal use is totally fine — just don't bring it back "
             "caked in mud! 😄"
+        ),
+    },
+
+    # ── CONTRACT HIGHLIGHTS ─────────────────────────────────────────
+    {
+        "keywords": ["new driver", "first time", "beginner", "never driven", "learn", "primera vez", "principiante", "no sé manejar"],
+        "question": "Can I rent if I've never driven a scooter?",
+        "answer": (
+            "Important heads up: We do not rent to new drivers. 🚫\n\n"
+            "If you arrive at the store and can't operate the scooter, "
+            "you'll lose 100% of your payment.\n\n"
+            "If you're unsure, let us know — we can help you find the "
+            "right vehicle for your experience level!"
+        ),
+    },
+    {
+        "keywords": ["parking", "park", "estacionar", "where to park", "tow", "towed", "remolque"],
+        "question": "Where can I park?",
+        "answer": (
+            "Here are Tulum's parking rules: 🅿️\n\n"
+            "🚫 No parking in front of signs with 'E' crossed out\n"
+            "🚫 No parking on corners (stay at least 10m away)\n"
+            "🚫 Don't park on the main beach road — vehicles get towed!\n\n"
+            "Always lock the steering wheel when you leave the scooter. 🔒\n\n"
+            "If your vehicle gets towed, fines can be up to 5,000 MXN."
+        ),
+    },
+    {
+        "keywords": ["passenger", "riders", "how many", "two people", "baby", "infant", "child", "niño", "bebé", "pasajero"],
+        "question": "How many people can ride?",
+        "answer": (
+            "Max 2 riders per scooter. 👥\n\n"
+            "Infants that can be held are allowed as a third rider, "
+            "but larger children are not permitted.\n\n"
+            "Everyone who rides must be listed on the waiver!"
+        ),
+    },
+    {
+        "keywords": ["google maps", "apple maps", "directions", "navigate", "gps", "find you", "navigation"],
+        "question": "How do I navigate in Tulum?",
+        "answer": (
+            "Important tip: Use Google Maps ONLY — not Apple Maps! 📍\n\n"
+            "Also, Google Maps is often wrong about one-way streets in Tulum. "
+            "Always follow the actual street signs, not your GPS.\n\n"
+            "We'll share our exact Google Maps pin when you book! 🗺️"
+        ),
+    },
+    {
+        "keywords": ["rain", "lluvia", "weather", "clima", "rainy"],
+        "question": "What if it rains?",
+        "answer": (
+            "If it's raining during your scheduled delivery or pickup, "
+            "we'll delay until the rain stops for everyone's safety. 🌧️\n\n"
+            "No refunds for weather-related issues, but we'll always "
+            "work with you on timing!"
         ),
     },
 
