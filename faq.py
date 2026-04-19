@@ -11,11 +11,11 @@ The bot uses keyword matching to find the best FAQ. If no FAQ matches
 well enough, it falls back to the AI responder.
 """
 
-# ─── Your FAQ Database ───────────────────────────────────────────
+# ─── Your FAQ Database ───────────────────────────────────────
 # ✏️ EDIT THIS LIST to customize your bot's answers!
 
 FAQ_DATA = [
-    # ── GREETINGS ────────────────────────────────────────────────
+    # ── GREETINGS ────────────────────────────────────────────
     {
         "keywords": ["hola", "hello", "hi", "hey", "buenos", "buenas", "good morning", "good afternoon", "sup", "what's up"],
         "question": "Greeting",
@@ -44,7 +44,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── RENTAL PROCESS & BOOKING ─────────────────────────────────
+    # ── RENTAL PROCESS & BOOKING ─────────────────────────────
     {
         "keywords": ["how", "rent", "process", "book", "reserve", "reservation", "rentar", "reservar", "como", "cómo"],
         "question": "What is the scooter rental process?",
@@ -88,7 +88,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── PRICING ──────────────────────────────────────────────────
+    # ── PRICING ──────────────────────────────────────────────
     {
         "keywords": ["price", "cost", "how much", "rate", "pricing", "precio", "cuanto", "cuánto", "scooter price"],
         "question": "How much does it cost to rent a scooter?",
@@ -146,7 +146,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── PAYMENT & DEPOSIT ────────────────────────────────────────
+    # ── PAYMENT & DEPOSIT ────────────────────────────────────
     {
         "keywords": ["pay", "payment", "card", "venmo", "cash", "credit", "pago", "pagar", "tarjeta", "efectivo"],
         "question": "How can I pay?",
@@ -186,13 +186,13 @@ FAQ_DATA = [
         ),
     },
 
-    # ── SCOOTER DETAILS ──────────────────────────────────────────
+    # ── SCOOTER DETAILS ──────────────────────────────────────
     {
         "keywords": ["scooter", "about", "tell me", "details", "info", "información", "detalles"],
         "question": "Tell me about the scooters",
         "answer": (
             "Here's what you get with every scooter rental:\n\n"
-            "🪖 Two helmets included (required by law)\n"
+            "🩖 Two helmets included (required by law)\n"
             "⛽ Full tank of gas (just return it full)\n"
             "🛵 2022 model or newer — smooth, reliable rides\n"
             "🎨 Variety of colors and styles\n"
@@ -202,14 +202,14 @@ FAQ_DATA = [
         ),
     },
 
-    # ── ATV DETAILS ──────────────────────────────────────────────
+    # ── ATV DETAILS ──────────────────────────────────────────
     {
         "keywords": ["atv", "cuatrimoto", "quad", "four wheeler", "all terrain"],
         "question": "Tell me about the ATVs",
         "answer": (
             "Our ATVs are perfect for Tulum's roads! 🏍️\n\n"
             "Depending on the model, your rental includes:\n"
-            "🪖 Two helmets\n"
+            "🩖 Two helmets\n"
             "⛽ Full tank of gas\n"
             "🏍️ Powerful 150cc, 180cc or 200cc engine\n"
             "🧳 Rear storage trunk\n"
@@ -226,7 +226,7 @@ FAQ_DATA = [
         "answer": (
             "Same rules as scooters and cars:\n\n"
             "🪪 Valid driver's license required\n"
-            "🪖 Helmets mandatory — no exceptions\n"
+            "🩖 Helmets mandatory — no exceptions\n"
             "🚦 Obey all traffic signs and laws\n"
             "🚫 No drinking and driving\n"
             "👥 Max 2 people per ATV\n"
@@ -235,7 +235,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── OTHER VEHICLES ───────────────────────────────────────────
+    # ── OTHER VEHICLES ───────────────────────────────────────
     {
         "keywords": ["car", "carro", "auto", "coche", "vehicle"],
         "question": "Do you rent cars?",
@@ -264,7 +264,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── REQUIREMENTS ─────────────────────────────────────────────
+    # ── REQUIREMENTS ─────────────────────────────────────────
     {
         "keywords": ["license", "permit", "licencia", "need", "requirement", "requisito", "drive"],
         "question": "Do I need a license to rent?",
@@ -310,7 +310,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── DELIVERY & LOCATION ──────────────────────────────────────
+    # ── DELIVERY & LOCATION ──────────────────────────────────
     {
         "keywords": ["deliver", "delivery", "pickup", "pick up", "entrega", "recoger", "bring"],
         "question": "Do you deliver scooters?",
@@ -350,7 +350,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── HOURS & RETURNS ──────────────────────────────────────────
+    # ── HOURS & RETURNS ──────────────────────────────────────
     {
         "keywords": ["hour", "hours", "open", "close", "time", "horario", "abierto", "when"],
         "question": "What are your hours?",
@@ -384,7 +384,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── EXTEND RENTAL ────────────────────────────────────────────
+    # ── EXTEND RENTAL ────────────────────────────────────────
     {
         "keywords": ["extend", "extension", "more days", "longer", "extender", "más días", "mas dias", "keep it longer", "extra day", "extra days", "one more day", "few more days", "another day", "stay longer", "can i extend", "keep longer", "add days", "additional days", "un día más", "otro día"],
         "question": "What if I need to extend my rental?",
@@ -398,7 +398,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── UPGRADE VEHICLE ───────────────────────────────────────────
+    # ── UPGRADE VEHICLE ───────────────────────────────────────
     {
         "keywords": ["upgrade", "bigger", "larger", "switch up", "better scooter", "better atv",
                      "trade up", "swap for", "change to", "move up", "get an atv", "get a car",
@@ -415,7 +415,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── INSURANCE & SAFETY ───────────────────────────────────────
+    # ── INSURANCE & SAFETY ───────────────────────────────────
     {
         "keywords": ["insurance", "coverage", "insured", "seguro", "cobertura", "protected"],
         "question": "What about insurance?",
@@ -448,12 +448,12 @@ FAQ_DATA = [
         "keywords": ["helmet", "casco", "safety gear"],
         "question": "Do you provide helmets?",
         "answer": (
-            "Yes! Two helmets are included with every rental. 🪖\n\n"
+            "Yes! Two helmets are included with every rental. 🩖\n\n"
             "Helmets are required by law in Tulum. We want you to ride safe!"
         ),
     },
 
-    # ── CANCELLATION ─────────────────────────────────────────────
+    # ── CANCELLATION ─────────────────────────────────────────
     {
         "keywords": ["cancel", "refund", "cancelar", "reembolso", "cancellation", "cancelación"],
         "question": "What's your cancellation policy?",
@@ -467,7 +467,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── FUEL ─────────────────────────────────────────────────────
+    # ── FUEL ─────────────────────────────────────────────────
     {
         "keywords": ["gas", "fuel", "gasoline", "gasolina", "fill", "tank", "tanque"],
         "question": "What's the fuel policy?",
@@ -479,7 +479,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── DRIVING ZONES & RESTRICTIONS ─────────────────────────────
+    # ── DRIVING ZONES & RESTRICTIONS ─────────────────────────
     {
         "keywords": ["sian kaan", "sian ka'an", "biosphere", "biosfera", "reserve"],
         "question": "Can I drive to Sian Ka'an?",
@@ -547,7 +547,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── ISSUES & DAMAGE ──────────────────────────────────────────
+    # ── ISSUES & DAMAGE ──────────────────────────────────────
     {
         "keywords": ["flat tire", "tire", "mechanical", "break down", "llanta", "ponchada", "avería", "problem"],
         "question": "What if I get a flat tire or mechanical issue?",
@@ -605,7 +605,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── MAPS & TIPS ──────────────────────────────────────────────
+    # ── MAPS & TIPS ──────────────────────────────────────────
     {
         "keywords": ["map", "route", "mapa", "ruta", "suggestion", "where to go", "recommend"],
         "question": "Do you provide maps or route suggestions?",
@@ -628,7 +628,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── CLEANING & FEES ──────────────────────────────────────────
+    # ── CLEANING & FEES ──────────────────────────────────────
     {
         "keywords": ["cleaning", "clean", "limpieza", "dirty", "sucio"],
         "question": "Is there a cleaning fee?",
@@ -640,7 +640,7 @@ FAQ_DATA = [
         ),
     },
 
-    # ── CONTRACT HIGHLIGHTS ─────────────────────────────────────────
+    # ── CONTRACT HIGHLIGHTS ───────────────────────────────────
     {
         "keywords": ["new driver", "first time", "beginner", "never driven", "learn", "primera vez", "principiante", "no sé manejar"],
         "question": "Can I rent if I've never driven a scooter?",
@@ -695,7 +695,19 @@ FAQ_DATA = [
         ),
     },
 
-    # ── HUMAN HANDOFF ────────────────────────────────────────────
+    # ── PHOTOS ──────────────────────────────────────────────
+    {
+        "keywords": ["photo", "photos", "picture", "pictures", "pic", "pics", "see", "look like", "imagen", "imagen", "foto", "fotos", "ver", "show me", "what do they look like", "what does it look like"],
+        "question": "Can I see photos of the scooters/ATVs?",
+        "answer": (
+            "Of course! 📸 Check out photos of our scooters and ATVs here:\n"
+            "👉 https://drive.google.com/drive/folders/1sEhjBWvxUTVJoKyKsgFfa1U8gvwBzmbH\n\n"
+            "You can also see photos and book directly on our website:\n"
+            "👉 rentscootertulum.com"
+        ),
+    },
+
+    # ── HUMAN HANDOFF ────────────────────────────────────────
     {
         "keywords": ["human", "person", "real person", "agent", "persona", "humano", "team"],
         "question": "I want to talk to a real person",
@@ -708,7 +720,7 @@ FAQ_DATA = [
 ]
 
 
-# ─── Matching Logic ──────────────────────────────────────────────
+# ─── Matching Logic ──────────────────────────────────────────
 
 def find_best_faq_match(user_message: str, threshold: float = 0.35) -> str | None:
     """
