@@ -172,7 +172,7 @@ def send_whatsapp_message(to_phone, text):
     """Send a text message through the WhatsApp Cloud API."""
     import requests
 
-    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json",
