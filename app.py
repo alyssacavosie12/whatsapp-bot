@@ -1,14 +1,13 @@
 """
-WhatsApp Bot for Rent A Scooter Tulum
-Uses Meta WhatsApp Cloud API + Claude AI for smart client responses.
+WhatsApp Bot for Tulum BTX
+Uses Meta WhatsApp Cloud API + Claude AI for client intake and FAQ responses.
 """
 
 import os
-import json
 import logging
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-from faq import faq_lookup, find_best_faq_match
+from faq import find_best_faq_match
 from ai_responder import get_ai_response
 
 load_dotenv()
@@ -20,9 +19,38 @@ logger = logging.getLogger(__name__)
 # ─── Configuration ───────────────────────────────────────────────
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "my-scooter-bot-token")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "tulum-btx-webhook-token")
 BOT_DISCLOSURE = os.getenv("BOT_DISCLOSURE", "false").lower() == "true"
-TEAM_NOTIFY_PHONE = os.getenv("TEAM_NOTIFY_PHONE", "")  # Your team's WhatsApp number for alerts
+TEAM_NOTIFY_PHONE = os.getenv("TEAM_NOTIFY_PHONE", "")  # Team WhatsApp number for alerts
+GRAPH_API_VERSION = os.getenv("GRAPH_API_VERSION", "v21.0")
+
+APPOINTMENT_KEYWORDS = [
+    "appointment", "book", "booking", "schedule", "available", "availability",
+    "consultation", "reserve", "price", "pricing", "cost", "quote",
+    "cita", "agendar", "reservar", "disponible", "disponibilidad",
+    "consulta", "precio", "cuanto", "cuánto", "cotizacion", "cotización",
+]
+
+SAFETY_KEYWORDS = [
+    "trouble breathing", "difficulty breathing", "can't breathe", "shortness of breath",
+    "difficulty swallowing", "can't swallow", "double vision", "blurred vision",
+    "drooping eyelid", "muscle weakness", "severe swelling", "allergic reaction",
+    "dificultad para respirar", "no puedo respirar", "falta de aire",
+    "dificultad para tragar", "no puedo tragar", "vision doble", "visión doble",
+    "vision borrosa", "visión borrosa", "parpado caido", "párpado caído",
+    "debilidad muscular", "hinchazon severa", "hinchazón severa", "alergia",
+]
+
+HUMAN_HANDOFF_TEXT = (
+    "No problem! A team member will get back to you shortly. "
+    "If this is urgent or you are having severe symptoms, please seek emergency care now."
+)
+
+SAFETY_RESPONSE_TEXT = (
+    "If you are having trouble breathing, trouble swallowing, vision changes, "
+    "severe swelling, or muscle weakness, please seek emergency medical care immediately. "
+    "I have also flagged this for our team so someone can follow up as soon as possible."
+)
 
 # ─── Phone Number Normalization ────────────────────────────────
 def normalize_phone(phone: str) -> str:
@@ -83,6 +111,30 @@ def handle_message():
             incoming_text = message["text"]["body"].strip()
             logger.info(f"Message from {sender_name} ({sender_phone}): {incoming_text}")
 
+            # Handle "HUMAN" before FAQ/AI to avoid duplicate replies
+            if incoming_text.upper() == "HUMAN":
+                send_whatsapp_message(sender_phone, HUMAN_HANDOFF_TEXT)
+                notify_team(
+                    f"HUMAN REQUESTED\n"
+                    f"Customer: {sender_name} ({sender_phone})\n"
+                    f"Please respond to them directly."
+                )
+                logger.info(f"Human handoff requested by {sender_phone}")
+                return jsonify({"status": "ok"}), 200
+
+            msg_lower = incoming_text.lower()
+
+            if any(kw in msg_lower for kw in SAFETY_KEYWORDS):
+                send_whatsapp_message(sender_phone, SAFETY_RESPONSE_TEXT)
+                notify_team(
+                    f"SAFETY FOLLOW-UP\n"
+                    f"Customer: {sender_name} ({sender_phone})\n"
+                    f"Message: {incoming_text}\n\n"
+                    f"Potential urgent post-treatment or medical concern. Follow up ASAP."
+                )
+                logger.info(f"Safety concern flagged by {sender_phone}")
+                return jsonify({"status": "ok"}), 200
+
             # Step 1: Try FAQ match first (fast, no API cost)
             faq_answer = find_best_faq_match(incoming_text)
 
@@ -100,56 +152,25 @@ def handle_message():
 
             send_whatsapp_message(sender_phone, response_text)
 
-            # Check if this is an extension request → notify team
-            extend_keywords = ["extend", "extra day", "more days", "keep it longer",
-                               "another day", "add days", "keep longer", "stay longer",
-                               "extender", "más días", "otro día", "un día más"]
-            upgrade_keywords = ["upgrade", "bigger", "larger", "switch up", "trade up",
-                                "swap for", "change to", "move up", "get an atv", "get a car",
-                                "mejorar", "cambiar a", "más grande", "mas grande"]
-            msg_lower = incoming_text.lower()
-
-            if any(kw in msg_lower for kw in extend_keywords):
+            if any(kw in msg_lower for kw in APPOINTMENT_KEYWORDS):
                 notify_team(
-                    f"🔔 EXTENSION REQUEST\n"
+                    f"APPOINTMENT / PRICING LEAD\n"
                     f"Customer: {sender_name} ({sender_phone})\n"
                     f"Message: {incoming_text}\n\n"
-                    f"→ Send them a pay link with the amount!"
-                )
-
-            if any(kw in msg_lower for kw in upgrade_keywords):
-                notify_team(
-                    f"⬆️ UPGRADE REQUEST\n"
-                    f"Customer: {sender_name} ({sender_phone})\n"
-                    f"Message: {incoming_text}\n\n"
-                    f"→ Check availability and send them the price difference + pay link!"
+                    f"Please follow up with availability, consultation details, and pricing."
                 )
 
         elif message_type in ["image", "document", "audio", "video"]:
             send_whatsapp_message(
                 sender_phone,
-                "Thanks for sending that! For media inquiries, please message us "
-                "directly or email us at info@rentascootertulum.com 🛵"
+                "Thanks for sending that. A team member will review it and reply shortly. "
+                "If this is urgent or you are having severe symptoms, please seek emergency care now."
             )
         else:
             send_whatsapp_message(
                 sender_phone,
-                "Hey! Send us a text message and we'll get right back to you 😊"
+                "Hi! Please send us a text message and we'll help you with Tulum BTX services."
             )
-
-        # Handle "HUMAN" keyword to flag for human takeover
-        if message_type == "text" and message["text"]["body"].strip().upper() == "HUMAN":
-            send_whatsapp_message(
-                sender_phone,
-                "No problem! A team member will get back to you shortly. "
-                "Our hours are 7:30am–11pm (Tulum time). 🙌"
-            )
-            notify_team(
-                f"🙋 HUMAN REQUESTED\n"
-                f"Customer: {sender_name} ({sender_phone})\n"
-                f"→ Please respond to them directly!"
-            )
-            logger.info(f"Human handoff requested by {sender_phone}")
 
     except Exception as e:
         logger.error(f"Error processing message: {e}", exc_info=True)
@@ -172,7 +193,7 @@ def send_whatsapp_message(to_phone, text):
     """Send a text message through the WhatsApp Cloud API."""
     import requests
 
-    url = f"https://graph.facebook.com/v18.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json",
@@ -184,7 +205,11 @@ def send_whatsapp_message(to_phone, text):
         "text": {"body": text},
     }
 
-    response = requests.post(url, headers=headers, json=payload)
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
+    except requests.RequestException as e:
+        logger.error(f"WhatsApp API request failed: {e}", exc_info=True)
+        return None
 
     if response.status_code == 200:
         logger.info(f"Message sent to {to_phone}")
