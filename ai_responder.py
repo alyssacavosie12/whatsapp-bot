@@ -1,306 +1,547 @@
 """
-AI Responder for Rent A Scooter Tulum WhatsApp Bot
+FAQ System for Tulum Botox WhatsApp Bot
 
-When the FAQ system can't answer a question, this module uses the
-Claude API to generate a natural, helpful response based on your
-business context.
+Edit the FAQ_DATA below to add, remove, or update your FAQ entries.
+Each entry has:
+  - keywords: words that trigger this answer (lowercase)
+  - question: the question this answers (for your reference)
+  - answer: what the bot sends back
 
-✏️ Edit BUSINESS_CONTEXT below to match your actual business details!
+The bot uses keyword matching to find the best FAQ. If no FAQ matches
+well enough, it falls back to the AI responder.
 """
 
-import os
-import logging
-import anthropic
-from dotenv import load_dotenv
+# ─── Your FAQ Database ───────────────────────────────────────
+# ✏️ EDIT THIS LIST to customize your bot's answers!
 
-load_dotenv()
-logger = logging.getLogger(__name__)
+FAQ_DATA = [
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    # ── GREETINGS ────────────────────────────────────────────
+    {
+        "keywords": ["hola", "hello", "hi", "hey", "buenos", "buenas", "good morning", "good afternoon", "sup", "what's up", "buen dia", "buen día"],
+        "question": "Greeting",
+        "answer": (
+            "Hey there! 👋 Welcome to Tulum Botox!\n\n"
+            "We're a luxury aesthetic clinic in Tulum specializing in Botox (Dysport), "
+            "dermal fillers, skin rejuvenation, and more. How can we help you? 💉✨\n\n"
+            "📅 Book at: tulumbotox.com\n"
+            "📍 Tulum Centro & Playa del Carmen"
+        ),
+    },
+    {
+        "keywords": ["thank", "thanks", "gracias", "thx", "appreciate", "tysm", "ty"],
+        "question": "Thank you",
+        "answer": (
+            "You're welcome! 😊 We're happy to help!\n\n"
+            "If you have any other questions, just ask. "
+            "We look forward to seeing you at Tulum Botox! 💉🌴"
+        ),
+    },
+    {
+        "keywords": ["español", "spanish", "espanol", "hablan", "inglés", "ingles", "idioma"],
+        "question": "Do you speak Spanish?",
+        "answer": (
+            "¡Claro que sí! Hablamos español e inglés. 🇲🇽🇺🇸\n\n"
+            "Puedes escribirnos en el idioma que prefieras. "
+            "¿En qué te podemos ayudar?\n\n"
+            "Of course! We speak both Spanish and English. Feel free to write in whichever you prefer!"
+        ),
+    },
 
-# ─── Your Business Context ───────────────────────────────────────
-# ✏️ EDIT THIS to give the AI accurate info about your business.
-# The more detail you add, the better the AI responses will be.
+    # ── ABOUT / GENERAL ──────────────────────────────────────
+    {
+        "keywords": ["what is", "about", "who are", "tulum botox", "clinic", "clínica", "sobre", "que es", "qué es"],
+        "question": "What is Tulum Botox?",
+        "answer": (
+            "✨ *Tulum Botox* is a luxury aesthetic clinic in Tulum, Mexico!\n\n"
+            "We specialize in:\n"
+            "• Botox & Dysport neurotoxins\n"
+            "• Dermal fillers (HA, Radiesse, Sculptra, HarmonyCa)\n"
+            "• Skin rejuvenation & facials\n"
+            "• Body contouring\n"
+            "• CO2 laser, threads, rhinomodeling & more!\n\n"
+            "Our internationally trained doctors & nurses have 10+ years of experience. "
+            "We combine medical excellence with a personalized boutique approach. 💎\n\n"
+            "📅 Book: tulumbotox.com\n"
+            "📍 Tulum Centro & Playa del Carmen"
+        ),
+    },
+    {
+        "keywords": ["where", "location", "located", "address", "find you", "directions", "ubicación", "ubicacion", "donde", "dónde", "maps", "google maps"],
+        "question": "Where are you located?",
+        "answer": (
+            "📍 *We're located in Tulum Centro!*\n\n"
+            "Google Maps: https://maps.google.com/?q=20.210726,-87.460243\n\n"
+            "We also have a location in *Playa del Carmen (PDC)*. "
+            "Book through tulumbotox.com to choose the location nearest you!\n\n"
+            "📅 tulumbotox.com"
+        ),
+    },
+    {
+        "keywords": ["hours", "open", "schedule", "when", "horario", "horarios", "hora", "appointment", "cita", "available", "availability"],
+        "question": "What are your hours?",
+        "answer": (
+            "🕐 We're available *by appointment*!\n\n"
+            "Book directly at: tulumbotox.com\n"
+            "Or message us here on WhatsApp: +52-984-156-8826\n\n"
+            "We have appointments available at both our *Tulum* and *Playa del Carmen* locations. "
+            "Check the website for real-time availability!"
+        ),
+    },
+    {
+        "keywords": ["book", "booking", "reserve", "reservation", "appointment", "schedule", "reservar", "reserva", "agendar", "cita"],
+        "question": "How do I book?",
+        "answer": (
+            "📅 *Booking is easy!*\n\n"
+            "👉 Go to: *tulumbotox.com*\n"
+            "Click \"Book Appointment\" to see availability and schedule your treatment!\n\n"
+            "You can also message us directly on WhatsApp and we'll help you find the perfect time. 😊"
+        ),
+    },
+    {
+        "keywords": ["doctor", "nurse", "practitioner", "who performs", "trained", "experience", "médico", "doctor", "enfermera", "quien"],
+        "question": "Who performs the treatments?",
+        "answer": (
+            "👨‍⚕️ All treatments are performed by *internationally trained doctors and nurses* "
+            "with 10+ years of experience.\n\n"
+            "Each practitioner specializes in different treatments and may offer different price points. "
+            "Your safety and results are our top priority! 💎"
+        ),
+    },
+    {
+        "keywords": ["playa del carmen", "pdc", "playa", "other location", "otra ubicación"],
+        "question": "Do you have locations outside Tulum?",
+        "answer": (
+            "Yes! 🗺️ We have treatment hubs across the Riviera Maya:\n\n"
+            "• 📍 *Tulum Centro*\n"
+            "• 📍 *Playa del Carmen (PDC)*\n\n"
+            "Book through tulumbotox.com to choose the location nearest you!"
+        ),
+    },
 
-BUSINESS_CONTEXT = """
-You are the friendly WhatsApp assistant for Rent A Scooter Tulum,
-a scooter, ATV, and car rental business in Tulum, Mexico.
-The owner is Ally Cavosie, originally from New York, who has lived
-in Tulum for over 5 years.
+    # ── SERVICES ─────────────────────────────────────────────
+    {
+        "keywords": ["services", "treatments", "what do you offer", "menu", "servicios", "tratamientos", "que ofrecen", "qué ofrecen", "offerings"],
+        "question": "What services do you offer?",
+        "answer": (
+            "💉 *Tulum Botox Full Treatment Menu:*\n\n"
+            "• Botox & Dysport (neurotoxins)\n"
+            "• Dermal Fillers (HA, Radiesse, Sculptra, HarmonyCa)\n"
+            "• Rhinomodeling (non-surgical nose job)\n"
+            "• Threads\n"
+            "• Stem Cell IV Therapy\n"
+            "• Skin Rejuvenation & Facials\n"
+            "• Body Contouring\n"
+            "• PRP, Micro-Needling, Dermapen\n"
+            "• CO2 Laser\n"
+            "• Tattoo Removal\n"
+            "• Blepharoplasty\n"
+            "• Mole Removal\n"
+            "• ...and more!\n\n"
+            "Visit tulumbotox.com for the full menu and pricing! 🌐"
+        ),
+    },
+    {
+        "keywords": ["botox", "dysport", "neurotoxin", "toxin", "neuromodulator"],
+        "question": "What brand of Botox do you use?",
+        "answer": (
+            "💉 We use *Dysport* — a premium botulinum toxin!\n\n"
+            "With 10+ years of experience, we've found Dysport delivers beautiful, "
+            "natural-looking results that tend to last *longer* than other brands.\n\n"
+            "💰 Price: *135 MXN per unit*\n\n"
+            "The number of units depends on the treatment area. "
+            "Book a free consultation at tulumbotox.com for an exact quote!"
+        ),
+    },
+    {
+        "keywords": ["filler", "fillers", "relleno", "rellenos", "hyaluronic", "ha filler", "juvederm", "allergan"],
+        "question": "What filler brands do you use?",
+        "answer": (
+            "✨ *We use only premium filler brands:*\n\n"
+            "• Hyaluronic Acid (HA) fillers — from 8,900 MXN/CC\n"
+            "• Allergan / Juvederm\n"
+            "• Radiesse (CaHa) — 10,500 MXN\n"
+            "• Sculptra — 17,000 MXN\n"
+            "• HarmonyCa (2 syringes) — 22,000 MXN\n\n"
+            "Each filler suits different areas and goals. "
+            "Your doctor will recommend the best option for you! 💎\n\n"
+            "📅 Book a free consult: tulumbotox.com"
+        ),
+    },
+    {
+        "keywords": ["lip", "lips", "lip filler", "labios", "labio", "lip augmentation"],
+        "question": "How much is lip filler?",
+        "answer": (
+            "💋 *Lip filler starts at 8,900 MXN per CC.*\n\n"
+            "Most lips need 1–2 CC depending on your goals and current volume.\n\n"
+            "Book a free consultation at tulumbotox.com to find out what's best for you! "
+            "Our doctors love creating beautiful, natural-looking lips! 😊"
+        ),
+    },
+    {
+        "keywords": ["rhinomodeling", "nose job", "rhinoplasty", "nose filler", "rhinomodelacion", "rinomodelación", "nariz", "nose"],
+        "question": "How much does rhinomodeling cost?",
+        "answer": (
+            "👃 *Rhinomodeling (non-surgical nose job):*\n\n"
+            "💰 *9,500 MXN*\n\n"
+            "This is a quick, non-invasive procedure that can reshape and refine "
+            "the nose with filler — no surgery needed!\n\n"
+            "📅 Book at tulumbotox.com"
+        ),
+    },
+    {
+        "keywords": ["thread", "threads", "thread lift", "hilos", "hilo", "lifting"],
+        "question": "How much do threads cost?",
+        "answer": (
+            "🧵 *Thread Lift:*\n\n"
+            "💰 *7,500 MXN (4 threads)*\n\n"
+            "For a custom quote based on your specific needs, "
+            "book a free consultation at tulumbotox.com!"
+        ),
+    },
+    {
+        "keywords": ["stem cell", "iv therapy", "células madre", "celulas madre", "regenerative", "iv"],
+        "question": "Do you offer stem cell therapy?",
+        "answer": (
+            "🔬 *Yes! We offer cutting-edge Stem Cell IV Therapy:*\n\n"
+            "• Face: *9,200 MXN*\n"
+            "• IV 50 Million (Body): *28,000 MXN*\n"
+            "• IV 100 Million (Body): *53,500 MXN*\n\n"
+            "These are regenerative treatments that promote healing and rejuvenation from within. "
+            "Book a consultation at tulumbotox.com to learn more!"
+        ),
+    },
+    {
+        "keywords": ["facial", "facials", "hydrafacial", "prp", "micro-needling", "microneedling", "peel", "dermapen", "facial treatment"],
+        "question": "Do you offer facials?",
+        "answer": (
+            "✨ *Yes! Our facial treatments:*\n\n"
+            "• PRP + Facial — 5,500 MXN\n"
+            "• Hydrafacial — 2,000 MXN\n"
+            "• Face Peel — 3,000 MXN\n"
+            "• Luxe Diamond Glow — 3,500 MXN\n"
+            "• Micro-Needling + Facial — 3,700 MXN\n"
+            "• Deep Clean Facial — 2,470 MXN\n"
+            "• Anti-Acne Facial — 3,500 MXN\n"
+            "• Facial Hydration — 2,900 MXN\n"
+            "• Hollywood Peel — 2,990 MXN\n\n"
+            "Visit tulumbotox.com for the full facial menu! 🌐"
+        ),
+    },
+    {
+        "keywords": ["dermapen", "micro needling", "microneedling", "exosomes", "pdrn", "salmon", "vitamin c", "dark spots", "melasma", "manchas"],
+        "question": "How much does dermapen/micro-needling cost?",
+        "answer": (
+            "💉 *Dermapen / Micro-Needling Options:*\n\n"
+            "• Dermapen + Hyaluronic Acid — 4,000 MXN\n"
+            "• Vitamin C (Dark Spots & Melasma) — 4,000 MXN\n"
+            "• PDRN (Luminosity & Rejuvenation) — 6,000 MXN\n"
+            "• Exosomes (Rejuvenation) — 8,900 MXN\n"
+            "• ADN de Salmón Reyuran — 9,500 MXN\n\n"
+            "📅 Book at tulumbotox.com"
+        ),
+    },
+    {
+        "keywords": ["laser", "co2", "co2 laser", "tattoo removal", "tattoo", "tatuaje", "laser treatment", "láser"],
+        "question": "How much does laser treatment cost?",
+        "answer": (
+            "⚡ *CO2 Laser Pricing:*\n\n"
+            "• Small Area — 4,300 MXN\n"
+            "• Medium Area — 9,500 MXN\n"
+            "• Large Area — 19,000 MXN\n\n"
+            "Tattoo Removal & Laser Hair Removal: By consultation.\n\n"
+            "📅 Book a consult at tulumbotox.com"
+        ),
+    },
+    {
+        "keywords": ["body contouring", "booty", "butt", "glutes", "body", "contorno", "glúteos", "cuerpo", "booty volume"],
+        "question": "How much does body contouring cost?",
+        "answer": (
+            "💪 *Body Contouring:*\n\n"
+            "• Booty Volume (6ML HA) — 23,400 MXN\n\n"
+            "Body contouring treatments vary. Book a free consultation at "
+            "tulumbotox.com for a personalized quote!"
+        ),
+    },
+    {
+        "keywords": ["blepharoplasty", "eyelid", "blefaroplastia", "párpados", "eye lift"],
+        "question": "How much is blepharoplasty?",
+        "answer": (
+            "👁️ *Blepharoplasty (Eyelid Rejuvenation):*\n\n"
+            "💰 *4,000 MXN*\n\n"
+            "This treatment rejuvenates the eyelid area for a more refreshed, youthful look. "
+            "Book a consultation at tulumbotox.com!"
+        ),
+    },
+    {
+        "keywords": ["mole", "mole removal", "lunar", "lunares", "remove mole"],
+        "question": "Do you offer mole removal?",
+        "answer": (
+            "Yes! ✅ We offer *mole removal*.\n\n"
+            "Book a consultation at tulumbotox.com so our doctor can evaluate "
+            "the mole and recommend the best removal method for you."
+        ),
+    },
+    {
+        "keywords": ["sculptra", "radiesse", "harmonyca", "harmony ca", "calcium hydroxylapatite", "caha"],
+        "question": "What is Sculptra/Radiesse/HarmonyCa?",
+        "answer": (
+            "💎 *Premium Filler Options:*\n\n"
+            "• *Radiesse (CaHa)* — 10,500 MXN — Calcium hydroxylapatite filler, great for deep volume & collagen stimulation\n"
+            "• *Sculptra* — 17,000 MXN — Poly-L-lactic acid, stimulates your own collagen over time\n"
+            "• *HarmonyCa* (2 syringes) — 22,000 MXN — Hybrid filler combining HA + CaHA for lift and volume\n\n"
+            "Your doctor will recommend the best option for your goals! 📅 tulumbotox.com"
+        ),
+    },
+    {
+        "keywords": ["rha", "juvederm", "allergan", "brand", "what brand", "which brand"],
+        "question": "Do you carry Juvederm / RHA?",
+        "answer": (
+            "We carry *Allergan (Juvederm)* and other premium HA fillers. ✅\n\n"
+            "We do *not* carry RHA at this time.\n\n"
+            "Book a free consultation and we'll recommend the best filler for your goals! "
+            "📅 tulumbotox.com"
+        ),
+    },
+    {
+        "keywords": ["mix filler", "different brands", "had filler", "previous filler", "combinar rellenos", "already have filler"],
+        "question": "Can I mix fillers from different brands?",
+        "answer": (
+            "Generally yes! ✅ Hyaluronic acid (HA) fillers from different brands are compatible.\n\n"
+            "If you've had filler elsewhere recently, we recommend waiting *at least 2 weeks* "
+            "before getting more.\n\n"
+            "Book a free consultation so the doctor can assess and advise you properly. "
+            "📅 tulumbotox.com"
+        ),
+    },
 
-KEY BUSINESS DETAILS:
-- Name: Rent A Scooter Tulum
-- Website: rentscootertulum.com
-- Location: Sur 8, La Veleta (Across from BocaNegra), Tulum, Q.R., Mexico
-- WhatsApp (text): +1 484-293-1003
-- WhatsApp (call): +52 984-156-8826
-- Customer service hours: 7:30 AM – 11:00 PM (Tulum time)
-- Pickup & drop-off: Available 24/7 (at store location)
-- Instagram: @rentascootertulum
-- 1,000+ five-star reviews
-- Native English-speaking team (also speak Spanish)
+    # ── PRICING ──────────────────────────────────────────────
+    {
+        "keywords": ["price", "prices", "cost", "how much", "pricing", "rates", "fee", "precio", "precios", "cuanto", "cuánto", "costo", "tarifa"],
+        "question": "General pricing question",
+        "answer": (
+            "💰 *Tulum Botox — Key Prices:*\n\n"
+            "• Dysport (Botox): *135 MXN/unit*\n"
+            "• HA Filler: *8,900 MXN/CC*\n"
+            "• Rhinomodeling: *9,500 MXN*\n"
+            "• Threads (4): *7,500 MXN*\n"
+            "• Radiesse: *10,500 MXN*\n"
+            "• Sculptra: *17,000 MXN*\n"
+            "• HarmonyCa (2 syringes): *22,000 MXN*\n"
+            "• Hydrafacial: *2,000 MXN*\n"
+            "• CO2 Laser (Small): *4,300 MXN*\n\n"
+            "_All prices in Mexican Pesos (MXN). CC fee: +5%_\n\n"
+            "Full menu at: tulumbotox.com 🌐"
+        ),
+    },
+    {
+        "keywords": ["mxn", "pesos", "currency", "usd", "dollars", "moneda", "divisa"],
+        "question": "Are prices in MXN?",
+        "answer": (
+            "Yes! 💰 All prices are in *Mexican Pesos (MXN)*.\n\n"
+            "We also accept USD cash. Each practitioner may offer different price points. "
+            "Visit tulumbotox.com for the most current pricing!"
+        ),
+    },
+    {
+        "keywords": ["consultation", "free consult", "consulta", "free consultation", "quote", "cotización", "cotizacion"],
+        "question": "Do you offer free consultations?",
+        "answer": (
+            "Yes! 🎉 We offer *free consultations*!\n\n"
+            "Come in with no commitment — our doctors will review your goals "
+            "and recommend the best treatment plan with exact pricing.\n\n"
+            "📅 Book at: tulumbotox.com\n"
+            "📱 WhatsApp: +52-984-156-8826"
+        ),
+    },
 
-VEHICLES OFFERED:
-- Scooters (2022 or newer, various colors/styles, with trunks)
-- ATVs (150cc, 180cc, or 200cc engines, rear storage, emergency gas can)
-- Electric scooters (stand-up)
-- Cars
-- NO buggies
+    # ── PAYMENT ──────────────────────────────────────────────
+    {
+        "keywords": ["payment", "pay", "cash", "credit card", "card", "wise", "transfer", "pago", "tarjeta", "efectivo", "how to pay", "payment methods"],
+        "question": "What payment methods do you accept?",
+        "answer": (
+            "💳 *We accept:*\n\n"
+            "• Credit cards (Visa, Mastercard) — *+5% processing fee*\n"
+            "• Cash (USD or MXN pesos) — *no extra fee* ✅\n"
+            "• Wise / TransferWise — *no extra fee* ✅\n\n"
+            "To avoid the credit card fee, pay with cash or Wise!"
+        ),
+    },
+    {
+        "keywords": ["credit card fee", "5%", "surcharge", "cargo", "cargo tarjeta", "card fee"],
+        "question": "Is there a credit card fee?",
+        "answer": (
+            "Yes, credit card payments have a *5% processing fee*. 💳\n\n"
+            "To avoid the fee, pay with:\n"
+            "• Cash (USD or MXN pesos) ✅\n"
+            "• Wise / TransferWise ✅\n\n"
+            "No extra fees with those payment methods!"
+        ),
+    },
 
-SCOOTER PRICING:
-- 1 day: 700 MXN (~$41/day)
-- 2 days: 600 MXN (~$35/day)
-- 3-6 days: 500 MXN (~$29/day)
-- 7+ days: 400 MXN (~$23/day)
-- 30+ days: 350 MXN (~$20/day)
-- 45+ days: 300 MXN (~$18/day)
+    # ── SAFETY & AFTERCARE ───────────────────────────────────
+    {
+        "keywords": ["safe", "safety", "is it safe", "seguro", "segura", "trust", "trusted", "reliable", "mexico"],
+        "question": "Is it safe to get Botox in Mexico?",
+        "answer": (
+            "Absolutely! ✅ *Yes, it's completely safe at Tulum Botox.*\n\n"
+            "• We use only *premium, regulated products* (Dysport, Allergan, Radiesse, etc.)\n"
+            "• All treatments performed by *internationally trained doctors & nurses*\n"
+            "• *10+ years of experience*\n"
+            "• Medical excellence + boutique personalized experience\n\n"
+            "Your safety is our #1 priority. 💎"
+        ),
+    },
+    {
+        "keywords": ["side effects", "bruising", "swelling", "pain", "efectos secundarios", "hinchazón", "moretones", "dolor", "risk"],
+        "question": "What are the side effects?",
+        "answer": (
+            "Common side effects are minimal:\n\n"
+            "• Minor swelling 💧\n"
+            "• Slight redness\n"
+            "• Occasional bruising\n\n"
+            "These typically resolve within *a few hours to a few days*. "
+            "We'll give you full aftercare instructions after your treatment! 📋"
+        ),
+    },
+    {
+        "keywords": ["hurt", "pain", "painful", "does it hurt", "duele", "dolor", "numbing", "anesthesia"],
+        "question": "Does Botox or filler hurt?",
+        "answer": (
+            "Most clients say it's *very minimal! 😊*\n\n"
+            "We use *topical numbing cream* before all injectable treatments. "
+            "The procedures are very quick — most describe it as a small pinch that's over fast!\n\n"
+            "You're in good hands with our experienced team. 💎"
+        ),
+    },
+    {
+        "keywords": ["fly", "travel", "flight", "airplane", "after treatment", "después", "despues", "travel after", "can i fly"],
+        "question": "Can I fly after getting Botox or filler?",
+        "answer": (
+            "✈️ Yes!\n\n"
+            "• *Botox/Dysport:* You can fly the *same day*!\n"
+            "• *Fillers:* We recommend waiting *24–48 hours* if possible, "
+            "but it's generally safe to travel.\n\n"
+            "_For 24 hours after treatment, avoid:_\n"
+            "• Intense sun exposure ☀️\n"
+            "• Alcohol 🍹\n"
+            "• Strenuous exercise 🏃"
+        ),
+    },
+    {
+        "keywords": ["touch up", "touchup", "retoque", "adjustment", "2 weeks", "follow up"],
+        "question": "What about touch-ups?",
+        "answer": (
+            "Touch-ups are easy! 😊\n\n"
+            "• *Botox/Dysport:* Touch-ups can be done after *2 weeks* if needed\n"
+            "• *Fillers:* Touch-ups recommended at *2 weeks* — this lets the product settle "
+            "so we can fine-tune your results\n\n"
+            "We want you to *love* your look! 💎"
+        ),
+    },
+    {
+        "keywords": ["first visit", "first time", "primera vez", "what to expect", "que esperar", "how does it work", "process", "new client"],
+        "question": "What should I expect on my first visit?",
+        "answer": (
+            "Welcome! 🎉 Here's what to expect on your first visit:\n\n"
+            "1. *Free consultation* — doctor reviews your goals & recommends a treatment plan\n"
+            "2. *Numbing cream* — applied before any injections\n"
+            "3. *Treatment* — quick and precise\n"
+            "4. *Aftercare instructions* — we'll walk you through everything\n\n"
+            "The whole visit usually takes *30–45 minutes*. Easy and relaxed! 😊\n\n"
+            "📅 Book at tulumbotox.com"
+        ),
+    },
 
-DELIVERY PRICING:
-- Centro, La Veleta, Aldea: 200 MXN per way
-- Beach Area till Selina Hotel: 300 MXN per way
-- Past Selina / Past Eufemia toward Jaguar Park: 350 MXN per way
-- Beach Area past Lula Hotel: 400 MXN per way
-- In-store pickup at La Veleta: FREE
-- No delivery inside National Parks
+    # ── BEFORE & AFTER / SOCIAL ──────────────────────────────
+    {
+        "keywords": ["before after", "before and after", "photos", "pictures", "results", "instagram", "social media", "fotos", "antes y después", "antes y despues", "@tulumbotox"],
+        "question": "Can I see before & after photos?",
+        "answer": (
+            "📸 Yes! Check out our before & after photos:\n\n"
+            "👉 Instagram: *@tulumbotox*\n\n"
+            "You can also ask us for photos of specific treatments during your consultation! "
+            "We're proud of our results. ✨"
+        ),
+    },
 
-ATV PRICING:
-- 900 MXN to 2,200 MXN per day depending on rental duration
-- Message us for a fast quote
+    # ── CONTACT ──────────────────────────────────────────────
+    {
+        "keywords": ["contact", "reach", "email", "instagram", "website", "contacto", "contactar", "website", "sitio web"],
+        "question": "How do I contact you?",
+        "answer": (
+            "📱 *Contact Tulum Botox:*\n\n"
+            "• WhatsApp: +52-984-156-8826\n"
+            "• Email: Ally@TulumBotox.com\n"
+            "• Website & Booking: tulumbotox.com\n"
+            "• Instagram: @tulumbotox\n"
+            "• 📍 Tulum Centro & Playa del Carmen"
+        ),
+    },
 
-WHAT'S INCLUDED (SCOOTERS):
-- Two helmets (required by law)
-- Full tank of gas (return it full)
-- 2022 model or newer
-- Trunk for storage
-- Built-in GPS tracker
-- Full insurance (see below)
-
-WHAT'S INCLUDED (ATVs):
-- Two helmets
-- Full tank of gas
-- Powerful 150cc/180cc/200cc engine
-- Rear storage trunk
-- Comfortable back seat or helmet case
-- Emergency gas can
-- Built-in GPS tracker
-- Limited liability insurance (extra coverage available)
-
-PAYMENT:
-- Accepts: Venmo, cash, or credit cards
-- Credit cards have a 5% processing fee
-- Venmo and cash have no extra fees
-- Card on file: Visa or MasterCard ONLY ($0.50 auth charge)
-- NO debit cards, prepaid, Revolut, Wise, or maxed-out cards
-- Alternative without credit card: $250 USD cash deposit OR passport held until return
-- Can pay in USD or MXN (pesos)
-- Can pay at the end of the rental
-
-NO DEPOSIT POLICY (OUR BIGGEST DIFFERENTIATOR):
-- We're the ONLY rental company in Tulum with NO deposits!
-- No passport holds, no cash deposits
-- Just a card on file ($0.50 charge). That's it.
-
-REQUIREMENTS:
-- Valid driver's license (any country, no international or motorcycle license needed)
-- Valid ID or passport
-- Credit or debit card (or alternative deposit)
-- Must be legally old enough to drive
-- Only people listed on the waiver may pick up the vehicle
-- Can add another driver — they just fill out the form
-
-DELIVERY:
-- Deliver to El Centro, Aldea Zama, beach zone (not inside National Parks)
-- NOT inside Jaguar Park or too far on highway
-- NO airport service
-- Delivery and pickup at extra cost
-- Main pickup at store in La Veleta
-
-INSURANCE (SCOOTERS — ALL INCLUDED):
-- Material Damage: covers serious damage (over 10% of value), 10% deductible
-- Accidental Death: up to 50,000 MXN coverage
-- Limited Liability: up to 400,000 MXN for third parties
-- Medical Expenses: up to 20,000 MXN
-- Roadside Assistance: gas delivery, towing, jump-starts, legal guidance
-- Legal & Bail Support
-- Organic Losses: protection for severe injuries
-- GPS Tracker: built-in on every vehicle
-- ATVs come only with limited liability insurance
-- Optional: extra theft and minor incident coverage available
-
-THEFT:
-- All vehicles have GPS trackers
-- Optional theft insurance available (only pay deductible)
-- Without theft insurance, customer is liable for full value
-
-CANCELLATION POLICY:
-- Cancellation >24hrs before: 50% fee
-- Cancellation within 24hrs: 100% charged
-- No refunds for early returns, unused days, or weather
-- Date changes are possible — just let us know
-
-EXTENSION POLICY:
-- Message on WhatsApp ASAP
-- Rate you start with is the rate you keep
-- Extending doesn't unlock a lower daily price
-- Best deal = book more days up front
-
-LATE RETURN FEES:
-- Unapproved late returns: 200 MXN/hr
-- Per-hour rental if requested: 100 MXN/hr
-
-DAMAGE COSTS (COMMON):
-- Broken mirror: 400 MXN
-- Scratched mirror: 800 MXN
-- Broken pedal: 700 MXN
-- Flat tire: 700 MXN
-- Broken yoke: 2,000 MXN
-- Major crash/body damage: 2,000–10,000 MXN
-- Missing helmet/clip: 600 MXN
-- Missing phone holder: 400 MXN
-- Missing AirTag: 800 MXN
-- Missing key: 300–700 MXN
-- Missing plate/circulation card: 6,000 MXN
-- Lock damage/missing: 1,100 MXN
-- Fuel refill: 300 MXN
-- Cleaning (scooter): 200 MXN
-- Cleaning (ATV): 400 MXN
-
-DRIVING ZONES:
-- Tulum town, Aldea Zama, beach zone = OK
-- Gran Cenote = OK (farthest point on Cobá Road — NOTHING past it toward Cobá)
-- Beach road = OK (but NOT on the sand)
-- Sian Ka'an: only 5-7 minutes max into the reserve
-- Dos Ojos cenote: NO (too far on highway)
-- Past the ruins toward Playa del Carmen: NO
-- Past Vesica toward Bacalar: NO
-- No riding outside of Tulum — this includes highways toward Playa del Carmen, Cobá, and Sian Ka'an
-- 5-7 minutes on the highway for local cenotes is OK
-- If scooter breaks down outside Tulum, the customer pays ALL costs even if mechanical
-- Do NOT recommend any cenotes past Gran Cenote toward Cobá, past the ruins toward Playa del Carmen, or past Vesica toward Bacalar
-
-IMPORTANT RULES FROM RENTAL CONTRACT:
-- New driver clause: If customer arrives and can't drive a scooter, they lose 100% of payment. We do NOT rent to new drivers.
-- Max 2 riders per scooter. Infants that can be held = OK as 3rd rider. Larger children NOT permitted.
-- Helmets MUST be worn at all times (police will fine)
-- No alcohol or drugs — police fine for ANY alcohol in your system
-- Only signed persons on the waiver can operate the vehicle
-- Google Maps ONLY — NOT Apple Maps. Google Maps often wrong about one-way streets in Tulum — always follow street signs.
-- Beach road: Watch for police checkpoints. Don't park on main beach road — vehicles get towed.
-- Parking: No parking in front of "E" crossed-out signs, no parking on corners (10m minimum). Always lock the steering wheel.
-- If towed, renter pays all fines/fees (up to 5,000 MXN). Tow retrieval service: 4,000 MXN.
-- Carry driver's license and copy of passport at all times
-- Avoid potholes and puddles (can be deep). Drive slowly on dirt roads.
-- Mechanics cannot enter Jaguar Park — bring vehicle to entrance for assistance
-- Rain delays: If raining during delivery/pickup, we delay until rain stops for safety
-- Sleeping hours: Business offline 11pm-7:30am. After-hours issues = use client portal website.
-
-FINANCIAL TERMS FROM CONTRACT:
-- Cancellation >24hrs before: 50% fee. Within 24hrs: 100% charged. No refunds for early returns, unused days, or weather.
-- Fuel: Return full tank or 315 MXN charge + cost of missing fuel
-- Card on file: Visa or MasterCard ONLY. $0.50 auth charge. NO debit cards, prepaid, Revolut, Wise, or maxed-out cards.
-- No credit card alternative: $250 USD cash deposit OR passport held until return
-- Late fees (approved, per hour): Scooter 100 MXN, ATV 200 MXN, Car 250 MXN. Unapproved = DOUBLE (Scooter 200, ATV 400, Car 500).
-- Rental period = 24 hours from scheduled pickup, regardless of late arrival
-- Extensions: Notify before return time, subject to availability, at original daily rate, paid in advance
-- Cleaning fee: 250 MXN if returned with food/sand/garbage/mud
-- Lost/broken items: Helmet/clip 600 MXN, phone holder 400 MXN, AirTag 800 MXN, license plate/circulation card 6,000 MXN
-- Total liability cap: $1,900 USD for lost/stolen/totaled bikes
-- Loss of use: 400 MXN/day until vehicle repaired (up to 10 days)
-- Negligence fee: $150 USD for not reporting damages or abandoning vehicle
-- Group rentals: All members jointly responsible for unpaid amounts
-
-BOOKING:
-- Book via WhatsApp or through our website: rentscootertulum.com
-- The website shows exact pricing based on dates, vehicle, and delivery location
-- Reservation required (no walk-ins)
-- High season: book 1-2 weeks in advance
-- Pickup is done indoors with A/C (no mosquitoes!)
-
-EXTRAS:
-- Maps and route suggestions provided
-- Tulum on a Budget guide available at tulumonabudget.com
-- Long-term and monthly rentals available (custom quotes)
-
-PHOTOS:
-- Scooter and ATV photos: https://drive.google.com/drive/folders/1sEhjBWvxUTVJoKyKsgFfa1U8gvwBzmbH
-- If someone asks to see what the scooters or ATVs look like, send them the Google Drive photo link above AND/OR the booking website (rentscootertulum.com)
-
-RESPONSE GUIDELINES:
-- Keep responses SHORT (2-4 sentences max for WhatsApp)
-- Be warm, friendly, and casual — like a helpful local friend
-- Use emojis sparingly but naturally (1-2 per message)
-- Answer in the SAME LANGUAGE the customer writes in
-- If you're not sure about something, say you'll check with the team
-- Never make up prices, policies, or promises not listed above
-- If someone asks about something outside our services, politely redirect
-- Encourage bookings naturally without being pushy
-- Emphasize our key differentiators: NO deposits, full insurance, GPS, 24/7, 1,000+ reviews
-- For exact pricing, direct customers to the booking link (rentscootertulum.com) where they can select their dates to see the exact cost
-- You can also give them the general price range as a starting point
-- ALWAYS direct customers to the booking website for exact pricing: rentscootertulum.com
-- The website lets them select dates, vehicle type, and delivery location for precise quotes
-- Push customers to book through the website — it's the easiest way to see exact pricing and reserve
-- When discussing pricing, also mention delivery is available for an extra fee and we offer upgrades (scooter → ATV, etc.)
-"""
+    # ── HUMAN HANDOFF ────────────────────────────────────────
+    {
+        "keywords": ["human", "person", "real person", "agent", "persona", "humano", "team", "talk to someone", "speak to"],
+        "question": "I want to talk to a real person",
+        "answer": (
+            "Of course! 🙌 A team member will get back to you shortly.\n\n"
+            "You can also reach us directly:\n"
+            "📱 WhatsApp: +52-984-156-8826\n"
+            "📧 Email: Ally@TulumBotox.com\n"
+            "📅 Book: tulumbotox.com"
+        ),
+    },
+]
 
 
-def get_ai_response(user_message: str, sender_name: str = "") -> str:
+# ─── Matching Logic ──────────────────────────────────────────
+
+def find_best_faq_match(user_message: str, threshold: float = 0.35) -> str | None:
     """
-    Generate an AI response using Claude for messages the FAQ can't handle.
+    Find the best matching FAQ for a user message.
+    Returns the answer string, or None if no good match found.
+
+    Uses keyword overlap scoring — fast and doesn't need any AI API calls.
     """
-    if not ANTHROPIC_API_KEY:
-        logger.warning("No Anthropic API key set — using fallback response")
-        return (
-            "Thanks for your message! Our team will get back to you shortly. "
-            "In the meantime, feel free to ask about our prices, availability, "
-            "or how to book! 🛵"
-        )
+    message_lower = user_message.lower()
+    message_words = set(message_lower.split())
 
-    try:
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    best_score = 0
+    best_answer = None
 
-        # Add personalization if we have the sender's name
-        personalization = ""
-        if sender_name:
-            personalization = f"\nThe customer's name is {sender_name}. Only use their name occasionally — NOT in every message."
+    for faq in FAQ_DATA:
+        keywords = faq["keywords"]
+        matches = 0
 
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=300,  # Keep responses short for WhatsApp
-            system=BUSINESS_CONTEXT + personalization,
-            messages=[
-                {"role": "user", "content": user_message}
-            ],
-        )
+        for keyword in keywords:
+            # Check for keyword as a substring (handles phrases like "how much")
+            if keyword in message_lower:
+                matches += 1
+            # Also check word-level matches
+            elif keyword in message_words:
+                matches += 1
 
-        response_text = message.content[0].text
+        if len(keywords) > 0:
+            score = matches / len(keywords)
 
-        # Safety: truncate if somehow too long for WhatsApp (max ~4096 chars)
-        if len(response_text) > 1500:
-            response_text = response_text[:1497] + "..."
+            # Boost score if message is short (likely a direct question)
+            if len(message_words) <= 4 and matches > 0:
+                score = min(score * 1.5, 1.0)
 
-        return response_text
+            if score > best_score:
+                best_score = score
+                best_answer = faq["answer"]
 
-    except anthropic.AuthenticationError:
-        logger.error("Invalid Anthropic API key")
-        return _fallback_response()
-    except anthropic.RateLimitError:
-        logger.warning("Anthropic rate limit hit")
-        return _fallback_response()
-    except Exception as e:
-        logger.error(f"AI response error: {e}", exc_info=True)
-        return _fallback_response()
+    if best_score >= threshold:
+        return best_answer
+
+    return None
 
 
-def _fallback_response() -> str:
-    """Friendly fallback when AI is unavailable."""
-    return (
-        "Thanks for reaching out! 😊 Our team will get back to you shortly.\n\n"
-        "In the meantime, here are some quick answers:\n"
-        "• Scooters from 400 MXN/day\n"
-        "• ATVs from 900 MXN/day\n"
-        "• No deposit required!\n"
-        "• Free insurance included\n"
-        "• Open 24/7 for pickup/dropoff\n\n"
-        "Or just ask about pricing, booking, or availability!"
-    )
+def faq_lookup(keyword: str) -> str | None:
+    """Direct keyword lookup — returns the first FAQ that contains the keyword."""
+    keyword_lower = keyword.lower()
+    for faq in FAQ_DATA:
+        if keyword_lower in faq["keywords"]:
+            return faq["answer"]
+    return None
