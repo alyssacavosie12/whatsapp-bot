@@ -21,6 +21,7 @@ from dedup import seen_message
 from faq import find_best_faq_match
 from rate_limit import allow_phone_message
 from settings import (
+    ALLOW_UNSIGNED_WEBHOOKS,
     BOT_DISCLOSURE,
     GRAPH_API_VERSION,
     MAX_CONTENT_LENGTH,
@@ -123,6 +124,13 @@ def summarize_graph_error(response: requests.Response) -> str:
 def verify_meta_signature() -> bool:
     """Verify Meta X-Hub-Signature-256 for POST webhooks. Always required."""
     if not META_APP_SECRET:
+        if ALLOW_UNSIGNED_WEBHOOKS:
+            logger.warning(
+                "META_APP_SECRET is not set; accepting unsigned webhook because "
+                "ALLOW_UNSIGNED_WEBHOOKS=true"
+            )
+            return True
+
         logger.error("META_APP_SECRET is not set; refusing webhook")
         return False
 

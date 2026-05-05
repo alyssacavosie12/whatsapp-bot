@@ -73,6 +73,7 @@ def test_meta_signature_missing_invalid_and_valid(content_file, monkeypatch):
     app_module = _reload_app()
     app_module.app.config["MAX_CONTENT_LENGTH"] = app_module.MAX_CONTENT_LENGTH
     monkeypatch.setattr(app_module, "META_APP_SECRET", SECRET)
+    monkeypatch.setattr(app_module, "ALLOW_UNSIGNED_WEBHOOKS", False)
     monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
 
     client = app_module.app.test_client()
@@ -99,12 +100,26 @@ def test_meta_signature_missing_invalid_and_valid(content_file, monkeypatch):
 def test_meta_signature_without_secret_is_rejected(content_file, monkeypatch):
     app_module = _reload_app()
     monkeypatch.setattr(app_module, "META_APP_SECRET", "")
+    monkeypatch.setattr(app_module, "ALLOW_UNSIGNED_WEBHOOKS", False)
     client = app_module.app.test_client()
 
     body = _body({"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
     response = client.post("/webhook", data=body, headers=_signature_headers(body))
 
     assert response.status_code == 401
+
+
+def test_unsigned_webhooks_can_be_temporarily_allowed(content_file, monkeypatch):
+    app_module = _reload_app()
+    monkeypatch.setattr(app_module, "META_APP_SECRET", "")
+    monkeypatch.setattr(app_module, "ALLOW_UNSIGNED_WEBHOOKS", True)
+    client = app_module.app.test_client()
+
+    body = _body({"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
+    response = client.post("/webhook", data=body, content_type="application/json")
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "no messages"
 
 
 def test_verify_token_compare_digest_and_empty_token(content_file, monkeypatch):

@@ -38,6 +38,7 @@ VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "tulum-btx-bot-token").strip()
 GRAPH_API_VERSION = os.getenv("GRAPH_API_VERSION", "v21.0").strip()
 
 META_APP_SECRET = os.getenv("META_APP_SECRET", "").strip()
+ALLOW_UNSIGNED_WEBHOOKS = _env_bool("ALLOW_UNSIGNED_WEBHOOKS", default=False)
 MAX_CONTENT_LENGTH = _env_int("MAX_CONTENT_LENGTH", 65536)
 MAX_INCOMING_TEXT_CHARS = _env_int("MAX_INCOMING_TEXT_CHARS", 4000)
 
