@@ -3,11 +3,11 @@
   "responses": {
     "media_response": {
       "en": "Thanks for sending that! 📸 Our team will take a look and get back to you. For booking, visit www.tulumbotox.com/book or WhatsApp us at +52 984 105 0808.",
-      "es": "¡Gracias por enviarlo! 📸 Nuestro equipo lo revisará y te responderá. Para reservas, visita tulumbotox.com o escríbenos al +52 984 105 0808."
+      "es": "¡Gracias por enviarlo! 📸 Nuestro equipo lo revisará y te responderá. Para reservas, visita www.tulumbotox.com/book o escríbenos al +52 984 105 0808."
     },
     "unknown_message": {
-      "en": "Hi! Please send a text message and we'll be happy to help. You can also book directly at tulumbotox.com 💉",
-      "es": "¡Hola! Por favor envía un mensaje de texto y con gusto te ayudaremos. También puedes reservar directamente en tulumbotox.com 💉"
+      "en": "Hi! Please send a text message and we'll be happy to help. You can also book directly at www.tulumbotox.com/book 💉",
+      "es": "¡Hola! Por favor envía un mensaje de texto y con gusto te ayudaremos. También puedes reservar directamente en www.tulumbotox.com/book 💉"
     },
     "human_handoff": {
       "en": "I'll connect you with our team right away!\n📱 WhatsApp: +52 984 105 0808\n📧 Email: Ally@TulumBotox.com\n🌐 Book online: www.tulumbotox.com/book",
@@ -21,7 +21,7 @@
   "faq": [
     {
       "category": "General",
-      "question": "What is Tulum Botox / Tulum Botox?",
+      "question": "What is Tulum Botox?",
       "answer_en": "Tulum Botox is a luxury aesthetic clinic in Tulum, Mexico specializing in Botox, dermal fillers, skin rejuvenation, body contouring, and more. We have internationally trained physicians with 10+ years of experience and a boutique, personalized approach to beauty.",
       "answer_es": "Tulum Botox es una clínica estética de lujo en Tulum, México especializada en Botox, rellenos dérmicos, rejuvenecimiento de piel, contorno corporal y más. Contamos con médicos con formación internacional y más de 10 años de experiencia.",
       "keywords": [
@@ -69,8 +69,8 @@
     {
       "category": "General",
       "question": "How do I book an appointment?",
-      "answer_en": "Book directly on our website at tulumbotox.com — click \"Book Appointment\" to see availability and schedule your treatment! 📅",
-      "answer_es": "¡Reserva directamente en tulumbotox.com — haz clic en \"Reservar Cita\" para ver disponibilidad y agendar tu tratamiento! 📅",
+      "answer_en": "Book directly at www.tulumbotox.com/book — select your treatment, pick a time, and you're all set! 📅",
+      "answer_es": "¡Reserva directamente en www.tulumbotox.com/book — selecciona tu tratamiento, elige un horario y listo! 📅",
       "keywords": [
         "book",
         "booking",
@@ -113,8 +113,8 @@
     {
       "category": "General",
       "question": "What are your hours?",
-      "answer_en": "We're available by appointment. Book through our website tulumbotox.com or message us on WhatsApp at +52 984 105 0808.",
-      "answer_es": "Estamos disponibles con cita previa. Reserva en tulumbotox.com o escríbenos por WhatsApp al +52 984 105 0808.",
+      "answer_en": "We're available by appointment. Book through our website www.tulumbotox.com/book or message us on WhatsApp at +52 984 105 0808.",
+      "answer_es": "Estamos disponibles con cita previa. Reserva en www.tulumbotox.com/book o escríbenos por WhatsApp al +52 984 105 0808.",
       "keywords": [
         "hours",
         "open",
@@ -133,8 +133,8 @@
     {
       "category": "General",
       "question": "Do you offer free consultations?",
-      "answer_en": "Yes! We offer free consultations — no commitment required. Book at tulumbotox.com or message us on WhatsApp. 😊",
-      "answer_es": "¡Sí! Ofrecemos consultas gratuitas, sin compromiso. Reserva en tulumbotox.com o escríbenos por WhatsApp. 😊",
+      "answer_en": "Yes! We offer free consultations — no commitment required. Book at www.tulumbotox.com/book or message us on WhatsApp. 😊",
+      "answer_es": "¡Sí! Ofrecemos consultas gratuitas, sin compromiso. Reserva en www.tulumbotox.com/book o escríbenos por WhatsApp. 😊",
       "keywords": [
         "free consultation",
         "consultation",
@@ -150,8 +150,8 @@
     {
       "category": "General",
       "question": "Do you have locations outside Tulum?",
-      "answer_en": "Yes! We also serve Playa del Carmen (PDC) in the Riviera Maya. Book through tulumbotox.com for the location nearest you.",
-      "answer_es": "¡Sí! También atendemos en Playa del Carmen (PDC) en la Riviera Maya. Reserva en tulumbotox.com para la ubicación más cercana.",
+      "answer_en": "Yes! We also serve Playa del Carmen (PDC) in the Riviera Maya. Book through www.tulumbotox.com/book for the location nearest you.",
+      "answer_es": "¡Sí! También atendemos en Playa del Carmen (PDC) en la Riviera Maya. Reserva en www.tulumbotox.com/book para la ubicación más cercana.",
       "keywords": [
         "playa del carmen",
         "pdc",
@@ -259,8 +259,8 @@
     {
       "category": "Services",
       "question": "What fillers do you offer?",
-      "answer_en": "We offer Juvederm (HA filler), Radiesse (CaHA), Sculptra (collagen biostimulator), and HarmonyCa (hybrid filler). Each works differently and is suited to different goals. Book a free consultation at tulumbotox.com to find the right one for you!",
-      "answer_es": "Ofrecemos Juvederm (relleno HA), Radiesse (CaHA), Sculptra (bioestimulador de colágeno) y HarmonyCa (relleno híbrido). Cada uno funciona diferente y es ideal para distintos objetivos. ¡Reserva una consulta gratuita en tulumbotox.com para encontrar el adecuado para ti!",
+      "answer_en": "We offer Juvederm (HA filler), Radiesse (CaHA), Sculptra (collagen biostimulator), and HarmonyCa (hybrid filler). Each works differently and is suited to different goals. Book a free consultation at www.tulumbotox.com/book to find the right one for you!",
+      "answer_es": "Ofrecemos Juvederm (relleno HA), Radiesse (CaHA), Sculptra (bioestimulador de colágeno) y HarmonyCa (relleno híbrido). Cada uno funciona diferente y es ideal para distintos objetivos. ¡Reserva una consulta gratuita en www.tulumbotox.com/book para encontrar el adecuado para ti!",
       "keywords": [
         "what fillers",
         "filler options",
@@ -474,8 +474,8 @@
     {
       "category": "Services",
       "question": "Do you offer mole removal?",
-      "answer_en": "Yes! We offer mole removal. Book a consultation at tulumbotox.com so our doctor can evaluate the mole and recommend the best approach for you.",
-      "answer_es": "¡Sí! Ofrecemos eliminación de lunares. Reserva una consulta en tulumbotox.com para que nuestro médico evalúe el lunar y recomiende el mejor método.",
+      "answer_en": "Yes! We offer mole removal. Book a consultation at www.tulumbotox.com/book so our doctor can evaluate the mole and recommend the best approach for you.",
+      "answer_es": "¡Sí! Ofrecemos eliminación de lunares. Reserva una consulta en www.tulumbotox.com/book para que nuestro médico evalúe el lunar y recomiende el mejor método.",
       "keywords": [
         "mole",
         "mole removal",
@@ -547,8 +547,8 @@
     {
       "category": "Pricing",
       "question": "How much do fillers cost?",
-      "answer_en": "Filler prices depend on the type: Juvederm (HA) starts at 8,900 MXN/CC. For Radiesse, Sculptra, or HarmonyCa pricing, visit tulumbotox.com or book a free consultation — we'll recommend the right option for you!",
-      "answer_es": "Los precios de rellenos dependen del tipo: Juvederm (HA) comienza en 8,900 MXN/CC. Para precios de Radiesse, Sculptra o HarmonyCa, visita tulumbotox.com o reserva una consulta gratuita.",
+      "answer_en": "Filler prices depend on the type: Juvederm (HA) starts at 8,900 MXN/CC. For Radiesse, Sculptra, or HarmonyCa pricing, visit www.tulumbotox.com/book or book a free consultation — we'll recommend the right option for you!",
+      "answer_es": "Los precios de rellenos dependen del tipo: Juvederm (HA) comienza en 8,900 MXN/CC. Para precios de Radiesse, Sculptra o HarmonyCa, visita www.tulumbotox.com/book o reserva una consulta gratuita.",
       "keywords": [
         "filler price",
         "filler cost",
@@ -579,8 +579,8 @@
     {
       "category": "Pricing",
       "question": "How much do threads cost?",
-      "answer_en": "PDO threads (4) are 7,500 MXN. Book a consultation at tulumbotox.com for a custom quote based on your needs!",
-      "answer_es": "Los hilos PDO (4) cuestan 7,500 MXN. ¡Reserva una consulta en tulumbotox.com para una cotización personalizada!",
+      "answer_en": "PDO threads (4) are 7,500 MXN. Book a consultation at www.tulumbotox.com/book for a custom quote based on your needs!",
+      "answer_es": "Los hilos PDO (4) cuestan 7,500 MXN. ¡Reserva una consulta en www.tulumbotox.com/book para una cotización personalizada!",
       "keywords": [
         "threads price",
         "thread lift price",
@@ -625,8 +625,8 @@
     {
       "category": "Pricing",
       "question": "Are prices in MXN or USD?",
-      "answer_en": "All prices are in Mexican Pesos (MXN). We accept cash in USD or MXN, credit cards (5% fee), and Wise/TransferWise. Visit tulumbotox.com for current pricing.",
-      "answer_es": "Todos los precios son en Pesos Mexicanos (MXN). Aceptamos efectivo en USD o MXN, tarjetas de crédito (cargo del 5%) y Wise/TransferWise. Visita tulumbotox.com para precios actuales.",
+      "answer_en": "All prices are in Mexican Pesos (MXN). We accept cash in USD or MXN, credit cards (5% fee), and Wise/TransferWise. Visit www.tulumbotox.com/book for current pricing.",
+      "answer_es": "Todos los precios son en Pesos Mexicanos (MXN). Aceptamos efectivo en USD o MXN, tarjetas de crédito (cargo del 5%) y Wise/TransferWise. Visita www.tulumbotox.com/book para precios actuales.",
       "keywords": [
         "currency",
         "pesos",
@@ -763,8 +763,8 @@
     {
       "category": "Contact",
       "question": "How do I contact you?",
-      "answer_en": "📱 WhatsApp: +52 984 105 0808\n📧 Email: Ally@TulumBotox.com\n🌐 Book online: tulumbotox.com\n📸 Instagram: @tulumbotox",
-      "answer_es": "📱 WhatsApp: +52 984 105 0808\n📧 Email: Ally@TulumBotox.com\n🌐 Reserva en línea: tulumbotox.com\n📸 Instagram: @tulumbotox",
+      "answer_en": "📱 WhatsApp: +52 984 105 0808\n📧 Email: Ally@TulumBotox.com\n🌐 Book: www.tulumbotox.com/book\n🌐 Website: www.tulumbotox.com\n📸 Instagram: @tulumbotox",
+      "answer_es": "📱 WhatsApp: +52 984 105 0808\n📧 Email: Ally@TulumBotox.com\n🌐 Reservas: www.tulumbotox.com/book\n🌐 Sitio web: www.tulumbotox.com\n📸 Instagram: @tulumbotox",
       "keywords": [
         "contact",
         "reach",
