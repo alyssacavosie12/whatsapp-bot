@@ -1,757 +1,326 @@
 {
-  "business_context": "You are the friendly WhatsApp assistant for Tulum BTX / Tulum Botox, a luxury aesthetic clinic in Tulum and Playa del Carmen, Mexico.\n\nUse ONLY the information in this file and the FAQ data when answering. Never mention Rent A Scooter Tulum, scooters, ATVs, car rentals, vehicle deposits, helmets, driving zones, delivery, or vehicle policies.\n\nBranding:\n- Approved WhatsApp display name: Tulum BTX\n- Customers may call the business Tulum Botox\n- Website & booking: tulumbotox.com\n- Location: Tulum Centro\n- Also in: Playa del Carmen\n- Google Maps: https://maps.google.com/?q=20.210726,-87.460243\n- WhatsApp: +52-984-156-8826\n- Email: Ally@TulumBotox.com\n- Instagram: @tulumbotox\n\nKey products/prices:\n- Dysport: 135 MXN/unit\n- HA Filler: 8,900 MXN/CC\n- Allergan/Juvederm\n- Radiesse\n- Sculptra\n- HarmonyCa\n- Credit card fee: 5%\n\nResponse rules:\n- Keep WhatsApp replies short, usually 2–4 sentences.\n- Answer in the same language as the customer.\n- Be warm, polished, friendly, and professional.\n- Use emojis sparingly and naturally.\n- For availability and booking, direct customers to tulumbotox.com.\n- For exact treatment recommendations, exact unit counts, medical suitability, pregnancy/breastfeeding/allergy questions, contraindications, complications, or diagnosis, tell the customer to book a consultation with the clinic’s medical provider.\n- Do not guarantee results.\n- Do not invent prices, treatments, policies, locations, or medical advice.\n\nMaster FAQ reference:\n- Category: General\n  Question: What is Tulum Botox?\n  English answer: Tulum Botox is a luxury aesthetic clinic in Tulum, Mexico specializing in Botox (Dysport), dermal fillers, skin rejuvenation, body contouring, and more. We combine the expertise of internationally trained physicians with a personalized, boutique approach to beauty. 10+ years of experience.\n  Spanish answer: Tulum Botox es una clínica estética de lujo en Tulum, México especializada en Botox (Dysport), rellenos dérmicos, rejuvenecimiento de piel, contorno corporal y más. Combinamos la experiencia de médicos con formación internacional con un enfoque personalizado y boutique de la belleza. 10+ años de experiencia.\n- Category: General\n  Question: Where are you located?\n  English answer: We’re located in Tulum Centro. Find us on Google Maps: https://maps.google.com/?q=20.210726,-87.460243  We also have locations in Playa del Carmen (PDC).\n  Spanish answer: Estamos ubicados en el Centro de Tulum. Encuéntranos en Google Maps: https://maps.google.com/?q=20.210726,-87.460243  También tenemos ubicaciones en Playa del Carmen (PDC).\n- Category: General\n  Question: How do I book an appointment?\n  English answer: Book directly through our website: tulumbotox.com — click “Book Appointment” to see availability and schedule your treatment!\n  Spanish answer: ¡Reserva directamente en nuestro sitio web: tulumbotox.com — haz clic en “Reservar Cita” para ver disponibilidad y programar tu tratamiento!\n- Category: General\n  Question: Who performs the treatments?\n  English answer: All treatments are performed by internationally trained doctors and nurses. Each practitioner specializes in different treatments and may offer different price points.\n  Spanish answer: Todos los tratamientos son realizados por médicos y enfermeras con formación internacional. Cada profesional se especializa en diferentes tratamientos y puede ofrecer diferentes precios.\n- Category: General\n  Question: What are your hours?\n  English answer: We’re available by appointment. Book through our website tulumbotox.com or message us on WhatsApp at +52-984-156-8826. PDC & Tulum locations available.\n  Spanish answer: Estamos disponibles con cita previa. Reserva en nuestro sitio web tulumbotox.com o escríbenos por WhatsApp al +52-984-156-8826. Ubicaciones en PDC y Tulum disponibles.\n- Category: General\n  Question: Do you have locations outside Tulum?\n  English answer: Yes! We have treatment hubs across the Riviera Maya including Playa del Carmen (PDC) and Tulum. Book through tulumbotox.com for the location nearest you.\n  Spanish answer: ¡Sí! Tenemos centros de tratamiento en la Riviera Maya incluyendo Playa del Carmen (PDC) y Tulum. Reserva en tulumbotox.com para la ubicación más cercana.\n- Category: Services\n  Question: What services do you offer?\n  English answer: We offer a full range of aesthetic treatments: Botox & Neurotoxins (Dysport), Dermal Fillers (HA, Radiesse, Sculptra, HarmonyCa), Rhinomodeling, Threads, Stem Cell IV Therapy, Skin Rejuvenation, Body Contouring, Facials (PRP, Micro-Needling, Dermapen, Peels), CO2 Laser, Tattoo Removal, Blepharoplasty, and more! Visit tulumbotox.com for the full treatment menu.\n  Spanish answer: Ofrecemos una gama completa de tratamientos estéticos: Botox y Neurotoxinas (Dysport), Rellenos Dérmicos (HA, Radiesse, Sculptra, HarmonyCa), Rinomodelación, Hilos, Terapia IV con Células Madre, Rejuvenecimiento de Piel, Contorno Corporal, Faciales (PRP, Micro-Needling, Dermapen, Peelings), Láser CO2, Eliminación de Tatuajes, Blefaroplastia y más. ¡Visita tulumbotox.com para ver el menú completo!\n- Category: Services\n  Question: What brand of Botox do you use?\n  English answer: We use Dysport, a premium botulinum toxin. With 10+ years of experience, we’ve found Dysport delivers beautiful, natural-looking results that tend to last longer than other brands.\n  Spanish answer: Usamos Dysport, una toxina botulínica premium. Con más de 10 años de experiencia, hemos encontrado que Dysport ofrece resultados hermosos y naturales que tienden a durar más que otras marcas.\n- Category: Services\n  Question: What filler brands do you use?\n  English answer: We use premium hyaluronic acid (HA) fillers, Allergan (Juvederm), Radiesse (CaHa filler), Sculptra, and HarmonyCa. Each filler is suited to different areas and goals. Fillers start at 8,900 MXN per CC. Your practitioner will recommend the best option for you.\n  Spanish answer: Usamos rellenos premium de ácido hialurónico (HA), Allergan (Juvederm), Radiesse (relleno CaHa), Sculptra y HarmonyCa. Cada relleno es adecuado para diferentes áreas y objetivos. Los rellenos comienzan en 8,900 MXN por CC. Tu profesional te recomendará la mejor opción.\n- Category: Services\n  Question: Do you offer stem cell therapy?\n  English answer: Yes! We offer Stem Cell IV Therapy: Face (9,200 MXN), IV 50 Mill Body (28,000 MXN), and IV 100 Mill Body (53,500 MXN). These are cutting-edge regenerative treatments.\n  Spanish answer: ¡Sí! Ofrecemos Terapia IV con Células Madre: Cara (9,200 MXN), IV 50 Mill Cuerpo (28,000 MXN), e IV 100 Mill Cuerpo (53,500 MXN). Son tratamientos regenerativos de última generación.\n- Category: Services\n  Question: Do you do facials?\n  English answer: Yes! We offer many facial treatments: PRP + Facial (5,500 MXN), Hydrafacial (2,000 MXN), Face Peel (3,000 MXN), Luxe Diamond Glow (3,500 MXN), Micro-Needling + Facial (3,700 MXN), and more. Visit tulumbotox.com for the full list!\n  Spanish answer: ¡Sí! Ofrecemos muchos tratamientos faciales: PRP + Facial (5,500 MXN), Hydrafacial (2,000 MXN), Face Peel (3,000 MXN), Luxe Diamond Glow (3,500 MXN), Micro-Needling + Facial (3,700 MXN), y más. ¡Visita tulumbotox.com para la lista completa!\n- Category: Pricing\n  Question: How much does Botox/Dysport cost?\n  English answer: Dysport is 135 MXN per unit. The number of units depends on the treatment area. Book a consultation through tulumbotox.com for an exact quote!\n  Spanish answer: Dysport cuesta 135 MXN por unidad. El número de unidades depende del área de tratamiento. ¡Reserva una consulta en tulumbotox.com para una cotización exacta!\n- Category: Pricing\n  Question: How much do fillers cost?\n  English answer: HA Filler: 8,900 MXN per CC | Radiesse (CaHa): 10,500 MXN | Sculptra: 17,000 MXN | HarmonyCa (2 syringes): 22,000 MXN | Filler Face Lift: By Consult. Visit tulumbotox.com for full pricing.\n  Spanish answer: Relleno HA: 8,900 MXN por CC | Radiesse (CaHa): 10,500 MXN | Sculptra: 17,000 MXN | HarmonyCa (2 jeringas): 22,000 MXN | Face Lift con Relleno: Por Consulta. Visita tulumbotox.com para precios completos.\n- Category: Pricing\n  Question: How much does rhinomodeling cost?\n  English answer: Rhinomodeling (non-surgical nose job) is 9,500 MXN. Book through tulumbotox.com!\n  Spanish answer: La rinomodelación (rinoplastia no quirúrgica) cuesta 9,500 MXN. ¡Reserva en tulumbotox.com!\n- Category: Pricing\n  Question: How much do threads cost?\n  English answer: Threads (4) are 7,500 MXN. For a custom quote based on your needs, book a consultation at tulumbotox.com.\n  Spanish answer: Los hilos (4) cuestan 7,500 MXN. Para una cotización personalizada, reserva una consulta en tulumbotox.com.\n- Category: Pricing\n  Question: How much does body contouring cost?\n  English answer: Booty Volume (6ML HA): 23,400 MXN. Body contouring treatments vary — book a consultation at tulumbotox.com for a personalized quote.\n  Spanish answer: Volumen Glúteos (6ML HA): 23,400 MXN. Los tratamientos de contorno corporal varían — reserva una consulta en tulumbotox.com para una cotización personalizada.\n- Category: Pricing\n  Question: How much do laser treatments cost?\n  English answer: CO2 Laser: Small Area 4,300 MXN | Medium Area 9,500 MXN | Large Area 19,000 MXN. Tattoo Removal & Laser Hair Removal: By Consult. Book at tulumbotox.com.\n  Spanish answer: Láser CO2: Área Pequeña 4,300 MXN | Área Mediana 9,500 MXN | Área Grande 19,000 MXN. Eliminación de Tatuajes y Depilación Láser: Por Consulta. Reserva en tulumbotox.com.\n- Category: Pricing\n  Question: How much do facials/skin treatments cost?\n  English answer: Hydrafacial: 2,000 MXN | Hollywood Peel: 2,990 MXN | Microdermabrasion: 2,340 MXN (5 sessions: 7,800 MXN) | Deep Clean Facial: 2,470 MXN | Anti-Acne Facial: 3,500 MXN | Facial Hydration: 2,900 MXN | Blepharoplasty: 4,000 MXN. Full menu at tulumbotox.com.\n  Spanish answer: Hydrafacial: 2,000 MXN | Hollywood Peel: 2,990 MXN | Microdermabrasión: 2,340 MXN (5 sesiones: 7,800 MXN) | Limpieza Facial Profunda: 2,470 MXN | Facial Anti-Acné: 3,500 MXN | Hidratación Facial: 2,900 MXN | Blefaroplastia: 4,000 MXN. Menú completo en tulumbotox.com.\n- Category: Pricing\n  Question: How much does dermapen/micro-needling cost?\n  English answer: Dermapen with Hyaluronic Acid: 4,000 MXN | Vitamin C (Dark Spots & Melasma): 4,000 MXN | PDRN (Luminosity & Rejuvenation): 6,000 MXN | Exosomes (Rejuvenation): 8,900 MXN | ADN de Salmon Reyuran: 9,500 MXN.\n  Spanish answer: Dermapen con Ácido Hialurónico: 4,000 MXN | Vitamina C (Manchas Oscuras y Melasma): 4,000 MXN | PDRN (Luminosidad y Rejuvenecimiento): 6,000 MXN | Exosomas (Rejuvenecimiento): 8,900 MXN | ADN de Salmón Reyuran: 9,500 MXN.\n- Category: Pricing\n  Question: Are all prices in MXN?\n  English answer: Yes, all prices are in Mexican Pesos (MXN). Each practitioner may offer different price points. Visit tulumbotox.com for the most current pricing.\n  Spanish answer: Sí, todos los precios son en Pesos Mexicanos (MXN). Cada profesional puede ofrecer diferentes precios. Visita tulumbotox.com para los precios más actuales.\n- Category: Pricing\n  Question: Do you offer consultations?\n  English answer: Yes! Book a free consultation through our website tulumbotox.com. We’ll recommend the best treatment plan and give you exact pricing.\n  Spanish answer: ¡Sí! Reserva una consulta gratuita en nuestro sitio web tulumbotox.com. Te recomendaremos el mejor plan de tratamiento con precios exactos.\n- Category: Payment\n  Question: What payment methods do you accept?\n  English answer: We accept credit cards, cash (USD or MXN pesos), and Wise/TransferWise. Credit cards have a 5% processing fee. Cash and Wise have no extra fees.\n  Spanish answer: Aceptamos tarjetas de crédito, efectivo (USD o MXN pesos) y Wise/TransferWise. Las tarjetas de crédito tienen un cargo del 5% por procesamiento. Efectivo y Wise no tienen cargos extra.\n- Category: Payment\n  Question: Is there a credit card fee?\n  English answer: Yes, credit card payments have a 5% processing fee. To avoid the fee, pay with cash (USD or MXN) or via Wise/TransferWise.\n  Spanish answer: Sí, los pagos con tarjeta de crédito tienen un cargo del 5% por procesamiento. Para evitar el cargo, paga en efectivo (USD o MXN) o mediante Wise/TransferWise.\n- Category: Safety\n  Question: Is it safe to get Botox in Mexico?\n  English answer: Absolutely! We use only premium, regulated products (Dysport) and trusted filler brands. Our internationally trained doctors and nurses have 10+ years of experience. We combine medical excellence with an intimate, boutique experience.\n  Spanish answer: ¡Absolutamente! Usamos solo productos premium y regulados (Dysport) y marcas de relleno confiables. Nuestros médicos y enfermeras con formación internacional tienen 10+ años de experiencia. Combinamos excelencia médica con una experiencia íntima y boutique.\n- Category: Safety\n  Question: What are the side effects?\n  English answer: Common side effects include minor swelling, redness, or bruising at injection sites. These typically resolve within a few hours to a few days. We’ll give you full aftercare instructions.\n  Spanish answer: Los efectos secundarios comunes incluyen hinchazón menor, enrojecimiento o moretones en los sitios de inyección. Estos generalmente se resuelven en unas horas a unos días. Te daremos instrucciones completas de cuidado posterior.\n- Category: Contact\n  Question: How do I contact you?\n  English answer: Book through our website: tulumbotox.com | WhatsApp: +52-984-156-8826 | Email: Ally@TulumBotox.com\n  Spanish answer: Reserva en nuestro sitio web: tulumbotox.com | WhatsApp: +52-984-156-8826 | Email: Ally@TulumBotox.com\n- Category: Contact\n  Question: Website & booking\n  English answer: tulumbotox.com — Book your appointment directly on our website for the easiest experience!\n  Spanish answer: tulumbotox.com — ¡Reserva tu cita directamente en nuestro sitio web para la experiencia más fácil!\n- Category: Contact\n  Question: Social media\n  English answer: Follow us on Instagram @tulumbotox for before & after photos, treatment info, and updates!\n  Spanish answer: ¡Síguenos en Instagram @tulumbotox para fotos de antes y después, info de tratamientos y novedades!\n- Category: Services\n  Question: Do you offer mole removal?\n  English answer: Yes! We offer mole removal. Book a consultation at tulumbotox.com so our doctor can evaluate the mole and recommend the best removal method for you.\n  Spanish answer: ¡Sí! Ofrecemos eliminación de lunares. Reserva una consulta en tulumbotox.com para que nuestro médico evalúe el lunar y recomiende el mejor método de eliminación.\n- Category: Services\n  Question: Can I mix fillers from different brands?\n  English answer: Yes, hyaluronic acid (HA) fillers from different brands are generally compatible. If you’ve had filler elsewhere recently, we recommend waiting at least 2 weeks before getting more. Book a free consultation so the doctor can assess and advise.\n  Spanish answer: Sí, los rellenos de ácido hialurónico (HA) de diferentes marcas generalmente son compatibles. Si te pusiste relleno recientemente en otro lugar, recomendamos esperar al menos 2 semanas. Reserva una consulta gratuita para que el médico evalúe y aconseje.\n- Category: Services\n  Question: Do you carry Juvederm / RHA?\n  English answer: We carry Allergan (Juvederm) and other premium HA fillers. We do not carry RHA at this time. Book a free consult and we’ll recommend the best filler for your goals!\n  Spanish answer: Tenemos Allergan (Juvederm) y otros rellenos HA premium. No tenemos RHA en este momento. ¡Reserva una consulta gratuita y te recomendaremos el mejor relleno para tus objetivos!\n- Category: Pricing\n  Question: How much is lip filler?\n  English answer: Lip filler starts at 8,900 MXN per CC. Most lips need 1–2 CC depending on your goals. Book a free consultation at tulumbotox.com to find out what’s best for you!\n  Spanish answer: El relleno de labios comienza en 8,900 MXN por CC. La mayoría de los labios necesitan 1–2 CC dependiendo de tus objetivos. ¡Reserva una consulta gratuita en tulumbotox.com para saber qué es lo mejor para ti!\n- Category: General\n  Question: Do you offer free consultations?\n  English answer: Yes! We offer free consultations. Come in and talk about your options with no commitment. Book at tulumbotox.com or message us on WhatsApp.\n  Spanish answer: ¡Sí! Ofrecemos consultas gratuitas. Ven a hablar de tus opciones sin compromiso. Reserva en tulumbotox.com o escríbenos por WhatsApp.\n- Category: General\n  Question: Can I see before & after photos?\n  English answer: Yes! Check out our Instagram @tulumbotox for before & after photos. You can also ask us for photos of specific treatments during your consultation.\n  Spanish answer: ¡Sí! Mira nuestro Instagram @tulumbotox para fotos de antes y después. También puedes pedirnos fotos de tratamientos específicos durante tu consulta.\n- Category: Safety\n  Question: Does Botox or filler hurt?\n  English answer: We use topical numbing cream before all injectable treatments, and the procedures are very quick. Most clients describe the discomfort as minimal — a small pinch that’s over fast!\n  Spanish answer: Usamos crema anestésica tópica antes de todos los tratamientos inyectables, y los procedimientos son muy rápidos. La mayoría de los clientes describen la molestia como mínima — ¡un pequeño pinchazo que pasa rápido!\n- Category: Safety\n  Question: Can I fly after getting Botox or filler?\n  English answer: Yes! You can fly the same day after Botox. For fillers, we recommend waiting 24–48 hours if possible, but it’s generally safe to travel. Avoid intense sun, alcohol, and strenuous exercise for 24 hours after treatment.\n  Spanish answer: ¡Sí! Puedes volar el mismo día después del Botox. Para rellenos, recomendamos esperar 24–48 horas si es posible, pero generalmente es seguro viajar. Evita sol intenso, alcohol y ejercicio intenso por 24 horas después del tratamiento.\n- Category: General\n  Question: What should I expect on my first visit?\n  English answer: First, you’ll have a free consultation where the doctor reviews your goals and recommends a treatment plan. Then we apply numbing cream, perform the treatment, and go over aftercare. The whole visit usually takes about 30–45 minutes. Easy and relaxed!\n  Spanish answer: Primero, tendrás una consulta gratuita donde el médico revisará tus objetivos y recomendará un plan de tratamiento. Luego aplicamos crema anestésica, realizamos el tratamiento y repasamos los cuidados posteriores. Toda la visita suele durar unos 30–45 minutos. ¡Fácil y relajado!\n- Category: Safety\n  Question: What about touch-ups?\n  English answer: Botox touch-ups can be done after 2 weeks if needed. Filler touch-ups are also recommended at 2 weeks — this lets the product settle so we can fine-tune your results. We want you to love your look!\n  Spanish answer: Los retoques de Botox se pueden hacer después de 2 semanas si es necesario. Los retoques de relleno también se recomiendan a las 2 semanas — esto permite que el producto se asiente para perfeccionar tus resultados. ¡Queremos que ames tu look!",
+  "business_context": "You are the friendly WhatsApp assistant for Tulum BTX / Tulum Botox, a luxury aesthetic clinic in Tulum and Playa del Carmen, Mexico. Use ONLY the information in this file and the FAQ data when answering. Never mention Rent A Scooter Tulum, scooters, ATVs, car rentals, vehicle deposits, helmets, driving zones, delivery, or vehicle policies.\n\nBranding:\n- Approved WhatsApp display name: Tulum BTX\n- Customers may call the business Tulum Botox\n- Website & booking: tulumbotox.com (direct customers to the booking page on the website to schedule)\n- Location: Tulum Centro\n- Also in: Playa del Carmen (PDC)\n- Google Maps: https://maps.google.com/?q=20.210726,-87.460243\n- WhatsApp: +52-984-156-8826\n- Email: Ally@TulumBotox.com\n- Instagram: @tulumbotox\n\nKEY PRODUCT FACTS (industry-accurate, do not confuse these):\n\nNEUROTOXINS (Botox category):\n- Dysport: made by Galderma. 135 MXN per unit. Botulinum toxin type A.\n- Allergan Botox (onabotulinumtoxinA): made by Allergan/AbbVie. Pricing by consultation.\n- Both Dysport and Allergan Botox are NEUROTOXINS used for Botox treatments — they are NOT fillers.\n\nDERMAL FILLERS (HA-based):\n- Juvederm: HA (hyaluronic acid) filler made by Allergan/AbbVie. Starts at 8,900 MXN/CC.\n- NOTE: Allergan makes BOTH Botox (neurotoxin) AND Juvederm (HA filler). They are different product lines.\n\nBIOSTIMULATORY / HYBRID INJECTABLES:\n- Radiesse: CaHA (calcium hydroxylapatite) filler/biostimulator made by Merz. Provides immediate volume + stimulates collagen. 10,500 MXN.\n- Sculptra: poly-L-lactic acid (PLLA) COLLAGEN BIOSTIMULATOR — NOT a traditional filler. Gradually stimulates the body's own collagen production over weeks/months. Results last up to 2 years. 17,000 MXN.\n- HarmonyCa: hybrid filler by Allergan combining HA (immediate volume) + CaHA microspheres (long-term collagen). 22,000 MXN for 2 syringes.\n\nKEY TREATMENT DISTINCTIONS:\n- CO2 Laser = ablative skin RESURFACING treatment. Targets wrinkles, scars, texture, pigmentation. Requires up to 2 weeks recovery. It is COMPLETELY DIFFERENT from laser hair removal.\n- Laser Hair Removal = separate service using non-ablative laser technology to reduce hair. Priced by consultation.\n- Rhinomodeling = non-surgical nose reshaping using HA filler injections. No surgery required.\n- PDO Threads = thread lift using polydioxanone threads. Lifts sagging skin and stimulates collagen. NOT surgical.\n- Blepharoplasty = eyelid treatment. 4,000 MXN.\n- PRP Facial = platelet-rich plasma facial treatment. Uses patient's own blood platelets.\n- Dermapen/Micro-Needling = uses fine needles to stimulate collagen; often combined with serums.\n- Stem Cell IV Therapy = regenerative IV treatment.\n\nKey prices:\n- Dysport: 135 MXN/unit\n- Allergan Botox: by consultation\n- Juvederm HA Filler: 8,900 MXN/CC\n- Credit card fee: 5%\n\nResponse rules:\n- Keep WhatsApp replies SHORT — 2 to 3 sentences only.\n- Answer in the same language as the customer.\n- Be warm, polished, friendly, and professional.\n- Use emojis sparingly.\n- If a customer asks about ONE specific product or treatment, answer only about that product — do not bring in other products unprompted.\n- If a customer explicitly asks for a comparison or full list (e.g. \"what fillers do you have?\", \"what services do you offer?\"), give a brief overview of the options and direct them to tulumbotox.com for full details.\n- Never give unsolicited price menus. If someone asks about one thing, answer that one thing.\n- For booking and full pricing, always direct to the booking page at tulumbotox.com.\n- Never guarantee results. Never invent prices, treatments, or medical advice.\n- For medical questions (pregnancy, allergies, contraindications, complications), tell the customer to book a consultation.",
+
   "responses": {
     "media_response": {
-      "en": "Thanks for sending that! 😊 A team member will review it and get back to you shortly.",
-      "es": "¡Gracias por enviarlo! 😊 Un miembro del equipo lo revisará y te responderá pronto."
+      "en": "Thanks for sending that! 📸 Our team will take a look and get back to you. For booking, visit tulumbotox.com or WhatsApp us at +52-984-156-8826.",
+      "es": "¡Gracias por enviarlo! 📸 Nuestro equipo lo revisará y te responderá. Para reservas, visita tulumbotox.com o escríbenos al +52-984-156-8826."
     },
     "unknown_message": {
-      "en": "Hey! Please send us a text message and we’ll get right back to you 😊",
-      "es": "¡Hola! Envíanos un mensaje de texto y te responderemos pronto 😊"
+      "en": "Hi! Please send a text message and we'll be happy to help. You can also book directly at tulumbotox.com 💉",
+      "es": "¡Hola! Por favor envía un mensaje de texto y con gusto te ayudaremos. También puedes reservar directamente en tulumbotox.com 💉"
     },
     "human_handoff": {
-      "en": "Of course! 🙌 A team member will get back to you shortly.\n\nYou can also reach us directly:\n📱 WhatsApp: +52-984-156-8826\n📧 Email: Ally@TulumBotox.com\n📅 Book: tulumbotox.com",
-      "es": "¡Claro! 🙌 Un miembro del equipo te responderá pronto.\n\nTambién puedes contactarnos directamente:\n📱 WhatsApp: +52-984-156-8826\n📧 Email: Ally@TulumBotox.com\n📅 Reserva: tulumbotox.com"
+      "en": "I'll connect you with our team right away!\n📱 WhatsApp: +52-984-156-8826\n📧 Email: Ally@TulumBotox.com\n🌐 Book online: tulumbotox.com",
+      "es": "¡Te conecto con nuestro equipo ahora mismo!\n📱 WhatsApp: +52-984-156-8826\n📧 Email: Ally@TulumBotox.com\n🌐 Reserva en línea: tulumbotox.com"
     },
     "ai_fallback": {
-      "en": "Thanks for reaching out to Tulum BTX! 😊 Our team will get back to you shortly.\n\nYou can ask about Dysport, fillers, facials, pricing, locations, or booking. You can also book directly at tulumbotox.com.",
-      "es": "¡Gracias por contactar a Tulum BTX! 😊 Nuestro equipo te responderá pronto.\n\nPuedes preguntar sobre Dysport, rellenos, faciales, precios, ubicaciones o reservas. También puedes reservar directamente en tulumbotox.com."
+      "en": "Thanks for reaching out to Tulum BTX! 😊 You can ask about Botox, fillers, facials, pricing, or booking. To schedule an appointment, visit our booking page at tulumbotox.com!",
+      "es": "¡Gracias por contactar a Tulum BTX! 😊 Puedes preguntar sobre Botox, rellenos, faciales, precios o reservas. Para agendar una cita, visita tulumbotox.com."
     }
   },
+
   "faq": [
     {
       "category": "General",
-      "question": "What is Tulum Botox?",
-      "answer_en": "Tulum Botox is a luxury aesthetic clinic in Tulum, Mexico specializing in Botox (Dysport), dermal fillers, skin rejuvenation, body contouring, and more. We combine the expertise of internationally trained physicians with a personalized, boutique approach to beauty. 10+ years of experience.",
-      "answer_es": "Tulum Botox es una clínica estética de lujo en Tulum, México especializada en Botox (Dysport), rellenos dérmicos, rejuvenecimiento de piel, contorno corporal y más. Combinamos la experiencia de médicos con formación internacional con un enfoque personalizado y boutique de la belleza. 10+ años de experiencia.",
-      "keywords": [
-        "hello",
-        "hi",
-        "hey",
-        "hola",
-        "buenos",
-        "buenas",
-        "buen dia",
-        "buen día",
-        "what is",
-        "about",
-        "who are",
-        "tulum botox",
-        "tulum btx",
-        "clinic",
-        "clínica",
-        "sobre",
-        "que es",
-        "qué es",
-        "tulum",
-        "botox"
-      ]
+      "question": "What is Tulum Botox / Tulum BTX?",
+      "answer_en": "Tulum Botox is a luxury aesthetic clinic in Tulum, Mexico specializing in Botox, dermal fillers, skin rejuvenation, body contouring, and more. We have internationally trained physicians with 10+ years of experience and a boutique, personalized approach to beauty.",
+      "answer_es": "Tulum Botox es una clínica estética de lujo en Tulum, México especializada en Botox, rellenos dérmicos, rejuvenecimiento de piel, contorno corporal y más. Contamos con médicos con formación internacional y más de 10 años de experiencia.",
+      "keywords": ["what is", "tulum botox", "tulum btx", "about", "clinic", "who are you", "tell me about", "qué es", "quiénes son", "hola", "hi", "hello", "hey", "buenas", "buenos dias", "good morning"]
     },
     {
       "category": "General",
       "question": "Where are you located?",
-      "answer_en": "We’re located in Tulum Centro. Find us on Google Maps: https://maps.google.com/?q=20.210726,-87.460243  We also have locations in Playa del Carmen (PDC).",
-      "answer_es": "Estamos ubicados en el Centro de Tulum. Encuéntranos en Google Maps: https://maps.google.com/?q=20.210726,-87.460243  También tenemos ubicaciones en Playa del Carmen (PDC).",
-      "keywords": [
-        "where",
-        "location",
-        "located",
-        "address",
-        "find you",
-        "directions",
-        "maps",
-        "google maps",
-        "ubicacion",
-        "ubicación",
-        "donde",
-        "dónde",
-        "dirección",
-        "direccion"
-      ]
+      "answer_en": "We're in Tulum Centro. Find us on Google Maps: https://maps.google.com/?q=20.210726,-87.460243 — We also serve Playa del Carmen (PDC). Book at tulumbotox.com! 📍",
+      "answer_es": "Estamos en el Centro de Tulum. Encuéntranos en Google Maps: https://maps.google.com/?q=20.210726,-87.460243 — También atendemos en Playa del Carmen (PDC). ¡Reserva en tulumbotox.com! 📍",
+      "keywords": ["where", "location", "located", "address", "directions", "find you", "map", "tulum centro", "playa del carmen", "pdc", "dónde", "ubicación", "dirección", "cómo llegar", "riviera maya"]
     },
     {
       "category": "General",
       "question": "How do I book an appointment?",
-      "answer_en": "Book directly through our website: tulumbotox.com — click “Book Appointment” to see availability and schedule your treatment!",
-      "answer_es": "¡Reserva directamente en nuestro sitio web: tulumbotox.com — haz clic en “Reservar Cita” para ver disponibilidad y programar tu tratamiento!",
-      "keywords": [
-        "book",
-        "booking",
-        "appointment",
-        "schedule",
-        "reserve",
-        "reservation",
-        "cita",
-        "agendar",
-        "reservar",
-        "reserva",
-        "how to book"
-      ]
+      "answer_en": "Book directly on our website at tulumbotox.com — click \"Book Appointment\" to see availability and schedule your treatment! 📅",
+      "answer_es": "¡Reserva directamente en tulumbotox.com — haz clic en \"Reservar Cita\" para ver disponibilidad y agendar tu tratamiento! 📅",
+      "keywords": ["book", "booking", "appointment", "schedule", "reserve", "availability", "cita", "reservar", "agendar", "disponibilidad", "how to book", "make appointment", "i want to book", "can i book", "como reservo", "quiero reservar"]
     },
     {
       "category": "General",
       "question": "Who performs the treatments?",
-      "answer_en": "All treatments are performed by internationally trained doctors and nurses. Each practitioner specializes in different treatments and may offer different price points.",
-      "answer_es": "Todos los tratamientos son realizados por médicos y enfermeras con formación internacional. Cada profesional se especializa en diferentes tratamientos y puede ofrecer diferentes precios.",
-      "keywords": [
-        "doctor",
-        "nurse",
-        "practitioner",
-        "who performs",
-        "trained",
-        "experience",
-        "médico",
-        "medico",
-        "enfermera",
-        "quien",
-        "quién",
-        "who",
-        "performs",
-        "treatments"
-      ]
+      "answer_en": "All treatments are performed by internationally trained doctors and nurses with 10+ years of experience. Each practitioner specializes in specific treatments.",
+      "answer_es": "Todos los tratamientos son realizados por médicos y enfermeras con formación internacional y más de 10 años de experiencia. Cada profesional se especializa en tratamientos específicos.",
+      "keywords": ["who", "doctor", "nurse", "provider", "practitioner", "staff", "trained", "médico", "enfermera", "quién realiza", "profesional", "quien atiende"]
     },
     {
       "category": "General",
       "question": "What are your hours?",
-      "answer_en": "We’re available by appointment. Book through our website tulumbotox.com or message us on WhatsApp at +52-984-156-8826. PDC & Tulum locations available.",
-      "answer_es": "Estamos disponibles con cita previa. Reserva en nuestro sitio web tulumbotox.com o escríbenos por WhatsApp al +52-984-156-8826. Ubicaciones en PDC y Tulum disponibles.",
-      "keywords": [
-        "hours",
-        "open",
-        "schedule",
-        "when",
-        "available",
-        "availability",
-        "horario",
-        "horarios",
-        "abierto",
-        "hora"
-      ]
-    },
-    {
-      "category": "General",
-      "question": "Do you have locations outside Tulum?",
-      "answer_en": "Yes! We have treatment hubs across the Riviera Maya including Playa del Carmen (PDC) and Tulum. Book through tulumbotox.com for the location nearest you.",
-      "answer_es": "¡Sí! Tenemos centros de tratamiento en la Riviera Maya incluyendo Playa del Carmen (PDC) y Tulum. Reserva en tulumbotox.com para la ubicación más cercana.",
-      "keywords": [
-        "playa del carmen",
-        "pdc",
-        "outside tulum",
-        "other location",
-        "locations",
-        "otra ubicación",
-        "otra ubicacion",
-        "playa",
-        "have",
-        "outside",
-        "tulum"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "What services do you offer?",
-      "answer_en": "We offer a full range of aesthetic treatments: Botox & Neurotoxins (Dysport), Dermal Fillers (HA, Radiesse, Sculptra, HarmonyCa), Rhinomodeling, Threads, Stem Cell IV Therapy, Skin Rejuvenation, Body Contouring, Facials (PRP, Micro-Needling, Dermapen, Peels), CO2 Laser, Tattoo Removal, Blepharoplasty, and more! Visit tulumbotox.com for the full treatment menu.",
-      "answer_es": "Ofrecemos una gama completa de tratamientos estéticos: Botox y Neurotoxinas (Dysport), Rellenos Dérmicos (HA, Radiesse, Sculptra, HarmonyCa), Rinomodelación, Hilos, Terapia IV con Células Madre, Rejuvenecimiento de Piel, Contorno Corporal, Faciales (PRP, Micro-Needling, Dermapen, Peelings), Láser CO2, Eliminación de Tatuajes, Blefaroplastia y más. ¡Visita tulumbotox.com para ver el menú completo!",
-      "keywords": [
-        "services",
-        "treatments",
-        "what do you offer",
-        "menu",
-        "service menu",
-        "servicios",
-        "tratamientos",
-        "que ofrecen",
-        "qué ofrecen",
-        "ofrecen",
-        "offer"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "What brand of Botox do you use?",
-      "answer_en": "We use Dysport, a premium botulinum toxin. With 10+ years of experience, we’ve found Dysport delivers beautiful, natural-looking results that tend to last longer than other brands.",
-      "answer_es": "Usamos Dysport, una toxina botulínica premium. Con más de 10 años de experiencia, hemos encontrado que Dysport ofrece resultados hermosos y naturales que tienden a durar más que otras marcas.",
-      "keywords": [
-        "botox",
-        "dysport",
-        "neurotoxin",
-        "neurotoxins",
-        "toxin",
-        "brand of botox",
-        "toxina",
-        "qué marca",
-        "que marca",
-        "brand",
-        "use"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "What filler brands do you use?",
-      "answer_en": "We use premium hyaluronic acid (HA) fillers, Allergan (Juvederm), Radiesse (CaHa filler), Sculptra, and HarmonyCa. Each filler is suited to different areas and goals. Fillers start at 8,900 MXN per CC. Your practitioner will recommend the best option for you.",
-      "answer_es": "Usamos rellenos premium de ácido hialurónico (HA), Allergan (Juvederm), Radiesse (relleno CaHa), Sculptra y HarmonyCa. Cada relleno es adecuado para diferentes áreas y objetivos. Los rellenos comienzan en 8,900 MXN por CC. Tu profesional te recomendará la mejor opción.",
-      "keywords": [
-        "filler brands",
-        "filler",
-        "fillers",
-        "relleno",
-        "rellenos",
-        "hyaluronic",
-        "ha filler",
-        "juvederm",
-        "allergan",
-        "radiesse",
-        "sculptra",
-        "harmonyca",
-        "brands",
-        "use"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "Do you offer stem cell therapy?",
-      "answer_en": "Yes! We offer Stem Cell IV Therapy: Face (9,200 MXN), IV 50 Mill Body (28,000 MXN), and IV 100 Mill Body (53,500 MXN). These are cutting-edge regenerative treatments.",
-      "answer_es": "¡Sí! Ofrecemos Terapia IV con Células Madre: Cara (9,200 MXN), IV 50 Mill Cuerpo (28,000 MXN), e IV 100 Mill Cuerpo (53,500 MXN). Son tratamientos regenerativos de última generación.",
-      "keywords": [
-        "stem cell",
-        "stem cells",
-        "iv therapy",
-        "células madre",
-        "celulas madre",
-        "regenerative",
-        "iv",
-        "offer",
-        "stem",
-        "cell",
-        "therapy"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "Do you do facials?",
-      "answer_en": "Yes! We offer many facial treatments: PRP + Facial (5,500 MXN), Hydrafacial (2,000 MXN), Face Peel (3,000 MXN), Luxe Diamond Glow (3,500 MXN), Micro-Needling + Facial (3,700 MXN), and more. Visit tulumbotox.com for the full list!",
-      "answer_es": "¡Sí! Ofrecemos muchos tratamientos faciales: PRP + Facial (5,500 MXN), Hydrafacial (2,000 MXN), Face Peel (3,000 MXN), Luxe Diamond Glow (3,500 MXN), Micro-Needling + Facial (3,700 MXN), y más. ¡Visita tulumbotox.com para la lista completa!",
-      "keywords": [
-        "facial",
-        "facials",
-        "hydrafacial",
-        "prp",
-        "peel",
-        "facial treatment",
-        "faciales",
-        "limpieza facial"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much does Botox/Dysport cost?",
-      "answer_en": "Dysport is 135 MXN per unit. The number of units depends on the treatment area. Book a consultation through tulumbotox.com for an exact quote!",
-      "answer_es": "Dysport cuesta 135 MXN por unidad. El número de unidades depende del área de tratamiento. ¡Reserva una consulta en tulumbotox.com para una cotización exacta!",
-      "keywords": [
-        "botox cost",
-        "botox price",
-        "dysport cost",
-        "dysport price",
-        "how much botox",
-        "how much dysport",
-        "units",
-        "unit",
-        "precio botox",
-        "precio dysport",
-        "cuánto botox",
-        "cuanto botox",
-        "botox",
-        "dysport",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much do fillers cost?",
-      "answer_en": "HA Filler: 8,900 MXN per CC | Radiesse (CaHa): 10,500 MXN | Sculptra: 17,000 MXN | HarmonyCa (2 syringes): 22,000 MXN | Filler Face Lift: By Consult. Visit tulumbotox.com for full pricing.",
-      "answer_es": "Relleno HA: 8,900 MXN por CC | Radiesse (CaHa): 10,500 MXN | Sculptra: 17,000 MXN | HarmonyCa (2 jeringas): 22,000 MXN | Face Lift con Relleno: Por Consulta. Visita tulumbotox.com para precios completos.",
-      "keywords": [
-        "filler cost",
-        "filler price",
-        "fillers cost",
-        "fillers price",
-        "how much filler",
-        "ha filler",
-        "radiesse price",
-        "sculptra price",
-        "harmonyca price",
-        "precio relleno",
-        "cuánto relleno",
-        "cuanto relleno",
-        "fillers",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much does rhinomodeling cost?",
-      "answer_en": "Rhinomodeling (non-surgical nose job) is 9,500 MXN. Book through tulumbotox.com!",
-      "answer_es": "La rinomodelación (rinoplastia no quirúrgica) cuesta 9,500 MXN. ¡Reserva en tulumbotox.com!",
-      "keywords": [
-        "rhinomodeling",
-        "rhinoplasty",
-        "nose job",
-        "nose filler",
-        "rinomodelación",
-        "rinomodelacion",
-        "nariz",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much do threads cost?",
-      "answer_en": "Threads (4) are 7,500 MXN. For a custom quote based on your needs, book a consultation at tulumbotox.com.",
-      "answer_es": "Los hilos (4) cuestan 7,500 MXN. Para una cotización personalizada, reserva una consulta en tulumbotox.com.",
-      "keywords": [
-        "thread",
-        "threads",
-        "thread lift",
-        "hilos",
-        "hilo",
-        "lifting",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much does body contouring cost?",
-      "answer_en": "Booty Volume (6ML HA): 23,400 MXN. Body contouring treatments vary — book a consultation at tulumbotox.com for a personalized quote.",
-      "answer_es": "Volumen Glúteos (6ML HA): 23,400 MXN. Los tratamientos de contorno corporal varían — reserva una consulta en tulumbotox.com para una cotización personalizada.",
-      "keywords": [
-        "body contouring",
-        "booty",
-        "butt",
-        "glutes",
-        "body",
-        "contorno",
-        "glúteos",
-        "gluteos",
-        "cuerpo",
-        "booty volume",
-        "contouring",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much do laser treatments cost?",
-      "answer_en": "CO2 Laser: Small Area 4,300 MXN | Medium Area 9,500 MXN | Large Area 19,000 MXN. Tattoo Removal & Laser Hair Removal: By Consult. Book at tulumbotox.com.",
-      "answer_es": "Láser CO2: Área Pequeña 4,300 MXN | Área Mediana 9,500 MXN | Área Grande 19,000 MXN. Eliminación de Tatuajes y Depilación Láser: Por Consulta. Reserva en tulumbotox.com.",
-      "keywords": [
-        "laser",
-        "co2",
-        "co2 laser",
-        "tattoo removal",
-        "tattoo",
-        "hair removal",
-        "láser",
-        "laser hair",
-        "tatuaje",
-        "treatments",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much do facials/skin treatments cost?",
-      "answer_en": "Hydrafacial: 2,000 MXN | Hollywood Peel: 2,990 MXN | Microdermabrasion: 2,340 MXN (5 sessions: 7,800 MXN) | Deep Clean Facial: 2,470 MXN | Anti-Acne Facial: 3,500 MXN | Facial Hydration: 2,900 MXN | Blepharoplasty: 4,000 MXN. Full menu at tulumbotox.com.",
-      "answer_es": "Hydrafacial: 2,000 MXN | Hollywood Peel: 2,990 MXN | Microdermabrasión: 2,340 MXN (5 sesiones: 7,800 MXN) | Limpieza Facial Profunda: 2,470 MXN | Facial Anti-Acné: 3,500 MXN | Hidratación Facial: 2,900 MXN | Blefaroplastia: 4,000 MXN. Menú completo en tulumbotox.com.",
-      "keywords": [
-        "facial cost",
-        "facial price",
-        "skin treatment",
-        "hydrafacial price",
-        "hollywood peel",
-        "microdermabrasion",
-        "deep clean",
-        "anti acne",
-        "facial hydration",
-        "blepharoplasty",
-        "precio facial",
-        "facials",
-        "skin",
-        "treatments",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much does dermapen/micro-needling cost?",
-      "answer_en": "Dermapen with Hyaluronic Acid: 4,000 MXN | Vitamin C (Dark Spots & Melasma): 4,000 MXN | PDRN (Luminosity & Rejuvenation): 6,000 MXN | Exosomes (Rejuvenation): 8,900 MXN | ADN de Salmon Reyuran: 9,500 MXN.",
-      "answer_es": "Dermapen con Ácido Hialurónico: 4,000 MXN | Vitamina C (Manchas Oscuras y Melasma): 4,000 MXN | PDRN (Luminosidad y Rejuvenecimiento): 6,000 MXN | Exosomas (Rejuvenecimiento): 8,900 MXN | ADN de Salmón Reyuran: 9,500 MXN.",
-      "keywords": [
-        "dermapen",
-        "micro needling",
-        "microneedling",
-        "micro-needling",
-        "exosomes",
-        "pdrn",
-        "salmon",
-        "vitamin c",
-        "dark spots",
-        "melasma",
-        "manchas",
-        "micro",
-        "needling",
-        "cost"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "Are all prices in MXN?",
-      "answer_en": "Yes, all prices are in Mexican Pesos (MXN). Each practitioner may offer different price points. Visit tulumbotox.com for the most current pricing.",
-      "answer_es": "Sí, todos los precios son en Pesos Mexicanos (MXN). Cada profesional puede ofrecer diferentes precios. Visita tulumbotox.com para los precios más actuales.",
-      "keywords": [
-        "mxn",
-        "pesos",
-        "currency",
-        "usd",
-        "dollars",
-        "moneda",
-        "divisa",
-        "prices in",
-        "all",
-        "prices"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "Do you offer consultations?",
-      "answer_en": "Yes! Book a free consultation through our website tulumbotox.com. We’ll recommend the best treatment plan and give you exact pricing.",
-      "answer_es": "¡Sí! Reserva una consulta gratuita en nuestro sitio web tulumbotox.com. Te recomendaremos el mejor plan de tratamiento con precios exactos.",
-      "keywords": [
-        "consultation",
-        "consult",
-        "free consult",
-        "consulta",
-        "consultas",
-        "quote",
-        "cotización",
-        "cotizacion",
-        "offer",
-        "consultations"
-      ]
-    },
-    {
-      "category": "Payment",
-      "question": "What payment methods do you accept?",
-      "answer_en": "We accept credit cards, cash (USD or MXN pesos), and Wise/TransferWise. Credit cards have a 5% processing fee. Cash and Wise have no extra fees.",
-      "answer_es": "Aceptamos tarjetas de crédito, efectivo (USD o MXN pesos) y Wise/TransferWise. Las tarjetas de crédito tienen un cargo del 5% por procesamiento. Efectivo y Wise no tienen cargos extra.",
-      "keywords": [
-        "payment",
-        "pay",
-        "cash",
-        "credit card",
-        "card",
-        "wise",
-        "transfer",
-        "pago",
-        "tarjeta",
-        "efectivo",
-        "payment methods",
-        "methods",
-        "accept"
-      ]
-    },
-    {
-      "category": "Payment",
-      "question": "Is there a credit card fee?",
-      "answer_en": "Yes, credit card payments have a 5% processing fee. To avoid the fee, pay with cash (USD or MXN) or via Wise/TransferWise.",
-      "answer_es": "Sí, los pagos con tarjeta de crédito tienen un cargo del 5% por procesamiento. Para evitar el cargo, paga en efectivo (USD o MXN) o mediante Wise/TransferWise.",
-      "keywords": [
-        "credit card fee",
-        "5%",
-        "processing fee",
-        "surcharge",
-        "cargo",
-        "cargo tarjeta",
-        "card fee",
-        "comisión",
-        "comision",
-        "there",
-        "credit",
-        "card",
-        "fee"
-      ]
-    },
-    {
-      "category": "Safety",
-      "question": "Is it safe to get Botox in Mexico?",
-      "answer_en": "Absolutely! We use only premium, regulated products (Dysport) and trusted filler brands. Our internationally trained doctors and nurses have 10+ years of experience. We combine medical excellence with an intimate, boutique experience.",
-      "answer_es": "¡Absolutamente! Usamos solo productos premium y regulados (Dysport) y marcas de relleno confiables. Nuestros médicos y enfermeras con formación internacional tienen 10+ años de experiencia. Combinamos excelencia médica con una experiencia íntima y boutique.",
-      "keywords": [
-        "safe",
-        "safety",
-        "is it safe",
-        "seguro",
-        "segura",
-        "trust",
-        "trusted",
-        "reliable",
-        "mexico",
-        "get",
-        "botox"
-      ]
-    },
-    {
-      "category": "Safety",
-      "question": "What are the side effects?",
-      "answer_en": "Common side effects include minor swelling, redness, or bruising at injection sites. These typically resolve within a few hours to a few days. We’ll give you full aftercare instructions.",
-      "answer_es": "Los efectos secundarios comunes incluyen hinchazón menor, enrojecimiento o moretones en los sitios de inyección. Estos generalmente se resuelven en unas horas a unos días. Te daremos instrucciones completas de cuidado posterior.",
-      "keywords": [
-        "side effects",
-        "bruising",
-        "swelling",
-        "redness",
-        "pain",
-        "efectos secundarios",
-        "hinchazón",
-        "hinchazon",
-        "moretones",
-        "dolor",
-        "riesgo",
-        "side",
-        "effects"
-      ]
-    },
-    {
-      "category": "Contact",
-      "question": "How do I contact you?",
-      "answer_en": "Book through our website: tulumbotox.com | WhatsApp: +52-984-156-8826 | Email: Ally@TulumBotox.com",
-      "answer_es": "Reserva en nuestro sitio web: tulumbotox.com | WhatsApp: +52-984-156-8826 | Email: Ally@TulumBotox.com",
-      "keywords": [
-        "contact",
-        "reach",
-        "email",
-        "whatsapp",
-        "contacto",
-        "contactar",
-        "phone",
-        "telefono",
-        "teléfono"
-      ]
-    },
-    {
-      "category": "Contact",
-      "question": "Website & booking",
-      "answer_en": "tulumbotox.com — Book your appointment directly on our website for the easiest experience!",
-      "answer_es": "tulumbotox.com — ¡Reserva tu cita directamente en nuestro sitio web para la experiencia más fácil!",
-      "keywords": [
-        "website",
-        "booking website",
-        "book online",
-        "tulumbotox.com",
-        "sitio web",
-        "web",
-        "reservar online",
-        "booking"
-      ]
-    },
-    {
-      "category": "Contact",
-      "question": "Social media",
-      "answer_en": "Follow us on Instagram @tulumbotox for before & after photos, treatment info, and updates!",
-      "answer_es": "¡Síguenos en Instagram @tulumbotox para fotos de antes y después, info de tratamientos y novedades!",
-      "keywords": [
-        "instagram",
-        "social media",
-        "@tulumbotox",
-        "before after",
-        "photos",
-        "fotos",
-        "redes sociales",
-        "social",
-        "media"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "Do you offer mole removal?",
-      "answer_en": "Yes! We offer mole removal. Book a consultation at tulumbotox.com so our doctor can evaluate the mole and recommend the best removal method for you.",
-      "answer_es": "¡Sí! Ofrecemos eliminación de lunares. Reserva una consulta en tulumbotox.com para que nuestro médico evalúe el lunar y recomiende el mejor método de eliminación.",
-      "keywords": [
-        "mole",
-        "mole removal",
-        "remove mole",
-        "lunar",
-        "lunares",
-        "quitar lunar",
-        "offer",
-        "removal"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "Can I mix fillers from different brands?",
-      "answer_en": "Yes, hyaluronic acid (HA) fillers from different brands are generally compatible. If you’ve had filler elsewhere recently, we recommend waiting at least 2 weeks before getting more. Book a free consultation so the doctor can assess and advise.",
-      "answer_es": "Sí, los rellenos de ácido hialurónico (HA) de diferentes marcas generalmente son compatibles. Si te pusiste relleno recientemente en otro lugar, recomendamos esperar al menos 2 semanas. Reserva una consulta gratuita para que el médico evalúe y aconseje.",
-      "keywords": [
-        "mix fillers",
-        "different brands",
-        "previous filler",
-        "already have filler",
-        "combinar rellenos",
-        "different filler",
-        "mix",
-        "fillers",
-        "from",
-        "different",
-        "brands"
-      ]
-    },
-    {
-      "category": "Services",
-      "question": "Do you carry Juvederm / RHA?",
-      "answer_en": "We carry Allergan (Juvederm) and other premium HA fillers. We do not carry RHA at this time. Book a free consult and we’ll recommend the best filler for your goals!",
-      "answer_es": "Tenemos Allergan (Juvederm) y otros rellenos HA premium. No tenemos RHA en este momento. ¡Reserva una consulta gratuita y te recomendaremos el mejor relleno para tus objetivos!",
-      "keywords": [
-        "juvederm",
-        "rha",
-        "allergan",
-        "carry juvederm",
-        "brand",
-        "brands",
-        "carry"
-      ]
-    },
-    {
-      "category": "Pricing",
-      "question": "How much is lip filler?",
-      "answer_en": "Lip filler starts at 8,900 MXN per CC. Most lips need 1–2 CC depending on your goals. Book a free consultation at tulumbotox.com to find out what’s best for you!",
-      "answer_es": "El relleno de labios comienza en 8,900 MXN por CC. La mayoría de los labios necesitan 1–2 CC dependiendo de tus objetivos. ¡Reserva una consulta gratuita en tulumbotox.com para saber qué es lo mejor para ti!",
-      "keywords": [
-        "lip filler",
-        "lips",
-        "lip",
-        "labios",
-        "labio",
-        "lip augmentation",
-        "filler"
-      ]
+      "answer_en": "We're available by appointment. Book through our website tulumbotox.com or message us on WhatsApp at +52-984-156-8826.",
+      "answer_es": "Estamos disponibles con cita previa. Reserva en tulumbotox.com o escríbenos por WhatsApp al +52-984-156-8826.",
+      "keywords": ["hours", "open", "when", "time", "days", "horario", "abierto", "cuándo", "hora", "horarios", "what time", "are you open"]
     },
     {
       "category": "General",
       "question": "Do you offer free consultations?",
-      "answer_en": "Yes! We offer free consultations. Come in and talk about your options with no commitment. Book at tulumbotox.com or message us on WhatsApp.",
-      "answer_es": "¡Sí! Ofrecemos consultas gratuitas. Ven a hablar de tus opciones sin compromiso. Reserva en tulumbotox.com o escríbenos por WhatsApp.",
-      "keywords": [
-        "free consultation",
-        "free consult",
-        "consulta gratis",
-        "consulta gratuita",
-        "no commitment",
-        "offer",
-        "free",
-        "consultations"
-      ]
+      "answer_en": "Yes! We offer free consultations — no commitment required. Book at tulumbotox.com or message us on WhatsApp. 😊",
+      "answer_es": "¡Sí! Ofrecemos consultas gratuitas, sin compromiso. Reserva en tulumbotox.com o escríbenos por WhatsApp. 😊",
+      "keywords": ["free consultation", "consultation", "consult", "free", "consulta", "gratis", "gratuita", "sin compromiso", "free consult"]
+    },
+    {
+      "category": "General",
+      "question": "Do you have locations outside Tulum?",
+      "answer_en": "Yes! We also serve Playa del Carmen (PDC) in the Riviera Maya. Book through tulumbotox.com for the location nearest you.",
+      "answer_es": "¡Sí! También atendemos en Playa del Carmen (PDC) en la Riviera Maya. Reserva en tulumbotox.com para la ubicación más cercana.",
+      "keywords": ["playa del carmen", "pdc", "other locations", "outside tulum", "riviera maya", "otras ubicaciones", "fuera de tulum", "cancun"]
     },
     {
       "category": "General",
       "question": "Can I see before & after photos?",
-      "answer_en": "Yes! Check out our Instagram @tulumbotox for before & after photos. You can also ask us for photos of specific treatments during your consultation.",
-      "answer_es": "¡Sí! Mira nuestro Instagram @tulumbotox para fotos de antes y después. También puedes pedirnos fotos de tratamientos específicos durante tu consulta.",
-      "keywords": [
-        "before after",
-        "before and after",
-        "photos",
-        "pictures",
-        "results",
-        "instagram",
-        "fotos",
-        "antes y después",
-        "antes y despues",
-        "resultados",
-        "see",
-        "before"
-      ]
-    },
-    {
-      "category": "Safety",
-      "question": "Does Botox or filler hurt?",
-      "answer_en": "We use topical numbing cream before all injectable treatments, and the procedures are very quick. Most clients describe the discomfort as minimal — a small pinch that’s over fast!",
-      "answer_es": "Usamos crema anestésica tópica antes de todos los tratamientos inyectables, y los procedimientos son muy rápidos. La mayoría de los clientes describen la molestia como mínima — ¡un pequeño pinchazo que pasa rápido!",
-      "keywords": [
-        "hurt",
-        "pain",
-        "painful",
-        "does it hurt",
-        "duele",
-        "dolor",
-        "numbing",
-        "anesthesia",
-        "anestesia",
-        "botox",
-        "filler"
-      ]
-    },
-    {
-      "category": "Safety",
-      "question": "Can I fly after getting Botox or filler?",
-      "answer_en": "Yes! You can fly the same day after Botox. For fillers, we recommend waiting 24–48 hours if possible, but it’s generally safe to travel. Avoid intense sun, alcohol, and strenuous exercise for 24 hours after treatment.",
-      "answer_es": "¡Sí! Puedes volar el mismo día después del Botox. Para rellenos, recomendamos esperar 24–48 horas si es posible, pero generalmente es seguro viajar. Evita sol intenso, alcohol y ejercicio intenso por 24 horas después del tratamiento.",
-      "keywords": [
-        "fly",
-        "travel",
-        "flight",
-        "airplane",
-        "after treatment",
-        "travel after",
-        "can i fly",
-        "vuelo",
-        "volar",
-        "avion",
-        "avión",
-        "viajar",
-        "getting",
-        "botox",
-        "filler"
-      ]
+      "answer_en": "Yes! Check out our Instagram @tulumbotox for before & after photos. You can also request photos for specific treatments during your consultation.",
+      "answer_es": "¡Sí! Visita nuestro Instagram @tulumbotox para fotos de antes y después. También puedes pedir fotos de tratamientos específicos durante tu consulta.",
+      "keywords": ["before after", "photos", "results", "instagram", "pictures", "fotos", "antes y después", "resultados", "gallery", "galería", "examples", "ejemplos"]
     },
     {
       "category": "General",
       "question": "What should I expect on my first visit?",
-      "answer_en": "First, you’ll have a free consultation where the doctor reviews your goals and recommends a treatment plan. Then we apply numbing cream, perform the treatment, and go over aftercare. The whole visit usually takes about 30–45 minutes. Easy and relaxed!",
-      "answer_es": "Primero, tendrás una consulta gratuita donde el médico revisará tus objetivos y recomendará un plan de tratamiento. Luego aplicamos crema anestésica, realizamos el tratamiento y repasamos los cuidados posteriores. Toda la visita suele durar unos 30–45 minutos. ¡Fácil y relajado!",
-      "keywords": [
-        "first visit",
-        "first time",
-        "what to expect",
-        "process",
-        "new client",
-        "primera vez",
-        "que esperar",
-        "qué esperar",
-        "proceso",
-        "should",
-        "expect",
-        "first",
-        "visit"
-      ]
+      "answer_en": "First, a free consultation where the doctor reviews your goals and recommends a treatment plan. Then we apply numbing cream, perform the treatment, and go over aftercare. Most visits take 30–45 minutes. 😊",
+      "answer_es": "Primero, una consulta gratuita donde el médico revisa tus objetivos y recomienda un plan. Luego aplicamos crema anestésica, realizamos el tratamiento y repasamos los cuidados posteriores. La mayoría de las visitas toman 30–45 minutos. 😊",
+      "keywords": ["first visit", "first time", "what to expect", "primera vez", "primera visita", "qué esperar", "process", "what happens", "como funciona"]
+    },
+    {
+      "category": "Services",
+      "question": "What services do you offer?",
+      "answer_en": "We offer Botox (Allergan & Dysport), dermal fillers, rhinomodeling, PDO threads, CO2 laser skin resurfacing, stem cell IV therapy, facials, body contouring, tattoo removal, laser hair removal, blepharoplasty, and more! See the full menu at tulumbotox.com. 💉",
+      "answer_es": "Ofrecemos Botox (Allergan y Dysport), rellenos dérmicos, rinomodelación, hilos PDO, láser CO2 (resurfacing), terapia IV con células madre, faciales, contorno corporal, eliminación de tatuajes, depilación láser, blefaroplastia y más. ¡Ve el menú completo en tulumbotox.com! 💉",
+      "keywords": ["services", "offer", "treatments", "menu", "what do you do", "servicios", "tratamientos", "qué ofrecen", "qué hacen", "todo", "all services", "opciones"]
+    },
+    {
+      "category": "Services",
+      "question": "What brand of Botox do you use?",
+      "answer_en": "We offer both Dysport (by Galderma) and Allergan Botox — two premium neurotoxins. Dysport is 135 MXN per unit. Your provider will recommend the best option for your goals during your free consultation! 💉",
+      "answer_es": "Ofrecemos tanto Dysport (de Galderma) como Allergan Botox — dos neurotoxinas premium. Dysport cuesta 135 MXN por unidad. Tu médico te recomendará la mejor opción durante tu consulta gratuita. 💉",
+      "keywords": ["botox brand", "brand", "allergan", "dysport", "neurotoxin", "toxin", "what botox", "which botox", "marca de botox", "qué marca", "botulinum", "galderma", "allergan botox", "which brand"]
+    },
+    {
+      "category": "Services",
+      "question": "What is Dysport?",
+      "answer_en": "Dysport is a premium botulinum toxin neurotoxin made by Galderma — the same category as Botox but a different formulation. It's known for fast onset (2–3 days) and natural spread. We offer it at 135 MXN per unit. 💉",
+      "answer_es": "Dysport es una neurotoxina botulínica premium fabricada por Galderma — de la misma categoría que el Botox pero con diferente formulación. Se conoce por su rápido inicio (2–3 días). Lo ofrecemos a 135 MXN por unidad. 💉",
+      "keywords": ["what is dysport", "dysport", "galderma", "dysport vs botox", "qué es dysport", "diferencia dysport botox"]
+    },
+    {
+      "category": "Services",
+      "question": "What fillers do you offer?",
+      "answer_en": "We offer Juvederm (HA filler), Radiesse (CaHA), Sculptra (collagen biostimulator), and HarmonyCa (hybrid filler). Each works differently and is suited to different goals. Book a free consultation at tulumbotox.com to find the right one for you!",
+      "answer_es": "Ofrecemos Juvederm (relleno HA), Radiesse (CaHA), Sculptra (bioestimulador de colágeno) y HarmonyCa (relleno híbrido). Cada uno funciona diferente y es ideal para distintos objetivos. ¡Reserva una consulta gratuita en tulumbotox.com para encontrar el adecuado para ti!",
+      "keywords": ["what fillers", "filler options", "filler brands", "which filler", "tipos de relleno", "que rellenos", "filler types", "rellenos disponibles"]
+    },
+    {
+      "category": "Services",
+      "question": "What is Juvederm?",
+      "answer_en": "Juvederm is a hyaluronic acid (HA) filler made by Allergan/AbbVie. It provides immediate, natural-looking volume and is great for lips, cheeks, and facial contouring. It starts at 8,900 MXN per CC.",
+      "answer_es": "Juvederm es un relleno de ácido hialurónico (HA) fabricado por Allergan/AbbVie. Proporciona volumen inmediato y natural, ideal para labios, pómulos y contorno facial. Comienza en 8,900 MXN por CC.",
+      "keywords": ["juvederm", "ha filler", "hyaluronic acid filler", "allergan filler", "juvederm ultra", "voluma", "relleno ha", "acido hialuronico", "what is juvederm"]
+    },
+    {
+      "category": "Services",
+      "question": "What is Sculptra?",
+      "answer_en": "Sculptra is a collagen biostimulator (poly-L-lactic acid) — it's different from traditional fillers. Instead of adding volume directly, it gradually stimulates your own collagen production over weeks/months for natural, long-lasting results (up to 2 years). 17,000 MXN.",
+      "answer_es": "Sculptra es un bioestimulador de colágeno (ácido poli-L-láctico) — es diferente a los rellenos tradicionales. En lugar de agregar volumen directamente, estimula gradualmente la producción de colágeno propio durante semanas/meses para resultados naturales y duraderos (hasta 2 años). 17,000 MXN.",
+      "keywords": ["sculptra", "what is sculptra", "plla", "biostimulator", "bioestimulador", "collagen stimulator", "qué es sculptra", "sculptra vs filler"]
+    },
+    {
+      "category": "Services",
+      "question": "What is Radiesse?",
+      "answer_en": "Radiesse is a calcium hydroxylapatite (CaHA) filler made by Merz. It provides immediate volume AND stimulates collagen production over time (biostimulatory). Great for lifting and contouring. 10,500 MXN.",
+      "answer_es": "Radiesse es un relleno de hidroxiapatita cálcica (CaHA) fabricado por Merz. Proporciona volumen inmediato Y estimula la producción de colágeno con el tiempo. Excelente para lifting y contorno. 10,500 MXN.",
+      "keywords": ["radiesse", "what is radiesse", "caha", "calcium hydroxylapatite", "merz", "qué es radiesse", "radiesse filler"]
+    },
+    {
+      "category": "Services",
+      "question": "What is HarmonyCa?",
+      "answer_en": "HarmonyCa is a first-of-its-kind hybrid filler by Allergan — it combines HA (immediate volume) with CaHA microspheres (long-term collagen stimulation). Best for cheeks, jawline, and chin. 22,000 MXN for 2 syringes.",
+      "answer_es": "HarmonyCa es un relleno híbrido único de Allergan — combina HA (volumen inmediato) con microesferas de CaHA (estimulación de colágeno a largo plazo). Ideal para pómulos, mandíbula y mentón. 22,000 MXN por 2 jeringas.",
+      "keywords": ["harmonyca", "what is harmonyca", "hybrid filler", "relleno hibrido", "allergan hybrid", "qué es harmonyca"]
+    },
+    {
+      "category": "Services",
+      "question": "What is rhinomodeling?",
+      "answer_en": "Rhinomodeling is a non-surgical nose reshaping treatment using HA filler injections. No surgery, no downtime — results are visible immediately. We can correct bumps, asymmetry, tip shape, and more. 9,500 MXN.",
+      "answer_es": "La rinomodelación es un tratamiento no quirúrgico para remodelar la nariz usando inyecciones de relleno HA. Sin cirugía, sin tiempo de recuperación — los resultados son inmediatos. Corregimos gibas, asimetrías, forma de la punta y más. 9,500 MXN.",
+      "keywords": ["rhinomodeling", "non surgical nose", "nose job", "nose filler", "nariz", "rinomodelacion", "rinoplastia sin cirugia", "nose reshaping", "rhinoplasty without surgery"]
+    },
+    {
+      "category": "Services",
+      "question": "What are PDO threads?",
+      "answer_en": "PDO threads are a non-surgical thread lift using polydioxanone (PDO) threads. They physically lift sagging skin and stimulate collagen production. Great for cheeks, jawline, and neck. Results last 18 months to 2 years. 7,500 MXN for 4 threads.",
+      "answer_es": "Los hilos PDO son un lifting no quirúrgico usando hilos de polidioxanona (PDO). Levantan físicamente la piel flácida y estimulan la producción de colágeno. Ideales para pómulos, mandíbula y cuello. Los resultados duran de 18 meses a 2 años. 7,500 MXN por 4 hilos.",
+      "keywords": ["threads", "thread lift", "pdo threads", "hilos", "hilo tensor", "pdo", "lifting hilos", "what are threads", "qué son los hilos", "thread price"]
+    },
+    {
+      "category": "Services",
+      "question": "What is CO2 laser?",
+      "answer_en": "CO2 laser is an ablative skin resurfacing treatment — it targets wrinkles, scars, uneven pigmentation, and skin texture. It is NOT laser hair removal. Recovery is up to 2 weeks. Pricing: Small Area 4,300 MXN | Medium 9,500 MXN | Large 19,000 MXN.",
+      "answer_es": "El láser CO2 es un tratamiento ablativo de resurfacing de piel — trata arrugas, cicatrices, pigmentación irregular y textura de la piel. NO es depilación láser. La recuperación es de hasta 2 semanas. Precios: Área Pequeña 4,300 MXN | Mediana 9,500 MXN | Grande 19,000 MXN.",
+      "keywords": ["co2 laser", "laser resurfacing", "skin resurfacing", "ablative laser", "co2", "láser co2", "what is co2 laser", "qué es co2 laser", "laser treatment skin"]
+    },
+    {
+      "category": "Services",
+      "question": "Do you offer laser hair removal?",
+      "answer_en": "Yes, we offer laser hair removal — priced by consultation depending on the treatment area. This is a completely separate service from our CO2 laser skin resurfacing. Book a free consult at tulumbotox.com!",
+      "answer_es": "Sí, ofrecemos depilación láser — con precio por consulta según el área a tratar. Es un servicio completamente separado del láser CO2 de resurfacing de piel. ¡Reserva una consulta gratuita en tulumbotox.com!",
+      "keywords": ["laser hair removal", "hair removal", "depilacion laser", "hair laser", "depilación", "pelo", "vello", "laser hair"]
+    },
+    {
+      "category": "Services",
+      "question": "Do you offer stem cell therapy?",
+      "answer_en": "Yes! We offer Stem Cell IV Therapy — a cutting-edge regenerative treatment. Pricing: Face 9,200 MXN | IV 50 Mill Body 28,000 MXN | IV 100 Mill Body 53,500 MXN. Book a consultation at tulumbotox.com!",
+      "answer_es": "¡Sí! Ofrecemos Terapia IV con Células Madre — un tratamiento regenerativo de vanguardia. Precios: Cara 9,200 MXN | IV 50 Mill Cuerpo 28,000 MXN | IV 100 Mill Cuerpo 53,500 MXN. ¡Reserva una consulta en tulumbotox.com!",
+      "keywords": ["stem cell", "iv therapy", "células madre", "regenerative", "stem", "iv drip", "terapia iv", "stem cell therapy"]
+    },
+    {
+      "category": "Services",
+      "question": "Do you do facials?",
+      "answer_en": "Yes! We offer a range of facial treatments including Hydrafacial, PRP Facial, Face Peels, Micro-Needling, Dermapen, and more. Prices start at 2,000 MXN. See the full menu at tulumbotox.com!",
+      "answer_es": "¡Sí! Ofrecemos una variedad de tratamientos faciales: Hydrafacial, Facial PRP, Peelings, Micro-Needling, Dermapen y más. Los precios comienzan desde 2,000 MXN. ¡Ve el menú completo en tulumbotox.com!",
+      "keywords": ["facial", "facials", "hydrafacial", "prp facial", "micro-needling", "peel", "skin treatment", "glow", "tratamiento facial", "faciales", "limpieza", "skincare"]
+    },
+    {
+      "category": "Services",
+      "question": "What is a PRP facial?",
+      "answer_en": "A PRP (Platelet-Rich Plasma) facial uses your own blood platelets to rejuvenate the skin — promoting collagen production and skin renewal. It's a completely natural treatment. 5,500 MXN at Tulum BTX.",
+      "answer_es": "Un facial PRP (Plasma Rico en Plaquetas) usa las propias plaquetas de tu sangre para rejuvenecer la piel — promoviendo colágeno y renovación celular. Es un tratamiento completamente natural. 5,500 MXN en Tulum BTX.",
+      "keywords": ["prp", "prp facial", "platelet rich plasma", "plasma", "prp treatment", "blood facial", "facial prp", "qué es prp"]
+    },
+    {
+      "category": "Services",
+      "question": "What is dermapen / micro-needling?",
+      "answer_en": "Dermapen (micro-needling) uses fine needles to create micro-channels in the skin, stimulating collagen production. It's often combined with serums like hyaluronic acid, vitamin C, exosomes, or PDRN for enhanced results. Prices start at 4,000 MXN.",
+      "answer_es": "El Dermapen (micro-needling) usa finas agujas para crear microcanales en la piel, estimulando la producción de colágeno. Suele combinarse con sueros como ácido hialurónico, vitamina C, exosomas o PDRN. Los precios comienzan en 4,000 MXN.",
+      "keywords": ["dermapen", "micro needling", "microneedling", "micro-needling", "needles", "collagen induction", "qué es dermapen", "exosomes", "pdrn"]
+    },
+    {
+      "category": "Services",
+      "question": "Do you offer mole removal?",
+      "answer_en": "Yes! We offer mole removal. Book a consultation at tulumbotox.com so our doctor can evaluate the mole and recommend the best approach for you.",
+      "answer_es": "¡Sí! Ofrecemos eliminación de lunares. Reserva una consulta en tulumbotox.com para que nuestro médico evalúe el lunar y recomiende el mejor método.",
+      "keywords": ["mole", "mole removal", "lunar", "lunares", "eliminación de lunares", "spot removal", "mole removal"]
+    },
+    {
+      "category": "Services",
+      "question": "Do you offer body contouring?",
+      "answer_en": "Yes! Our Booty Volume treatment uses 6ML of HA filler for natural enhancement — 23,400 MXN. For a full body contouring consultation, book at tulumbotox.com. 🍑",
+      "answer_es": "¡Sí! Nuestro tratamiento de Volumen de Glúteos usa 6ML de relleno HA para realce natural — 23,400 MXN. Para una consulta completa de contorno corporal, reserva en tulumbotox.com. 🍑",
+      "keywords": ["body contouring", "booty", "glutes", "butt filler", "body sculpting", "contorno corporal", "glúteos", "cola", "pompas", "body enhancement", "hip filler"]
+    },
+    {
+      "category": "Pricing",
+      "question": "How much does Botox/Dysport cost?",
+      "answer_en": "Dysport is 135 MXN per unit. The number of units needed depends on the treatment area — book a free consultation at tulumbotox.com for an exact quote! 💉",
+      "answer_es": "Dysport cuesta 135 MXN por unidad. El número de unidades depende del área de tratamiento — ¡reserva una consulta gratuita en tulumbotox.com para una cotización exacta! 💉",
+      "keywords": ["botox price", "botox cost", "how much botox", "precio botox", "costo botox", "dysport price", "precio dysport", "how much dysport", "cuánto cuesta botox", "botox units", "unidades botox", "how much", "cuanto cuesta"]
+    },
+    {
+      "category": "Pricing",
+      "question": "How much is lip filler?",
+      "answer_en": "Lip filler (Juvederm HA) starts at 8,900 MXN per CC. Most lips need 1–2 CC depending on your goals. Book a free consultation at tulumbotox.com! 💋",
+      "answer_es": "El relleno de labios (Juvederm HA) comienza en 8,900 MXN por CC. La mayoría de los labios necesitan 1–2 CC. ¡Reserva una consulta gratuita en tulumbotox.com! 💋",
+      "keywords": ["lip filler", "lips", "lip", "labios", "relleno de labios", "lip augmentation", "lip enhancement", "labios rellenos", "how much lip filler", "precio labios"]
+    },
+    {
+      "category": "Pricing",
+      "question": "How much do fillers cost?",
+      "answer_en": "Filler prices depend on the type: Juvederm (HA) starts at 8,900 MXN/CC. For Radiesse, Sculptra, or HarmonyCa pricing, visit tulumbotox.com or book a free consultation — we'll recommend the right option for you!",
+      "answer_es": "Los precios de rellenos dependen del tipo: Juvederm (HA) comienza en 8,900 MXN/CC. Para precios de Radiesse, Sculptra o HarmonyCa, visita tulumbotox.com o reserva una consulta gratuita.",
+      "keywords": ["filler price", "filler cost", "how much filler", "precio relleno", "costo relleno", "filler pricing", "dermal filler cost", "relleno precio", "relleno costo"]
+    },
+    {
+      "category": "Pricing",
+      "question": "How much does rhinomodeling cost?",
+      "answer_en": "Rhinomodeling (non-surgical nose reshaping) is 9,500 MXN. Book at tulumbotox.com! 👃",
+      "answer_es": "La rinomodelación (remodelación nasal no quirúrgica) cuesta 9,500 MXN. ¡Reserva en tulumbotox.com! 👃",
+      "keywords": ["rhinomodeling price", "nose job price", "rhinoplasty cost", "nose filler price", "nariz precio", "rinomodelacion precio", "how much nose"]
+    },
+    {
+      "category": "Pricing",
+      "question": "How much do threads cost?",
+      "answer_en": "PDO threads (4) are 7,500 MXN. Book a consultation at tulumbotox.com for a custom quote based on your needs!",
+      "answer_es": "Los hilos PDO (4) cuestan 7,500 MXN. ¡Reserva una consulta en tulumbotox.com para una cotización personalizada!",
+      "keywords": ["threads price", "thread lift price", "hilos precio", "hilo tensor precio", "pdo thread cost", "how much threads", "precio hilos"]
+    },
+    {
+      "category": "Pricing",
+      "question": "How much do facials cost?",
+      "answer_en": "Facial prices start at 2,000 MXN (Hydrafacial). Popular options: PRP Facial 5,500 MXN | Micro-Needling + Facial 3,700 MXN | Face Peel 3,000 MXN. Full menu at tulumbotox.com!",
+      "answer_es": "Los precios de faciales comienzan en 2,000 MXN (Hydrafacial). Opciones populares: PRP Facial 5,500 MXN | Micro-Needling + Facial 3,700 MXN | Face Peel 3,000 MXN. ¡Menú completo en tulumbotox.com!",
+      "keywords": ["facial price", "hydrafacial price", "prp facial price", "skin treatment price", "precio facial", "cuanto cuesta facial", "facial cost"]
+    },
+    {
+      "category": "Pricing",
+      "question": "How much does CO2 laser cost?",
+      "answer_en": "CO2 Laser skin resurfacing: Small Area 4,300 MXN | Medium Area 9,500 MXN | Large Area 19,000 MXN. Book at tulumbotox.com! (Note: this is skin resurfacing — ask separately about laser hair removal.)",
+      "answer_es": "Láser CO2 (resurfacing de piel): Área Pequeña 4,300 MXN | Área Mediana 9,500 MXN | Área Grande 19,000 MXN. ¡Reserva en tulumbotox.com! (Nota: esto es resurfacing de piel — pregunta por separado sobre depilación láser.)",
+      "keywords": ["co2 laser price", "laser price", "laser cost", "co2 price", "laser treatment cost", "precio laser", "costo laser", "how much co2"]
+    },
+    {
+      "category": "Pricing",
+      "question": "Are prices in MXN or USD?",
+      "answer_en": "All prices are in Mexican Pesos (MXN). We accept cash in USD or MXN, credit cards (5% fee), and Wise/TransferWise. Visit tulumbotox.com for current pricing.",
+      "answer_es": "Todos los precios son en Pesos Mexicanos (MXN). Aceptamos efectivo en USD o MXN, tarjetas de crédito (cargo del 5%) y Wise/TransferWise. Visita tulumbotox.com para precios actuales.",
+      "keywords": ["currency", "pesos", "mxn", "usd", "dollars", "moneda", "precio en", "in dollars", "en dólares", "exchange rate", "cuanto es en dolares"]
+    },
+    {
+      "category": "Payment",
+      "question": "What payment methods do you accept?",
+      "answer_en": "We accept: 💵 Cash (USD or MXN) | 💳 Credit cards (5% processing fee) | 🌐 Wise/TransferWise. Cash and Wise have no extra fees!",
+      "answer_es": "Aceptamos: 💵 Efectivo (USD o MXN) | 💳 Tarjetas de crédito (5% de cargo) | 🌐 Wise/TransferWise. ¡Efectivo y Wise sin cargos extra!",
+      "keywords": ["payment", "pay", "how to pay", "credit card", "cash", "wise", "transfer", "pago", "cómo pagar", "tarjeta", "efectivo", "accept", "aceptan", "payment methods", "formas de pago"]
+    },
+    {
+      "category": "Safety",
+      "question": "Is it safe to get Botox in Mexico?",
+      "answer_en": "Absolutely! We use only FDA-approved products — Allergan Botox and Dysport — administered by internationally trained doctors with 10+ years of experience. We combine medical excellence with a boutique, personalized approach. 💉",
+      "answer_es": "¡Absolutamente! Usamos solo productos aprobados por la FDA — Allergan Botox y Dysport — administrados por médicos con formación internacional y más de 10 años de experiencia. Combinamos excelencia médica con un enfoque boutique y personalizado. 💉",
+      "keywords": ["safe", "safety", "mexico", "is it safe", "trust", "legitimate", "seguro", "seguridad", "confiable", "safe botox", "botox safe", "is botox safe"]
+    },
+    {
+      "category": "Safety",
+      "question": "What are the side effects of Botox or filler?",
+      "answer_en": "Common side effects include minor swelling, redness, or bruising at injection sites — these typically resolve within hours to a few days. We provide full aftercare instructions at your appointment.",
+      "answer_es": "Los efectos secundarios comunes incluyen hinchazón leve, enrojecimiento o moretones en los sitios de inyección — generalmente se resuelven en horas o pocos días. Te damos instrucciones completas de cuidado posterior.",
+      "keywords": ["side effects", "bruising", "swelling", "risks", "efectos secundarios", "moretones", "hinchazón", "riesgos", "after treatment", "complications"]
+    },
+    {
+      "category": "Safety",
+      "question": "Does Botox or filler hurt?",
+      "answer_en": "We apply topical numbing cream before all injectable treatments, and procedures are very quick. Most clients describe it as minimal discomfort — a small pinch that's over fast! 😊",
+      "answer_es": "Aplicamos crema anestésica tópica antes de todos los tratamientos inyectables, y los procedimientos son muy rápidos. La mayoría de los clientes lo describen como una molestia mínima. 😊",
+      "keywords": ["hurt", "pain", "painful", "numbing", "anesthesia", "doler", "duele", "dolor", "anestesia", "does it hurt", "is it painful"]
+    },
+    {
+      "category": "Safety",
+      "question": "Can I fly after getting Botox or filler?",
+      "answer_en": "Yes! You can fly the same day after Botox. For fillers, we recommend waiting 24–48 hours if possible. Avoid intense sun, alcohol, and strenuous exercise for 24 hours after treatment. ✈️",
+      "answer_es": "¡Sí! Puedes volar el mismo día después del Botox. Para rellenos, recomendamos esperar 24–48 horas si es posible. Evita sol intenso, alcohol y ejercicio intenso por 24 horas después. ✈️",
+      "keywords": ["fly", "flight", "travel", "flying", "airplane", "tourist", "volar", "vuelo", "viajar", "turista", "can i fly", "can i travel", "after treatment fly"]
     },
     {
       "category": "Safety",
       "question": "What about touch-ups?",
-      "answer_en": "Botox touch-ups can be done after 2 weeks if needed. Filler touch-ups are also recommended at 2 weeks — this lets the product settle so we can fine-tune your results. We want you to love your look!",
-      "answer_es": "Los retoques de Botox se pueden hacer después de 2 semanas si es necesario. Los retoques de relleno también se recomiendan a las 2 semanas — esto permite que el producto se asiente para perfeccionar tus resultados. ¡Queremos que ames tu look!",
-      "keywords": [
-        "touch up",
-        "touchup",
-        "touch-ups",
-        "retoque",
-        "retouch",
-        "adjustment",
-        "2 weeks",
-        "follow up",
-        "seguimiento",
-        "touch",
-        "ups"
-      ]
+      "answer_en": "Botox touch-ups can be done 2 weeks after treatment if needed. Filler touch-ups are also recommended at 2 weeks — this lets the product settle so we can fine-tune your results. We want you to love your look! 💉",
+      "answer_es": "Los retoques de Botox se pueden hacer 2 semanas después si es necesario. Los retoques de relleno también se recomiendan a las 2 semanas — permite que el producto se asiente para ajustar los resultados. 💉",
+      "keywords": ["touch up", "touchup", "follow up", "retoque", "corrección", "2 weeks", "2 semanas", "adjustment", "fix", "need a touch up"]
+    },
+    {
+      "category": "Contact",
+      "question": "How do I contact you?",
+      "answer_en": "📱 WhatsApp: +52-984-156-8826\n📧 Email: Ally@TulumBotox.com\n🌐 Book online: tulumbotox.com\n📸 Instagram: @tulumbotox",
+      "answer_es": "📱 WhatsApp: +52-984-156-8826\n📧 Email: Ally@TulumBotox.com\n🌐 Reserva en línea: tulumbotox.com\n📸 Instagram: @tulumbotox",
+      "keywords": ["contact", "reach", "phone", "email", "whatsapp", "number", "contacto", "teléfono", "correo", "how to contact", "get in touch", "call"]
+    },
+    {
+      "category": "Contact",
+      "question": "Instagram / social media",
+      "answer_en": "Follow us on Instagram @tulumbotox for before & after photos, treatment info, and updates! 📸",
+      "answer_es": "¡Síguenos en Instagram @tulumbotox para fotos de antes y después, info de tratamientos y novedades! 📸",
+      "keywords": ["instagram", "social media", "follow", "fotos", "redes sociales", "@tulumbotox", "seguir"]
     }
   ]
 }
