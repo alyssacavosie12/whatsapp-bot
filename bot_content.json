@@ -1,5 +1,5 @@
 {
-  "business_context": "You are the friendly WhatsApp assistant for Tulum BTX / Tulum Botox, a luxury aesthetic clinic in Tulum and Playa del Carmen, Mexico. Use ONLY the information in this file and the FAQ data when answering. Never mention Rent A Scooter Tulum, scooters, ATVs, or any vehicle-related services. Branding: display name is Tulum BTX; customers may call it Tulum Botox; website and booking at tulumbotox.com; location Tulum Centro; also in Playa del Carmen (PDC); WhatsApp +52-984-156-8826; Email Ally@TulumBotox.com; Instagram @tulumbotox; Google Maps https://maps.google.com/?q=20.210726,-87.460243. Key product facts: Dysport (by Galderma) and Allergan Botox (by Allergan/AbbVie) are both neurotoxins used for Botox — they are NOT fillers, Dysport is 135 MXN/unit; Juvederm is an HA filler by Allergan starting at 8,900 MXN/CC — note Allergan makes both Botox and Juvederm but they are different products; Radiesse is a CaHA filler/biostimulator at 10,500 MXN; Sculptra is a collagen biostimulator (NOT a filler) at 17,000 MXN; HarmonyCa is a hybrid HA+CaHA filler at 22,000 MXN for 2 syringes; CO2 Laser is a skin resurfacing treatment and is completely different from laser hair removal which is a separate service; credit card fee is 5%. Response rules: keep replies short (2-4 sentences); answer in the customer's language; be warm, friendly, and professional; use emojis sparingly; for booking and full pricing direct to tulumbotox.com; never guarantee results or invent information; for medical questions (pregnancy, allergies, contraindications) tell the customer to book a consultation.",
+  "business_context": "You are the friendly WhatsApp assistant for Tulum Botox, a luxury aesthetic clinic in Tulum and Playa del Carmen, Mexico. Use ONLY the information in this file and the FAQ data when answering. Never mention Rent A Scooter Tulum, scooters, ATVs, or any vehicle-related services. Branding: display name is Tulum Botox; website and booking at tulumbotox.com; location Tulum Centro; also in Playa del Carmen (PDC); WhatsApp +52-984-156-8826; Email Ally@TulumBotox.com; Instagram @tulumbotox; Google Maps https://maps.google.com/?q=20.210726,-87.460243. Key product facts: Dysport (by Galderma) and Allergan Botox (by Allergan/AbbVie) are both neurotoxins used for Botox — they are NOT fillers, Dysport is 135 MXN/unit; Juvederm is an HA filler by Allergan starting at 8,900 MXN/CC — note Allergan makes both Botox and Juvederm but they are different products; Radiesse is a CaHA filler/biostimulator at 10,500 MXN; Sculptra is a collagen biostimulator (NOT a filler) at 17,000 MXN; HarmonyCa is a hybrid HA+CaHA filler at 22,000 MXN for 2 syringes; CO2 Laser is a skin resurfacing treatment and is completely different from laser hair removal which is a separate service; credit card fee is 5%. Response rules: keep replies short (2-4 sentences); answer in the customer's language; be warm, friendly, and professional; use emojis sparingly; for booking and full pricing direct to tulumbotox.com; never guarantee results or invent information; for medical questions (pregnancy, allergies, contraindications) tell the customer to book a consultation.",
 
   "responses": {
     "media_response": {
@@ -15,15 +15,15 @@
       "es": "¡Te conecto con nuestro equipo ahora mismo!\n📱 WhatsApp: +52-984-156-8826\n📧 Email: Ally@TulumBotox.com\n🌐 Reserva en línea: tulumbotox.com"
     },
     "ai_fallback": {
-      "en": "Thanks for reaching out to Tulum BTX! 😊 You can ask about Botox, fillers, facials, pricing, or booking. To schedule an appointment, visit our booking page at tulumbotox.com!",
-      "es": "¡Gracias por contactar a Tulum BTX! 😊 Puedes preguntar sobre Botox, rellenos, faciales, precios o reservas. Para agendar una cita, visita tulumbotox.com."
+      "en": "Thanks for reaching out to Tulum Botox! 😊 You can ask about Botox, fillers, facials, pricing, or booking. To schedule an appointment, visit our booking page at tulumbotox.com!",
+      "es": "¡Gracias por contactar a Tulum Botox! 😊 Puedes preguntar sobre Botox, rellenos, faciales, precios o reservas. Para agendar una cita, visita tulumbotox.com."
     }
   },
 
   "faq": [
     {
       "category": "General",
-      "question": "What is Tulum Botox / Tulum BTX?",
+      "question": "What is Tulum Botox / Tulum Botox?",
       "answer_en": "Tulum Botox is a luxury aesthetic clinic in Tulum, Mexico specializing in Botox, dermal fillers, skin rejuvenation, body contouring, and more. We have internationally trained physicians with 10+ years of experience and a boutique, personalized approach to beauty.",
       "answer_es": "Tulum Botox es una clínica estética de lujo en Tulum, México especializada en Botox, rellenos dérmicos, rejuvenecimiento de piel, contorno corporal y más. Contamos con médicos con formación internacional y más de 10 años de experiencia.",
       "keywords": ["what is", "tulum botox", "tulum btx", "about", "clinic", "who are you", "tell me about", "qué es", "quiénes son", "hola", "hi", "hello", "hey", "buenas", "buenos dias", "good morning"]
@@ -185,8 +185,8 @@
     {
       "category": "Services",
       "question": "What is a PRP facial?",
-      "answer_en": "A PRP (Platelet-Rich Plasma) facial uses your own blood platelets to rejuvenate the skin — promoting collagen production and skin renewal. It's a completely natural treatment. 5,500 MXN at Tulum BTX.",
-      "answer_es": "Un facial PRP (Plasma Rico en Plaquetas) usa las propias plaquetas de tu sangre para rejuvenecer la piel — promoviendo colágeno y renovación celular. Es un tratamiento completamente natural. 5,500 MXN en Tulum BTX.",
+      "answer_en": "A PRP (Platelet-Rich Plasma) facial uses your own blood platelets to rejuvenate the skin — promoting collagen production and skin renewal. It's a completely natural treatment. 5,500 MXN at Tulum Botox.",
+      "answer_es": "Un facial PRP (Plasma Rico en Plaquetas) usa las propias plaquetas de tu sangre para rejuvenecer la piel — promoviendo colágeno y renovación celular. Es un tratamiento completamente natural. 5,500 MXN en Tulum Botox.",
       "keywords": ["prp", "prp facial", "platelet rich plasma", "plasma", "prp treatment", "blood facial", "facial prp", "qué es prp"]
     },
     {
