@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from typing import Any
 
-def iter_webhook_messages(data: dict):
+WebhookObject = dict[str, Any]
+
+
+def iter_webhook_messages(
+    data: WebhookObject,
+) -> Iterator[tuple[WebhookObject, WebhookObject]]:
     """Yield every message object from a Meta webhook payload."""
     entries = data.get("entry", [])
     if not isinstance(entries, list):

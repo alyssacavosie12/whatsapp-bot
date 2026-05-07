@@ -181,12 +181,13 @@ def test_webhook_returns_429_when_ip_rate_limit_exceeded(content_file, monkeypat
     picks it up.
     """
     import app as app_module
+    from webhook import signature as webhook_signature
 
     monkeypatch.setattr(app_module, "WEBHOOK_RATE_LIMIT", "2 per minute")
     monkeypatch.setattr(app_module, "RATE_LIMIT_STORAGE_URL", "")
 
     flask_app = app_module.create_app()
-    monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
+    monkeypatch.setattr(webhook_signature, "verify_meta_signature", lambda: True)
 
     client = flask_app.test_client()
     payload = {"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]}

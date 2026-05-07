@@ -6,6 +6,8 @@ import json
 import logging
 from itertools import count
 
+from tests.support import make_app_modules
+
 SECRET = "test-secret"
 PHONE = "37368826828"
 MESSAGE_IDS = count(1)
@@ -17,9 +19,7 @@ def _make_app():
     Returns (app_module, flask_app); module-level monkeypatches go on
     app_module, HTTP requests through flask_app.test_client().
     """
-    import app
-
-    return app, app.create_app()
+    return make_app_modules()
 
 
 def _body(payload: dict) -> bytes:

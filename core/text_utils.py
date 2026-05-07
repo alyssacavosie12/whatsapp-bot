@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from typing import Final
 
-NON_WORD_RE = re.compile(r"[^a-z0-9\s%-]+")
-SPACES_RE = re.compile(r"\s+")
-TOKEN_RE = re.compile(r"[a-z0-9%-]+")
-ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+NON_WORD_RE: Final = re.compile(r"[^a-z0-9\s%-]+")
+SPACES_RE: Final = re.compile(r"\s+")
+TOKEN_RE: Final = re.compile(r"[a-z0-9%-]+")
+ANSI_ESCAPE_RE: Final = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def strip_accents(text: object) -> str:

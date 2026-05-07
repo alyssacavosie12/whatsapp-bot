@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import html
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
+
+from inbox.store import InboxMessage
 
 
 def render_admin_messages_page(
     user: dict[str, str],
-    messages,
+    messages: Iterable[InboxMessage],
     *,
     query: str,
     limit: int,
@@ -17,7 +19,7 @@ def render_admin_messages_page(
 ) -> str:
     """Render the admin inbox as a small self-contained HTML page."""
     safe_query = html.escape(query)
-    rows = []
+    rows: list[str] = []
 
     for message in messages:
         created_at = html.escape(message.created_at.strftime("%Y-%m-%d %H:%M:%S %Z"))

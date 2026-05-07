@@ -20,6 +20,7 @@ select = [
     "SIM",  # flake8-simplify
     "S",    # flake8-bandit (security)
     "N",    # pep8-naming
+    "D",    # pydocstyle / PEP 257 docstrings
 ]
 ignore = [
     # `assert` is fine in tests; bandit's S101 rule is too noisy for pytest.
@@ -35,7 +36,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Tests use a lot of fixtures, monkeypatching, and helper closures — the strict
 # bandit/security rules are noisy here without catching real issues.
-"tests/**/*.py" = ["S105", "S106", "S311"]
+"tests/**/*.py" = ["D", "S105", "S106", "S311"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "double"

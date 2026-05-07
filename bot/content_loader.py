@@ -13,25 +13,25 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from core.text_utils import text_tokens
 
 logger = logging.getLogger(__name__)
 
-CONTENT_FILE = Path(__file__).resolve().parents[1] / "bot_content.json"
+CONTENT_FILE: Final = Path(__file__).resolve().parents[1] / "bot_content.json"
 
 # ─── JSON field names ────────────────────────────────────────
 
-BUSINESS_CONTEXT_FIELD = "business_context"
+BUSINESS_CONTEXT_FIELD: Final = "business_context"
 
-RESPONSES_FIELD = "responses"
+RESPONSES_FIELD: Final = "responses"
 
-FAQ_FIELD = "faq"
+FAQ_FIELD: Final = "faq"
 
-EN_LANGUAGE = "en"
+EN_LANGUAGE: Final = "en"
 
-ES_LANGUAGE = "es"
+ES_LANGUAGE: Final = "es"
 
 # ─── Defaults ────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ DEFAULT_CONTENT: dict[str, Any] = {
 
 # ─── Text normalization ──────────────────────────────────────
 
-SPANISH_MARKERS = {
+SPANISH_MARKERS: Final = {
     "hola",
     "gracias",
     "precio",
@@ -84,7 +84,6 @@ SPANISH_MARKERS = {
 
 def _default_content() -> dict[str, Any]:
     """Return a fresh copy of the default content object."""
-
     return copy.deepcopy(DEFAULT_CONTENT)
 
 
@@ -94,7 +93,6 @@ def _default_content() -> dict[str, Any]:
 @lru_cache(maxsize=1)
 def load_content() -> dict[str, Any]:
     """Load bot content from JSON once per process."""
-
     try:
         with CONTENT_FILE.open("r", encoding="utf-8") as file:
             data = json.load(file)
@@ -119,13 +117,11 @@ def load_content() -> dict[str, Any]:
 
 def get_business_context() -> str:
     """Return the system prompt/business context for the AI fallback."""
-
     return str(load_content().get(BUSINESS_CONTEXT_FIELD, "")).strip()
 
 
 def get_faq_entries() -> list[dict[str, Any]]:
     """Return valid FAQ entries from bot_content.json."""
-
     entries = load_content().get(FAQ_FIELD, [])
 
     if not isinstance(entries, list):
@@ -147,7 +143,6 @@ def detect_language(text: str) -> str:
     canned/FAQ response language, not for translation.
 
     """
-
     words = text_tokens(text)
 
     if words & SPANISH_MARKERS:
@@ -162,7 +157,6 @@ def get_response(name: str, language_hint: str = EN_LANGUAGE) -> str:
     Falls back to English, then to the first available non-empty value.
 
     """
-
     responses = load_content().get(RESPONSES_FIELD, {})
 
     if not isinstance(responses, dict):

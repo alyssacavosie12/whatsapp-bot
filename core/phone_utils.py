@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import re
+from typing import Final
 
-VALID_PHONE_RE = re.compile(r"\d{10,15}")
+VALID_PHONE_RE: Final = re.compile(r"\d{10,15}")
 
 
 def normalize_phone(phone: str) -> str:

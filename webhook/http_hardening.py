@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import cast
 
 from flask import Flask
+from flask.typing import ResponseReturnValue
 
 logger = logging.getLogger(__name__)
+RouteHandler = Callable[..., ResponseReturnValue]
+RouteDecorator = Callable[[RouteHandler], RouteHandler]
+
+
+def _identity_decorator(func: RouteHandler) -> RouteHandler:
+    """Return a route handler unchanged when a limiter is unavailable."""
+    return func
 
 
 def configure_talisman(flask_app: Flask, *, force_https: bool) -> None:
@@ -46,16 +55,16 @@ def build_webhook_rate_limit(
     key_func: Callable[[], str],
     rate_limit: str,
     storage_uri: str,
-):
+) -> RouteDecorator:
     """Return a route decorator for the webhook IP rate limit."""
     if not rate_limit:
-        return lambda func: func
+        return _identity_decorator
 
     try:
         from flask_limiter import Limiter
     except ImportError:
         logger.warning("flask-limiter is not installed; webhook IP limit disabled")
-        return lambda func: func
+        return _identity_decorator
 
     limiter = Limiter(
         key_func=key_func,
@@ -63,4 +72,4 @@ def build_webhook_rate_limit(
         default_limits=[],
         storage_uri=storage_uri or "memory://",
     )
-    return limiter.limit(rate_limit)
+    return cast(RouteDecorator, limiter.limit(rate_limit))

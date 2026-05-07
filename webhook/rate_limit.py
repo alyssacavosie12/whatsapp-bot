@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Protocol
+from typing import Final, Protocol, cast
 
 from settings import (
     PHONE_RATE_LIMIT_MAX_MESSAGES,
@@ -19,8 +19,8 @@ from settings import (
 
 logger = logging.getLogger(__name__)
 
-REDIS_KEY_PREFIX = "wa:rate:"
-REDIS_SOCKET_TIMEOUT = 2
+REDIS_KEY_PREFIX: Final = "wa:rate:"
+REDIS_SOCKET_TIMEOUT: Final = 2
 
 
 class _RateLimitBackend(Protocol):
@@ -91,7 +91,7 @@ class _RedisFixedWindowRateLimiter:
         redis_key = f"{REDIS_KEY_PREFIX}{key}:{bucket}"
 
         try:
-            count = self._client.incr(redis_key)
+            count = cast(int, self._client.incr(redis_key))
             if count == 1:
                 self._client.expire(redis_key, self._window_seconds)
         except Exception as exc:

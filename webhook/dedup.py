@@ -11,14 +11,14 @@ import logging
 import threading
 import time
 from collections import OrderedDict
-from typing import Protocol
+from typing import Final, Protocol
 
 from settings import MAX_LOCAL_DEDUP_SIZE, MESSAGE_TTL_SECONDS, REDIS_URL
 
 logger = logging.getLogger(__name__)
 
-REDIS_KEY_PREFIX = "wa:msg:"
-REDIS_SOCKET_TIMEOUT = 2
+REDIS_KEY_PREFIX: Final = "wa:msg:"
+REDIS_SOCKET_TIMEOUT: Final = 2
 
 
 class _DedupBackend(Protocol):

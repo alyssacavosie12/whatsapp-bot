@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from werkzeug.security import generate_password_hash
 
 from inbox.store import InboxMessage
+from tests.support import make_app_modules
 
 
 def _make_app(monkeypatch=None):
@@ -14,17 +15,15 @@ def _make_app(monkeypatch=None):
     Returns (app_module, flask_app); module-level monkeypatches go on
     app_module, HTTP requests through flask_app.test_client().
     """
-    import app
-
-    flask_app = app.create_app()
+    app_module, flask_app = make_app_modules()
 
     if monkeypatch is not None:
-        monkeypatch.setattr(app, "verify_meta_signature", lambda: True)
-        monkeypatch.setattr(app, "allow_phone_message", lambda _phone: True)
-        monkeypatch.setattr(app, "TEAM_NOTIFY_PHONE", "")
-        monkeypatch.setattr(app, "record_opt_in_proof", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
+        monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
+        monkeypatch.setattr(app_module, "TEAM_NOTIFY_PHONE", "")
+        monkeypatch.setattr(app_module, "record_opt_in_proof", lambda *_args, **_kwargs: None)
 
-    return app, flask_app
+    return app_module, flask_app
 
 
 def _basic_auth(username: str, password: str) -> dict[str, str]:

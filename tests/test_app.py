@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 import requests
 
+from tests.support import make_app_modules
+
 
 def _make_app(monkeypatch=None):
     """Build a fresh Flask app for one test via the application factory.
@@ -11,16 +13,14 @@ def _make_app(monkeypatch=None):
     Returns (app_module, flask_app). Module-level monkeypatches go on
     app_module; HTTP requests go through flask_app.test_client().
     """
-    import app
-
-    flask_app = app.create_app()
+    app_module, flask_app = make_app_modules()
 
     if monkeypatch is not None:
-        monkeypatch.setattr(app, "verify_meta_signature", lambda: True)
-        monkeypatch.setattr(app, "allow_phone_message", lambda _phone: True)
-        monkeypatch.setattr(app, "TEAM_NOTIFY_PHONE", "")
+        monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
+        monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
+        monkeypatch.setattr(app_module, "TEAM_NOTIFY_PHONE", "")
 
-    return app, flask_app
+    return app_module, flask_app
 
 
 def test_root_and_health_routes(content_file):

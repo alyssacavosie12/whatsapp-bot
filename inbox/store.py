@@ -8,15 +8,15 @@ import json
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Final, cast
 
 from core.text_utils import sanitize_untrusted_text
 
-MAX_STORED_BODY_CHARS = 8000
-MAX_STORED_NAME_CHARS = 64
-MAX_STORED_TYPE_CHARS = 32
-MAX_STORED_PHONE_CHARS = 32
-MAX_STORED_MESSAGE_ID_CHARS = 128
+MAX_STORED_BODY_CHARS: Final = 8000
+MAX_STORED_NAME_CHARS: Final = 64
+MAX_STORED_TYPE_CHARS: Final = 32
+MAX_STORED_PHONE_CHARS: Final = 32
+MAX_STORED_MESSAGE_ID_CHARS: Final = 128
 
 _SCHEMA_READY: set[str] = set()
 
@@ -27,6 +27,8 @@ class MessageStoreUnavailable(RuntimeError):
 
 @dataclass(frozen=True)
 class InboxMessage:
+    """One sanitized admin inbox message row."""
+
     id: int
     whatsapp_message_id: str
     direction: str
@@ -58,7 +60,7 @@ def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _psycopg_modules():
+def _psycopg_modules() -> tuple[Any, Any, Any]:
     try:
         import psycopg
         from psycopg.rows import dict_row
@@ -69,7 +71,7 @@ def _psycopg_modules():
     return psycopg, dict_row, Jsonb
 
 
-def _connect(database_url: str, *, dict_rows: bool = False):
+def _connect(database_url: str, *, dict_rows: bool = False) -> Any:
     if not database_url:
         raise MessageStoreUnavailable("DATABASE_URL is not configured")
 
@@ -82,7 +84,7 @@ def _connect(database_url: str, *, dict_rows: bool = False):
     return psycopg.connect(database_url, **kwargs)
 
 
-def _fernet(encryption_key: str):
+def _fernet(encryption_key: str) -> Any | None:
     if not encryption_key:
         return None
 
@@ -137,7 +139,7 @@ def _read_body(body: str, encrypted: bool, encryption_key: str) -> str:
         return "[encrypted message unavailable: INBOX_ENCRYPTION_KEY is not set]"
 
     try:
-        return cipher.decrypt(body.encode("utf-8")).decode("utf-8")
+        return cast(str, cipher.decrypt(body.encode("utf-8")).decode("utf-8"))
     except Exception:
         return "[encrypted message unavailable: decrypt failed]"
 
@@ -157,7 +159,7 @@ def _read_sensitive_field(
         return fallback
 
     try:
-        return cipher.decrypt(value.encode("utf-8")).decode("utf-8")
+        return cast(str, cipher.decrypt(value.encode("utf-8")).decode("utf-8"))
     except Exception:
         return fallback
 
@@ -311,7 +313,7 @@ def cleanup_expired_messages(database_url: str, retention_days: int) -> int:
                 """,
                 (retention_days,),
             )
-            deleted_messages = cur.rowcount
+            deleted_messages = int(cur.rowcount or 0)
             cur.execute(
                 """
                 DELETE FROM inbox_audit_events
@@ -688,7 +690,8 @@ def soft_delete_message(
                     message_id,
                 ),
             )
-            return cur.rowcount > 0
+            rowcount = int(cur.rowcount or 0)
+            return rowcount > 0
 
 
 def record_audit_event(

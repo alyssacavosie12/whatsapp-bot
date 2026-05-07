@@ -6,7 +6,7 @@ import hashlib
 import logging
 import threading
 import time
-from typing import Protocol
+from typing import Final, Protocol, cast
 
 from settings import (
     INBOX_AUTH_MAX_FAILED_ATTEMPTS,
@@ -16,8 +16,8 @@ from settings import (
 
 logger = logging.getLogger(__name__)
 
-REDIS_KEY_PREFIX = "inbox:auth:"
-REDIS_SOCKET_TIMEOUT = 2
+REDIS_KEY_PREFIX: Final = "inbox:auth:"
+REDIS_SOCKET_TIMEOUT: Final = 2
 
 
 class _AuthThrottleBackend(Protocol):
@@ -111,7 +111,10 @@ class _RedisAuthThrottle:
             return False
 
         try:
-            value = self._client.get(self._redis_key(key))
+            value = cast(
+                bytes | str | int | None,
+                self._client.get(self._redis_key(key)),
+            )
         except Exception as exc:
             logger.error(
                 "Redis auth throttle unavailable, allowing auth attempt: %s",
@@ -130,7 +133,7 @@ class _RedisAuthThrottle:
 
         redis_key = self._redis_key(key)
         try:
-            count = self._client.incr(redis_key)
+            count = cast(int, self._client.incr(redis_key))
             if count == 1:
                 self._client.expire(redis_key, self._window_seconds)
         except Exception as exc:
