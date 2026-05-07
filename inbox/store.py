@@ -292,6 +292,27 @@ def ensure_schema(database_url: str) -> None:
                     ON inbox_opt_in_proofs (sender_phone_hash)
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS inbox_opt_outs (
+                    id BIGSERIAL PRIMARY KEY,
+                    sender_phone_hash TEXT NOT NULL UNIQUE,
+                    sender_phone TEXT NOT NULL DEFAULT '',
+                    sender_phone_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+                    source TEXT NOT NULL DEFAULT '',
+                    keyword_used TEXT NOT NULL DEFAULT '',
+                    language TEXT NOT NULL DEFAULT '',
+                    evidence_hmac TEXT NOT NULL DEFAULT '',
+                    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_opt_outs_recorded_idx
+                    ON inbox_opt_outs (recorded_at DESC)
+                """
+            )
 
     _SCHEMA_READY.add(key)
 
@@ -732,3 +753,166 @@ def record_audit_event(
                     jsonb(metadata or {}),
                 ),
             )
+
+
+# ─── Opt-out (LFPDPPP Oposición / CCPA) ────────────────────────────
+
+
+MAX_STORED_OPT_OUT_KEYWORD_CHARS: Final = 64
+MAX_STORED_OPT_OUT_SOURCE_CHARS: Final = 32
+MAX_STORED_LANGUAGE_CHARS: Final = 8
+
+
+def record_opt_out(
+    database_url: str,
+    *,
+    sender_phone: str,
+    source: str,
+    keyword_used: str = "",
+    language: str = "",
+    encryption_key: str = "",
+    proof_secret: str = "",
+) -> bool:
+    """Record an opt-out request. Returns True if newly inserted, False if already opted out.
+
+    Idempotent: a second STOP from the same number does not duplicate the record.
+    The phone hash is the lookup key; the encrypted phone is stored only when an
+    encryption key is configured so subject-access requests can resolve back to
+    the original number.
+    """
+    if not proof_secret:
+        raise MessageStoreUnavailable("INBOX_PROOF_SECRET is not configured")
+
+    ensure_schema(database_url)
+
+    stored_phone, phone_encrypted, phone_hash = _prepare_sensitive_field(
+        sender_phone,
+        MAX_STORED_PHONE_CHARS,
+        encryption_key,
+    )
+    if not phone_hash:
+        raise MessageStoreUnavailable("Cannot record opt-out for an empty phone")
+
+    safe_source = sanitize_untrusted_text(source, MAX_STORED_OPT_OUT_SOURCE_CHARS)
+    safe_keyword = sanitize_untrusted_text(keyword_used, MAX_STORED_OPT_OUT_KEYWORD_CHARS)
+    safe_language = sanitize_untrusted_text(language, MAX_STORED_LANGUAGE_CHARS)
+
+    proof_payload = json.dumps(
+        {
+            "phone_hash": phone_hash,
+            "source": safe_source,
+            "keyword_used": safe_keyword,
+            "language": safe_language,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    evidence_hmac = hmac.new(
+        proof_secret.encode("utf-8"),
+        proof_payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO inbox_opt_outs (
+                    sender_phone_hash,
+                    sender_phone,
+                    sender_phone_encrypted,
+                    source,
+                    keyword_used,
+                    language,
+                    evidence_hmac
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (sender_phone_hash) DO NOTHING
+                """,
+                (
+                    phone_hash,
+                    stored_phone,
+                    phone_encrypted,
+                    safe_source,
+                    safe_keyword,
+                    safe_language,
+                    evidence_hmac,
+                ),
+            )
+            return int(cur.rowcount or 0) > 0
+
+
+def is_opted_out(database_url: str, sender_phone: str) -> bool:
+    """Return True when the sender has a recorded opt-out.
+
+    Lookup is by phone hash so encrypted phones still match. The schema is
+    ensured on first call per process; subsequent calls are a single
+    indexed SELECT.
+    """
+    if not sender_phone:
+        return False
+
+    phone_hash = _sha256(sanitize_untrusted_text(sender_phone, MAX_STORED_PHONE_CHARS))
+    if not phone_hash:
+        return False
+
+    ensure_schema(database_url)
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM inbox_opt_outs WHERE sender_phone_hash = %s LIMIT 1",
+                (phone_hash,),
+            )
+            return cur.fetchone() is not None
+
+
+def delete_user_data(
+    database_url: str,
+    *,
+    sender_phone: str,
+    delete_opt_out_record: bool = False,
+) -> dict[str, int]:
+    """Hard-delete all stored records for one sender phone (ARCO Cancelación).
+
+    Returns a count of rows deleted per table. The opt-out record is
+    retained by default — it's the legal evidence we need to prove ongoing
+    non-consent, so deleting it would resume contact with a user who has
+    explicitly objected. Pass `delete_opt_out_record=True` only when the
+    user wants their opt-out also removed (and accepts that future inbound
+    messages from the same number will be processed as new contacts).
+    """
+    if not sender_phone:
+        raise MessageStoreUnavailable("Cannot delete data for an empty phone")
+
+    phone_hash = _sha256(sanitize_untrusted_text(sender_phone, MAX_STORED_PHONE_CHARS))
+    if not phone_hash:
+        raise MessageStoreUnavailable("Cannot delete data for an empty phone")
+
+    ensure_schema(database_url)
+
+    counts: dict[str, int] = {}
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM inbox_messages WHERE sender_phone_hash = %s",
+                (phone_hash,),
+            )
+            counts["messages"] = int(cur.rowcount or 0)
+
+            cur.execute(
+                "DELETE FROM inbox_opt_in_proofs WHERE sender_phone_hash = %s",
+                (phone_hash,),
+            )
+            counts["opt_in_proofs"] = int(cur.rowcount or 0)
+
+            if delete_opt_out_record:
+                cur.execute(
+                    "DELETE FROM inbox_opt_outs WHERE sender_phone_hash = %s",
+                    (phone_hash,),
+                )
+                counts["opt_outs"] = int(cur.rowcount or 0)
+            else:
+                counts["opt_outs"] = 0
+
+    return counts

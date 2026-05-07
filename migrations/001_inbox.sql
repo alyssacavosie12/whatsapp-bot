@@ -66,3 +66,18 @@ CREATE INDEX IF NOT EXISTS inbox_opt_in_proofs_created_idx
 
 CREATE INDEX IF NOT EXISTS inbox_opt_in_proofs_sender_phone_hash_idx
     ON inbox_opt_in_proofs (sender_phone_hash);
+
+CREATE TABLE IF NOT EXISTS inbox_opt_outs (
+    id BIGSERIAL PRIMARY KEY,
+    sender_phone_hash TEXT NOT NULL UNIQUE,
+    sender_phone TEXT NOT NULL DEFAULT '',
+    sender_phone_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+    source TEXT NOT NULL DEFAULT '',
+    keyword_used TEXT NOT NULL DEFAULT '',
+    language TEXT NOT NULL DEFAULT '',
+    evidence_hmac TEXT NOT NULL DEFAULT '',
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS inbox_opt_outs_recorded_idx
+    ON inbox_opt_outs (recorded_at DESC);

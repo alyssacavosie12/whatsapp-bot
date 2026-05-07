@@ -9,6 +9,7 @@ from bot import whatsapp_client
 from bot.ai_responder import get_ai_response
 from bot.content_loader import detect_language, get_response
 from bot.faq import find_best_faq_match
+from bot.opt_out_keywords import is_opt_out_request
 from core.phone_utils import is_valid_phone, mask_phone, normalize_phone
 from core.text_utils import sanitize_untrusted_text
 from inbox import service as inbox_service
@@ -31,6 +32,16 @@ MESSAGE_TOO_LONG_FALLBACK: Final[dict[str, str]] = {
     "en": "Thanks - that message is too long. Please send a shorter version.",
     "es": "Gracias - ese mensaje es demasiado largo. Envia una version mas corta.",
 }
+OPT_OUT_CONFIRMATION_FALLBACK: Final[dict[str, str]] = {
+    "en": (
+        "You've been unsubscribed. You will not receive further automated "
+        "messages from Tulum BTX. To re-enable, contact us at tulumbotox.com."
+    ),
+    "es": (
+        "Has cancelado la suscripcion. No recibiras mas mensajes automaticos "
+        "de Tulum BTX. Para reactivar, contactanos en tulumbotox.com."
+    ),
+}
 
 
 def sanitize_sender_name(sender_name: str) -> str:
@@ -41,6 +52,11 @@ def sanitize_sender_name(sender_name: str) -> str:
 def get_message_too_long_response(lang: str) -> str:
     """Return configured or built-in response for overlong customer messages."""
     return get_response("message_too_long", lang) or MESSAGE_TOO_LONG_FALLBACK[lang]
+
+
+def get_opt_out_confirmation_response(lang: str) -> str:
+    """Return configured or built-in confirmation for an opt-out request."""
+    return get_response("opt_out_confirmation", lang) or OPT_OUT_CONFIRMATION_FALLBACK[lang]
 
 
 def build_handoff_notification(sender_name: str, sender_phone: str) -> str:
@@ -108,6 +124,13 @@ def process_webhook_message(value: dict[str, Any], message: dict[str, Any]) -> s
         logger.warning("Rate limit exceeded for %s", mask_phone(sender_phone))
         return "rate limited"
 
+    # LFPDPPP Oposición / CCPA: an opted-out user must not receive any
+    # outbound message. We log that they messaged us (for audit
+    # reconciliation) but stop before storing or replying.
+    if inbox_service.is_opted_out(sender_phone):
+        logger.info("Opted-out sender silenced: %s", mask_phone(sender_phone))
+        return "opted out"
+
     message_type = message.get("type", "")
 
     contacts = value.get("contacts", [{}])
@@ -161,6 +184,23 @@ def process_webhook_message(value: dict[str, Any], message: dict[str, Any]) -> s
             whatsapp_client.notify_team(build_handoff_notification(sender_name, sender_phone))
             logger.info("Human handoff requested by %s", mask_phone(sender_phone))
             return "ok"
+
+        opted_out, opt_out_keyword, opt_out_lang = is_opt_out_request(incoming_text)
+        if opted_out:
+            inbox_service.record_opt_out(
+                sender_phone,
+                source="whatsapp_keyword",
+                keyword_used=opt_out_keyword or "",
+                language=opt_out_lang or lang,
+            )
+            confirmation = get_opt_out_confirmation_response(opt_out_lang or lang)
+            whatsapp_client.send_whatsapp_message(sender_phone, confirmation)
+            logger.info(
+                "Opt-out recorded for %s via keyword=%s",
+                mask_phone(sender_phone),
+                opt_out_keyword,
+            )
+            return "opt out recorded"
 
         faq_answer = find_best_faq_match(incoming_text)
 

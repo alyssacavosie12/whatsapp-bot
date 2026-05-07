@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 
-from flask import Flask, redirect, request, url_for
+from flask import Flask, jsonify, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 
+from core.phone_utils import is_valid_phone, mask_phone, normalize_phone
 from inbox import service as inbox_service
 from inbox import store as inbox_store
 from inbox.security import admin_response
@@ -95,3 +96,60 @@ def register_admin_routes(flask_app: Flask) -> None:
         )
 
         return redirect(url_for("admin_messages"), code=303)
+
+    @flask_app.route("/admin/data-subject/delete", methods=["POST"])
+    def admin_data_subject_delete() -> ResponseReturnValue:
+        """Hard-delete all stored data for one phone (LFPDPPP/CCPA ARCO Cancelación).
+
+        Form fields:
+        - ``phone`` (required): E.164 phone number whose data should be erased.
+        - ``delete_opt_out_record`` (optional): when "true", also drop the
+          opt-out record. Default keeps it as the legal proof of non-consent.
+        """
+        user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_ADMIN_ROLE)
+        if error_response:
+            return error_response
+        if user is None:
+            return admin_response("Unauthorized", 401)
+
+        if not inbox_service.valid_inbox_csrf(user["username"], "arco_delete", 0):
+            return admin_response("Forbidden", 403)
+
+        raw_phone = request.form.get("phone", "").strip()
+        sender_phone = normalize_phone(raw_phone)
+        if not is_valid_phone(sender_phone):
+            return admin_response("Phone is required and must be valid E.164", 400)
+
+        delete_opt_out = request.form.get("delete_opt_out_record", "").lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+
+        try:
+            counts = inbox_service.delete_user_data(
+                sender_phone,
+                delete_opt_out_record=delete_opt_out,
+            )
+        except Exception as exc:
+            logger.error(
+                "arco_delete_failed phone=%s error=%s",
+                mask_phone(sender_phone),
+                exc.__class__.__name__,
+            )
+            return admin_response("Inbox is unavailable", 503)
+
+        inbox_service.audit_inbox_action(
+            user,
+            "arco_cancelacion",
+            metadata={
+                "phone_masked": mask_phone(sender_phone),
+                "delete_opt_out_record": delete_opt_out,
+                "counts": counts,
+            },
+        )
+
+        response = jsonify({"status": "ok", "deleted": counts})
+        response.headers["Cache-Control"] = "no-store"
+        return response, 200
