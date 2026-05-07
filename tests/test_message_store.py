@@ -9,12 +9,9 @@ DB (`_sha256`, `_fernet`, encryption round-trips) are tested directly.
 
 from __future__ import annotations
 
-import json
-import os
 import sys
 
 import pytest
-
 
 # ─── Helper functions (no DB needed) ───────────────────────────────────
 
@@ -36,8 +33,17 @@ def test_auto_migrate_default_true(monkeypatch):
 
 @pytest.mark.parametrize(
     "value,expected",
-    [("1", True), ("true", True), ("yes", True), ("on", True),
-     ("0", False), ("false", False), ("no", False), ("off", False), ("", False)],
+    [
+        ("1", True),
+        ("true", True),
+        ("yes", True),
+        ("on", True),
+        ("0", False),
+        ("false", False),
+        ("no", False),
+        ("off", False),
+        ("", False),
+    ],
 )
 def test_auto_migrate_parses_env_truthy_strings(monkeypatch, value, expected):
     from inbox.store import _auto_migrate_enabled
@@ -159,12 +165,15 @@ def test_read_body_returns_decrypt_failed_marker_on_bad_ciphertext():
 def test_read_sensitive_field_falls_back_to_fallback_when_no_key():
     from inbox.store import _read_sensitive_field
 
-    assert _read_sensitive_field(
-        "ciphertext",
-        encrypted=True,
-        encryption_key="",
-        fallback="MASKED",
-    ) == "MASKED"
+    assert (
+        _read_sensitive_field(
+            "ciphertext",
+            encrypted=True,
+            encryption_key="",
+            fallback="MASKED",
+        )
+        == "MASKED"
+    )
 
 
 def test_read_sensitive_field_falls_back_on_decrypt_failure():
@@ -173,12 +182,15 @@ def test_read_sensitive_field_falls_back_on_decrypt_failure():
     from inbox.store import _read_sensitive_field
 
     key = Fernet.generate_key().decode("utf-8")
-    assert _read_sensitive_field(
-        "garbage",
-        encrypted=True,
-        encryption_key=key,
-        fallback="FALLBACK",
-    ) == "FALLBACK"
+    assert (
+        _read_sensitive_field(
+            "garbage",
+            encrypted=True,
+            encryption_key=key,
+            fallback="FALLBACK",
+        )
+        == "FALLBACK"
+    )
 
 
 def test_connect_raises_when_database_url_missing():
@@ -195,6 +207,7 @@ def test_psycopg_modules_raises_when_psycopg_unavailable(monkeypatch):
     import importlib
 
     import inbox.store as store
+
     importlib.reload(store)
 
     with pytest.raises(store.MessageStoreUnavailable, match="psycopg"):
@@ -253,7 +266,9 @@ def fake_db(monkeypatch):
         def connect(_url, **_kwargs):
             return fake_conn
 
-    fake_jsonb = lambda value: ("__JSONB__", value)
+    def fake_jsonb(value):
+        return ("__JSONB__", value)
+
     fake_dict_row = object()
 
     monkeypatch.setattr(
@@ -320,10 +335,7 @@ def test_cleanup_expired_messages_runs_three_deletes(fake_db):
     fake_db._cursor.rowcount = 5
     cleanup_expired_messages("postgresql://x", retention_days=14)
 
-    deletes = [
-        sql for sql, _params in fake_db._cursor.executed
-        if "DELETE FROM" in sql
-    ]
+    deletes = [sql for sql, _params in fake_db._cursor.executed if "DELETE FROM" in sql]
     assert len(deletes) == 3  # messages + audit + opt-in proofs
 
 
@@ -344,7 +356,8 @@ def test_record_incoming_message_inserts_with_sanitized_params(fake_db):
     )
 
     inserts = [
-        (sql, params) for sql, params in fake_db._cursor.executed
+        (sql, params)
+        for sql, params in fake_db._cursor.executed
         if "INSERT INTO inbox_messages" in sql
     ]
     assert len(inserts) == 1
@@ -388,7 +401,8 @@ def test_record_opt_in_proof_inserts_hmac(fake_db):
     )
 
     inserts = [
-        (sql, params) for sql, params in fake_db._cursor.executed
+        (sql, params)
+        for sql, params in fake_db._cursor.executed
         if "INSERT INTO inbox_opt_in_proofs" in sql
     ]
     assert len(inserts) == 1
@@ -410,10 +424,7 @@ def test_record_opt_in_proof_accepts_string_evidence(fake_db):
     )
 
     # Just verifying it didn't raise on a non-dict evidence input.
-    inserts = [
-        s for s, _ in fake_db._cursor.executed
-        if "INSERT INTO inbox_opt_in_proofs" in s
-    ]
+    inserts = [s for s, _ in fake_db._cursor.executed if "INSERT INTO inbox_opt_in_proofs" in s]
     assert len(inserts) == 1
 
 
@@ -462,9 +473,7 @@ def test_list_messages_with_query_uses_search_branch(fake_db):
     fake_db._cursor._fetchall_result = []
     list_messages("postgresql://x", query="alice")
 
-    selects = [
-        sql for sql, _p in fake_db._cursor.executed if "SELECT" in sql
-    ]
+    selects = [sql for sql, _p in fake_db._cursor.executed if "SELECT" in sql]
     assert any("ILIKE" in s for s in selects)
 
 
@@ -474,9 +483,7 @@ def test_list_messages_with_query_and_include_deleted(fake_db):
     fake_db._cursor._fetchall_result = []
     list_messages("postgresql://x", query="alice", include_deleted=True)
 
-    selects = [
-        sql for sql, _p in fake_db._cursor.executed if "SELECT" in sql
-    ]
+    selects = [sql for sql, _p in fake_db._cursor.executed if "SELECT" in sql]
     assert selects, "must run a SELECT"
     # include_deleted means no WHERE deleted_at IS NULL filter.
     assert all("deleted_at IS NULL" not in s for s in selects)
@@ -502,14 +509,11 @@ def test_soft_delete_message_runs_update_and_returns_rowcount(fake_db):
 
     fake_db._cursor.rowcount = 1
 
-    deleted = soft_delete_message(
-        "postgresql://x", message_id=42, deleted_by="owner"
-    )
+    deleted = soft_delete_message("postgresql://x", message_id=42, deleted_by="owner")
 
     assert deleted is True
     updates = [
-        (sql, params) for sql, params in fake_db._cursor.executed
-        if "UPDATE inbox_messages" in sql
+        (sql, params) for sql, params in fake_db._cursor.executed if "UPDATE inbox_messages" in sql
     ]
     assert len(updates) == 1
     _sql, params = updates[0]
@@ -522,9 +526,7 @@ def test_soft_delete_message_returns_false_when_nothing_deleted(fake_db):
 
     fake_db._cursor.rowcount = 0
 
-    assert soft_delete_message(
-        "postgresql://x", message_id=999, deleted_by="owner"
-    ) is False
+    assert soft_delete_message("postgresql://x", message_id=999, deleted_by="owner") is False
 
 
 # ─── record_audit_event ───────────────────────────────────────────────
@@ -545,7 +547,8 @@ def test_record_audit_event_inserts_with_jsonb_metadata(fake_db):
     )
 
     inserts = [
-        (sql, params) for sql, params in fake_db._cursor.executed
+        (sql, params)
+        for sql, params in fake_db._cursor.executed
         if "INSERT INTO inbox_audit_events" in sql
     ]
     assert len(inserts) == 1
@@ -569,7 +572,8 @@ def test_record_audit_event_handles_no_metadata(fake_db):
     )
 
     inserts = [
-        (sql, params) for sql, params in fake_db._cursor.executed
+        (sql, params)
+        for sql, params in fake_db._cursor.executed
         if "INSERT INTO inbox_audit_events" in sql
     ]
     _sql, params = inserts[0]

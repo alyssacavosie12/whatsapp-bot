@@ -12,8 +12,8 @@ import os
 
 import requests
 from flask import Flask, jsonify, redirect, request, url_for
-from werkzeug.security import check_password_hash
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.security import check_password_hash
 
 from bot.ai_responder import get_ai_response
 from bot.content_loader import detect_language, get_response
@@ -30,6 +30,8 @@ from inbox.compliance import build_inbound_opt_in_evidence
 from inbox.security import admin_response, client_ip, inbox_auth_challenge
 from inbox.store import (
     list_messages as list_inbox_messages,
+)
+from inbox.store import (
     record_audit_event,
     record_incoming_message,
     record_opt_in_proof,
@@ -41,7 +43,6 @@ from settings import (
     FLASK_SECRET_KEY,
     FORCE_HTTPS,
     GRAPH_API_VERSION,
-    INCOMING_MESSAGE_LOG_MAX_CHARS,
     INBOX_ADMIN_PASSWORD_HASH,
     INBOX_ADMIN_USERNAME,
     INBOX_CSRF_SECRET,
@@ -53,6 +54,7 @@ from settings import (
     INBOX_RETENTION_DAYS,
     INBOX_VIEWER_PASSWORD_HASH,
     INBOX_VIEWER_USERNAME,
+    INCOMING_MESSAGE_LOG_MAX_CHARS,
     LOG_INCOMING_MESSAGES,
     MAX_CONTENT_LENGTH,
     MAX_INCOMING_TEXT_CHARS,
@@ -70,7 +72,6 @@ from webhook.graph_api import summarize_graph_error
 from webhook.http_hardening import build_webhook_rate_limit, configure_talisman
 from webhook.rate_limit import allow_phone_message
 from webhook.schema import validate_webhook_payload
-
 
 TEXT_MESSAGE_TYPE = "text"
 HUMAN_HANDOFF_KEYWORD = "HUMAN"
@@ -149,8 +150,7 @@ def log_incoming_text_message(
             mask_phone(sender_phone),
             message_type,
             len(incoming_text),
-            sanitize_untrusted_text(incoming_text, INCOMING_MESSAGE_LOG_MAX_CHARS)
-            or "empty",
+            sanitize_untrusted_text(incoming_text, INCOMING_MESSAGE_LOG_MAX_CHARS) or "empty",
         )
         return
 
@@ -284,7 +284,7 @@ def inbox_csrf_token(username: str, action: str, target_id: int) -> str:
     if not secret:
         return ""
 
-    payload = f"{username}:{action}:{target_id}".encode("utf-8")
+    payload = f"{username}:{action}:{target_id}".encode()
     return hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
 
@@ -381,11 +381,14 @@ def verify_meta_signature() -> bool:
         return False
 
     raw_body = request.get_data(cache=True)
-    expected = "sha256=" + hmac.new(
-        META_APP_SECRET.encode("utf-8"),
-        raw_body,
-        hashlib.sha256,
-    ).hexdigest()
+    expected = (
+        "sha256="
+        + hmac.new(
+            META_APP_SECRET.encode("utf-8"),
+            raw_body,
+            hashlib.sha256,
+        ).hexdigest()
+    )
 
     return hmac.compare_digest(expected, signature)
 
@@ -418,9 +421,7 @@ def process_webhook_message(value: dict, message: dict) -> str:
     message_type = message.get("type", "")
 
     contacts = value.get("contacts", [{}])
-    raw_sender_name = (
-        contacts[0].get("profile", {}).get("name", "") if contacts else ""
-    )
+    raw_sender_name = contacts[0].get("profile", {}).get("name", "") if contacts else ""
     sender_name = sanitize_sender_name(raw_sender_name)
 
     incoming_text = ""
@@ -479,8 +480,7 @@ def process_webhook_message(value: dict, message: dict) -> str:
 
         if BOT_DISCLOSURE and not faq_answer:
             response_text += (
-                "\n\n_This is an automated assistant. "
-                "Reply HUMAN to speak with our team._"
+                "\n\n_This is an automated assistant. Reply HUMAN to speak with our team._"
             )
 
         send_whatsapp_message(sender_phone, response_text)

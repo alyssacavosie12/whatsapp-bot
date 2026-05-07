@@ -14,7 +14,6 @@ from settings import (
     REDIS_URL,
 )
 
-
 logger = logging.getLogger(__name__)
 
 REDIS_KEY_PREFIX = "inbox:auth:"
@@ -187,8 +186,8 @@ def inbox_auth_keys(ip_address: str, username: str) -> list[str]:
     safe_username = str(username or "unknown").strip().lower()
 
     return [
-        hashlib.sha256(f"ip:{safe_ip}".encode("utf-8")).hexdigest(),
-        hashlib.sha256(f"ip-user:{safe_ip}:{safe_username}".encode("utf-8")).hexdigest(),
+        hashlib.sha256(f"ip:{safe_ip}".encode()).hexdigest(),
+        hashlib.sha256(f"ip-user:{safe_ip}:{safe_username}".encode()).hexdigest(),
     ]
 
 

@@ -16,9 +16,6 @@ from __future__ import annotations
 import importlib
 import time
 
-import pytest
-
-
 # ─── Per-phone: _LocalFixedWindowRateLimiter ─────────────────────────
 
 
@@ -105,6 +102,7 @@ def _install_fake_redis(monkeypatch, fake_client):
                 return fake_client
 
     import sys
+
     monkeypatch.setitem(sys.modules, "redis", FakeRedisModule)
 
 
@@ -126,9 +124,7 @@ def test_redis_limiter_uses_incr_and_sets_expire_on_first_event(monkeypatch):
             calls.append(("expire", key, seconds))
 
     _install_fake_redis(monkeypatch, FakeRedis())
-    limiter = _RedisFixedWindowRateLimiter(
-        "redis://example", max_events=2, window_seconds=42
-    )
+    limiter = _RedisFixedWindowRateLimiter("redis://example", max_events=2, window_seconds=42)
 
     assert limiter.allow("phone-1") is True
     assert limiter.allow("phone-1") is True
@@ -153,9 +149,7 @@ def test_redis_limiter_fails_open_when_redis_is_down(monkeypatch):
             pass
 
     _install_fake_redis(monkeypatch, FakeRedis())
-    limiter = _RedisFixedWindowRateLimiter(
-        "redis://example", max_events=1, window_seconds=60
-    )
+    limiter = _RedisFixedWindowRateLimiter("redis://example", max_events=1, window_seconds=60)
 
     assert limiter.allow("phone-1") is True
 
@@ -192,6 +186,7 @@ def test_webhook_returns_429_when_ip_rate_limit_exceeded(content_file, monkeypat
     monkeypatch.setattr(settings, "RATE_LIMIT_STORAGE_URL", "")
 
     import app
+
     app_module = importlib.reload(app)
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
 
@@ -205,6 +200,5 @@ def test_webhook_returns_429_when_ip_rate_limit_exceeded(content_file, monkeypat
     assert first.status_code == 200
     assert second.status_code == 200
     assert third.status_code == 429, (
-        f"Third request must be rate-limited; got {third.status_code} "
-        f"with body {third.data!r}"
+        f"Third request must be rate-limited; got {third.status_code} with body {third.data!r}"
     )

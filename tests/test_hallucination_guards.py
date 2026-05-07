@@ -21,7 +21,6 @@ from types import SimpleNamespace
 
 import pytest
 
-
 FORBIDDEN_FAQ_PHRASES = [
     "guarantee",
     "guaranteed",
@@ -42,12 +41,9 @@ def test_business_context_forbids_guaranteeing_or_inventing(real_content):
 
     ctx = get_business_context().lower()
 
-    assert "never guarantee" in ctx, (
-        "business_context must forbid result guarantees"
-    )
+    assert "never guarantee" in ctx, "business_context must forbid result guarantees"
     assert "invent" in ctx, (
-        "business_context must forbid inventing information when an answer "
-        "isn't in the file"
+        "business_context must forbid inventing information when an answer isn't in the file"
     )
 
 
@@ -129,9 +125,7 @@ def test_anti_hallucination_rules_reach_anthropic_system_prompt(
     class FakeMessages:
         def create(self, **kwargs):
             captured.update(kwargs)
-            return SimpleNamespace(
-                content=[SimpleNamespace(text="canned reply")]
-            )
+            return SimpleNamespace(content=[SimpleNamespace(text="canned reply")])
 
     class FakeClient:
         def __init__(self, **_kwargs):

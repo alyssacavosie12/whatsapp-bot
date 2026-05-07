@@ -177,7 +177,8 @@ def render_admin_messages_page(
             <div class="meta">{username} ({role})</div>
         </header>
         <form class="search" method="get" action="/admin/messages">
-            <input type="search" name="q" value="{safe_query}" placeholder="Search name, phone, text">
+            <input type="search" name="q" value="{safe_query}"
+                placeholder="Search name, phone, text">
             <input type="number" name="limit" value="{limit}" min="1" max="500">
             <button type="submit">Search</button>
         </form>

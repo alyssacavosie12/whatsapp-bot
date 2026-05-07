@@ -15,7 +15,6 @@ from typing import Protocol
 
 from settings import MAX_LOCAL_DEDUP_SIZE, MESSAGE_TTL_SECONDS, REDIS_URL
 
-
 logger = logging.getLogger(__name__)
 
 REDIS_KEY_PREFIX = "wa:msg:"
@@ -83,9 +82,7 @@ class _RedisDedup:
             return False
 
         try:
-            stored = self._client.set(
-                REDIS_KEY_PREFIX + key, "1", nx=True, ex=self._ttl
-            )
+            stored = self._client.set(REDIS_KEY_PREFIX + key, "1", nx=True, ex=self._ttl)
         except Exception as exc:
             logger.error(
                 "Redis dedup unavailable, allowing message: %s",

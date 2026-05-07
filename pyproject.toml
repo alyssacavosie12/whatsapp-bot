@@ -1,0 +1,67 @@
+[project]
+name = "tulum-btx-whatsapp-bot"
+version = "0.1.0"
+description = "WhatsApp Cloud API bot for Tulum BTX with Claude AI fallback."
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "__pycache__", "migrations"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import order)
+    "UP",   # pyupgrade (modern syntax)
+    "B",    # flake8-bugbear (likely bugs)
+    "SIM",  # flake8-simplify
+    "S",    # flake8-bandit (security)
+    "N",    # pep8-naming
+]
+ignore = [
+    # `assert` is fine in tests; bandit's S101 rule is too noisy for pytest.
+    "S101",
+    # Nested `with` is the natural pattern for psycopg `with conn: with cursor:`;
+    # SIM117's combined form is harder to read here.
+    "SIM117",
+    # `MessageStoreUnavailable` etc. are ergonomic names; renaming to
+    # `MessageStoreUnavailableError` adds churn without clarity.
+    "N818",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use a lot of fixtures, monkeypatching, and helper closures — the strict
+# bandit/security rules are noisy here without catching real issues.
+"tests/**/*.py" = ["S105", "S106", "S311"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["app.py", "settings.py", "bot", "core", "inbox", "webhook"]
+
+[[tool.mypy.overrides]]
+# Untyped third-party packages — silence missing-stubs noise.
+module = [
+    "anthropic",
+    "anthropic.*",
+    "flask_limiter",
+    "flask_limiter.*",
+    "flask_talisman",
+    "jsonschema",
+    "psycopg",
+    "psycopg.*",
+    "redis",
+    "cryptography.*",
+    "dotenv",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -34,7 +34,9 @@ def test_anthropic_success(content_file, monkeypatch):
     class FakeMessages:
         def create(self, **kwargs):
             assert "Tulum BTX" in kwargs["system"]
-            assert kwargs["messages"] == [{"role": "user", "content": "What services do you offer?"}]
+            assert kwargs["messages"] == [
+                {"role": "user", "content": "What services do you offer?"}
+            ]
             return SimpleNamespace(content=[SimpleNamespace(text="We offer Dysport and fillers.")])
 
     class FakeClient:
@@ -46,7 +48,10 @@ def test_anthropic_success(content_file, monkeypatch):
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")
     monkeypatch.setattr(ai_responder.anthropic, "Anthropic", FakeClient)
 
-    assert ai_responder.get_ai_response("What services do you offer?") == "We offer Dysport and fillers."
+    assert (
+        ai_responder.get_ai_response("What services do you offer?")
+        == "We offer Dysport and fillers."
+    )
 
 
 def test_anthropic_empty_response_uses_fallback(content_file, monkeypatch):

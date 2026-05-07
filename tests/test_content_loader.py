@@ -55,7 +55,10 @@ def test_get_faq_entries_filters_invalid_items(tmp_path, monkeypatch):
     from bot import content_loader
 
     path = tmp_path / "bot_content.json"
-    path.write_text(json.dumps({"business_context": "x", "responses": {}, "faq": [{"ok": True}, "bad", 123]}), encoding="utf-8")
+    path.write_text(
+        json.dumps({"business_context": "x", "responses": {}, "faq": [{"ok": True}, "bad", 123]}),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(content_loader, "CONTENT_FILE", path)
     content_loader.load_content.cache_clear()
 
@@ -85,7 +88,9 @@ def test_get_response_handles_bad_responses_shape(tmp_path, monkeypatch):
     from bot import content_loader
 
     path = tmp_path / "bot_content.json"
-    path.write_text(json.dumps({"business_context": "x", "responses": [], "faq": []}), encoding="utf-8")
+    path.write_text(
+        json.dumps({"business_context": "x", "responses": [], "faq": []}), encoding="utf-8"
+    )
     monkeypatch.setattr(content_loader, "CONTENT_FILE", path)
     content_loader.load_content.cache_clear()
 

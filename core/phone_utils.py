@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 
-
 VALID_PHONE_RE = re.compile(r"\d{10,15}")
 
 

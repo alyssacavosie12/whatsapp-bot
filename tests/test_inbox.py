@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 import importlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from werkzeug.security import generate_password_hash
 
@@ -24,7 +24,7 @@ def _reload_app(monkeypatch=None):
 
 
 def _basic_auth(username: str, password: str) -> dict[str, str]:
-    token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    token = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
     return {"Authorization": f"Basic {token}"}
 
 
@@ -59,7 +59,7 @@ def _message(message_id: int = 1) -> InboxMessage:
         body="Need an appointment",
         body_encrypted=True,
         body_length=19,
-        created_at=datetime(2026, 5, 7, 12, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 5, 7, 12, 0, tzinfo=UTC),
         deleted_at=None,
         deleted_by="",
     )
@@ -79,13 +79,19 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "test-key")
     monkeypatch.setattr(app_module, "INBOX_PROOF_SECRET", "proof-secret")
     monkeypatch.setattr(app_module, "INBOX_RETENTION_DAYS", 14)
-    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text)))
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
+    )
 
     def fake_record(database_url, **kwargs):
         stored.append((database_url, kwargs))
 
     monkeypatch.setattr(app_module, "record_incoming_message", fake_record)
-    monkeypatch.setattr(app_module, "record_opt_in_proof", lambda database_url, **kwargs: proofs.append((database_url, kwargs)))
+    monkeypatch.setattr(
+        app_module,
+        "record_opt_in_proof",
+        lambda database_url, **kwargs: proofs.append((database_url, kwargs)),
+    )
 
     client = app_module.app.test_client()
     response = client.post(
@@ -145,7 +151,9 @@ def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://inbox")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "test-key")
-    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text)))
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
+    )
 
     def fail_record(*_args, **_kwargs):
         raise RuntimeError("db down")
@@ -221,7 +229,9 @@ def test_failed_admin_auth_is_recorded(content_file, monkeypatch):
     recorded = []
 
     monkeypatch.setattr(app_module, "is_inbox_auth_limited", lambda _keys: False)
-    monkeypatch.setattr(app_module, "record_inbox_auth_failure", lambda keys: recorded.append(keys) or False)
+    monkeypatch.setattr(
+        app_module, "record_inbox_auth_failure", lambda keys: recorded.append(keys) or False
+    )
 
     client = app_module.app.test_client()
     response = client.get("/admin/messages", headers=_basic_auth("owner", "wrong"))
@@ -247,7 +257,9 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
     audits = []
 
     monkeypatch.setattr(app_module, "list_inbox_messages", lambda *_args, **_kwargs: [_message()])
-    monkeypatch.setattr(app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs)))
+    monkeypatch.setattr(
+        app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs))
+    )
 
     client = app_module.app.test_client()
     response = client.get("/admin/messages", headers=_basic_auth("viewer", "view"))
@@ -266,8 +278,12 @@ def test_admin_can_soft_delete_message(content_file, monkeypatch):
     deleted = []
     audits = []
 
-    monkeypatch.setattr(app_module, "soft_delete_message", lambda *_args, **kwargs: deleted.append(kwargs) or True)
-    monkeypatch.setattr(app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs)))
+    monkeypatch.setattr(
+        app_module, "soft_delete_message", lambda *_args, **kwargs: deleted.append(kwargs) or True
+    )
+    monkeypatch.setattr(
+        app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs))
+    )
 
     token = app_module.inbox_csrf_token("owner", "delete", 42)
     client = app_module.app.test_client()
@@ -306,8 +322,12 @@ def test_all_messages_in_payload_are_processed(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://inbox")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "test-key")
-    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text)))
-    monkeypatch.setattr(app_module, "record_incoming_message", lambda _url, **kwargs: stored.append(kwargs))
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
+    )
+    monkeypatch.setattr(
+        app_module, "record_incoming_message", lambda _url, **kwargs: stored.append(kwargs)
+    )
 
     client = app_module.app.test_client()
     response = client.post(

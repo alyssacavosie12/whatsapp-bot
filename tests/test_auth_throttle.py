@@ -15,9 +15,6 @@ from __future__ import annotations
 import sys
 import time
 
-import pytest
-
-
 # ─── _AllowAllAuthThrottle ────────────────────────────────────────────
 
 
@@ -140,12 +137,10 @@ def test_redis_throttle_records_failure_with_incr_and_first_expire(monkeypatch):
             calls.append(("delete",))
 
     _install_fake_redis(monkeypatch, FakeRedis())
-    throttle = _RedisAuthThrottle(
-        "redis://example", max_failures=2, window_seconds=42
-    )
+    throttle = _RedisAuthThrottle("redis://example", max_failures=2, window_seconds=42)
 
     assert throttle.record_failure("key") is False  # count=1, EXPIRE set
-    assert throttle.record_failure("key") is True   # count=2 ≥ max
+    assert throttle.record_failure("key") is True  # count=2 ≥ max
     assert throttle.is_limited("key") is True
 
     expire_calls = [c for c in calls if c[0] == "expire"]
@@ -171,9 +166,7 @@ def test_redis_throttle_is_limited_returns_false_when_no_record(monkeypatch):
             pass
 
     _install_fake_redis(monkeypatch, FakeRedis())
-    throttle = _RedisAuthThrottle(
-        "redis://example", max_failures=3, window_seconds=60
-    )
+    throttle = _RedisAuthThrottle("redis://example", max_failures=3, window_seconds=60)
 
     assert throttle.is_limited("never-failed") is False
 
@@ -196,9 +189,7 @@ def test_redis_throttle_fails_open_on_redis_error_in_is_limited(monkeypatch):
             raise RuntimeError("connection refused")
 
     _install_fake_redis(monkeypatch, FakeRedis())
-    throttle = _RedisAuthThrottle(
-        "redis://example", max_failures=1, window_seconds=60
-    )
+    throttle = _RedisAuthThrottle("redis://example", max_failures=1, window_seconds=60)
 
     assert throttle.is_limited("key") is False
     assert throttle.record_failure("key") is False
@@ -225,9 +216,7 @@ def test_redis_throttle_clear_calls_delete(monkeypatch):
             calls.append(key)
 
     _install_fake_redis(monkeypatch, FakeRedis())
-    throttle = _RedisAuthThrottle(
-        "redis://example", max_failures=3, window_seconds=60
-    )
+    throttle = _RedisAuthThrottle("redis://example", max_failures=3, window_seconds=60)
 
     throttle.clear("the-key")
 
@@ -251,9 +240,7 @@ def test_redis_throttle_empty_key_is_inert(monkeypatch):
             raise AssertionError("delete must not be called for empty key")
 
     _install_fake_redis(monkeypatch, FakeRedis())
-    throttle = _RedisAuthThrottle(
-        "redis://example", max_failures=3, window_seconds=60
-    )
+    throttle = _RedisAuthThrottle("redis://example", max_failures=3, window_seconds=60)
 
     assert throttle.is_limited("") is False
     assert throttle.record_failure("") is False
@@ -326,9 +313,7 @@ def test_inbox_auth_keys_normalize_case_and_blanks():
     """Whitespace and case differences must collapse to the same key."""
     from inbox.auth_throttle import inbox_auth_keys
 
-    assert inbox_auth_keys("  1.2.3.4 ", "ALICE") == inbox_auth_keys(
-        "1.2.3.4", "alice"
-    )
+    assert inbox_auth_keys("  1.2.3.4 ", "ALICE") == inbox_auth_keys("1.2.3.4", "alice")
     # Empty values fall back to "unknown".
     assert inbox_auth_keys("", "") == inbox_auth_keys("unknown", "unknown")
 

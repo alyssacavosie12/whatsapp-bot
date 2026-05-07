@@ -31,9 +31,7 @@ def with_admin_security_headers(response: Response) -> Response:
     )
 
     if request.headers.get("X-Forwarded-Proto", request.scheme) == "https":
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
     return response
 
@@ -48,7 +46,5 @@ def admin_response(body: str, status: int = 200) -> Response:
 def inbox_auth_challenge() -> Response:
     """Ask the browser for admin inbox credentials."""
     response = admin_response("Unauthorized", 401)
-    response.headers["WWW-Authenticate"] = (
-        'Basic realm="Messages Inbox", charset="UTF-8"'
-    )
+    response.headers["WWW-Authenticate"] = 'Basic realm="Messages Inbox", charset="UTF-8"'
     return response

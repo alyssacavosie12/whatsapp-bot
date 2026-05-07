@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 from flask import Flask
 
-
 logger = logging.getLogger(__name__)
 
 

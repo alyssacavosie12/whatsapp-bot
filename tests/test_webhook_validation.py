@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import sys
 
-import pytest
 from flask import Flask
-
 
 # ─── webhook/events.py: malformed payload skipping ──────────────────
 
@@ -131,9 +129,7 @@ def test_manual_schema_rejects_non_object_change_item():
 def test_manual_schema_rejects_non_object_value():
     from webhook.schema import _manual_validate_webhook_payload
 
-    ok, err = _manual_validate_webhook_payload(
-        {"entry": [{"changes": [{"value": "bad"}]}]}
-    )
+    ok, err = _manual_validate_webhook_payload({"entry": [{"changes": [{"value": "bad"}]}]})
     assert not ok
     assert "value" in err
 
@@ -184,17 +180,7 @@ def test_manual_schema_rejects_non_object_text_payload():
     ok, err = _manual_validate_webhook_payload(
         {
             "entry": [
-                {
-                    "changes": [
-                        {
-                            "value": {
-                                "messages": [
-                                    {"type": "text", "text": "bad-not-object"}
-                                ]
-                            }
-                        }
-                    ]
-                }
+                {"changes": [{"value": {"messages": [{"type": "text", "text": "bad-not-object"}]}}]}
             ]
         }
     )
@@ -210,13 +196,7 @@ def test_manual_schema_accepts_valid_payload():
             "entry": [
                 {
                     "changes": [
-                        {
-                            "value": {
-                                "messages": [
-                                    {"id": "wamid.1", "from": "100", "type": "text"}
-                                ]
-                            }
-                        }
+                        {"value": {"messages": [{"id": "wamid.1", "from": "100", "type": "text"}]}}
                     ]
                 }
             ]
@@ -256,9 +236,7 @@ def test_build_webhook_rate_limit_is_passthrough_when_rate_limit_empty():
     from webhook.http_hardening import build_webhook_rate_limit
 
     app = Flask(__name__)
-    decorator = build_webhook_rate_limit(
-        app, key_func=lambda: "x", rate_limit="", storage_uri=""
-    )
+    decorator = build_webhook_rate_limit(app, key_func=lambda: "x", rate_limit="", storage_uri="")
 
     def view():
         return "ok"

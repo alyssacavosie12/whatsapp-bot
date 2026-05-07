@@ -19,7 +19,6 @@ from settings import (
     ANTHROPIC_TIMEOUT_SECONDS,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -79,10 +78,7 @@ def _truncate_response(text: str) -> str:
     if len(text) <= MAX_WHATSAPP_AI_RESPONSE_LENGTH:
         return text
 
-    return (
-        text[: MAX_WHATSAPP_AI_RESPONSE_LENGTH - len(TRUNCATION_SUFFIX)]
-        + TRUNCATION_SUFFIX
-    )
+    return text[: MAX_WHATSAPP_AI_RESPONSE_LENGTH - len(TRUNCATION_SUFFIX)] + TRUNCATION_SUFFIX
 
 
 def get_ai_response(user_message: str, sender_name: str = "") -> str:

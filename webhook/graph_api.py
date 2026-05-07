@@ -6,7 +6,6 @@ import requests
 
 from core.text_utils import sanitize_untrusted_text
 
-
 GRAPH_ERROR_FIELDS = ("code", "error_subcode", "type", "fbtrace_id")
 
 

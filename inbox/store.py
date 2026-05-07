@@ -12,7 +12,6 @@ from typing import Any
 
 from core.text_utils import sanitize_untrusted_text
 
-
 MAX_STORED_BODY_CHARS = 8000
 MAX_STORED_NAME_CHARS = 64
 MAX_STORED_TYPE_CHARS = 32
@@ -65,9 +64,7 @@ def _psycopg_modules():
         from psycopg.rows import dict_row
         from psycopg.types.json import Jsonb
     except ImportError as exc:
-        raise MessageStoreUnavailable(
-            "psycopg is required for the admin inbox"
-        ) from exc
+        raise MessageStoreUnavailable("psycopg is required for the admin inbox") from exc
 
     return psycopg, dict_row, Jsonb
 
@@ -362,12 +359,10 @@ def record_incoming_message(
         MAX_STORED_PHONE_CHARS,
         encryption_key,
     )
-    stored_sender_name, sender_name_encrypted, sender_name_hash = (
-        _prepare_sensitive_field(
-            sender_name,
-            MAX_STORED_NAME_CHARS,
-            encryption_key,
-        )
+    stored_sender_name, sender_name_encrypted, sender_name_hash = _prepare_sensitive_field(
+        sender_name,
+        MAX_STORED_NAME_CHARS,
+        encryption_key,
     )
     safe_message_type = sanitize_untrusted_text(message_type, MAX_STORED_TYPE_CHARS)
     stored_body, body_encrypted, body_length, body_sha256 = _prepare_body(
@@ -709,7 +704,7 @@ def record_audit_event(
 ) -> None:
     """Append an admin inbox audit event."""
     ensure_schema(database_url)
-    _psycopg, _dict_row, Jsonb = _psycopg_modules()
+    _psycopg, _dict_row, jsonb = _psycopg_modules()
 
     with _connect(database_url) as conn:
         with conn.cursor() as cur:
@@ -733,6 +728,6 @@ def record_audit_event(
                     target_message_id,
                     sanitize_untrusted_text(ip_address, 64),
                     sanitize_untrusted_text(user_agent, 256),
-                    Jsonb(metadata or {}),
+                    jsonb(metadata or {}),
                 ),
             )

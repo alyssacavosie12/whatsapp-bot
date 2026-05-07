@@ -32,7 +32,9 @@ def test_webhook_verify_success(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "VERIFY_TOKEN", "test-token")
     client = app_module.app.test_client()
 
-    response = client.get("/webhook?hub.mode=subscribe&hub.verify_token=test-token&hub.challenge=12345")
+    response = client.get(
+        "/webhook?hub.mode=subscribe&hub.verify_token=test-token&hub.challenge=12345"
+    )
 
     assert response.status_code == 200
     assert response.data.decode() == "12345"
@@ -44,7 +46,12 @@ def test_webhook_verify_forbidden(content_file, monkeypatch):
     client = app_module.app.test_client()
 
     assert client.get("/webhook").status_code == 403
-    assert client.get("/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=12345").status_code == 403
+    assert (
+        client.get(
+            "/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=12345"
+        ).status_code
+        == 403
+    )
 
 
 def test_post_non_json_returns_415(content_file, monkeypatch):
@@ -55,6 +62,7 @@ def test_post_non_json_returns_415(content_file, monkeypatch):
 
     assert response.status_code == 415
     assert response.get_json()["status"] == "unsupported content type"
+
 
 def test_post_empty_json_returns_400(content_file, monkeypatch):
     app_module = _reload_app(monkeypatch)
@@ -70,7 +78,9 @@ def test_post_status_update_returns_no_messages(content_file, monkeypatch):
     app_module = _reload_app(monkeypatch)
     client = app_module.app.test_client()
 
-    response = client.post("/webhook", json={"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
+    response = client.post(
+        "/webhook", json={"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]}
+    )
 
     assert response.status_code == 200
     assert response.get_json()["status"] == "no messages"
@@ -80,7 +90,9 @@ def test_post_invalid_webhook_schema_returns_400(content_file, monkeypatch):
     app_module = _reload_app(monkeypatch)
     client = app_module.app.test_client()
 
-    response = client.post("/webhook", json={"entry": [{"changes": [{"value": {"messages": "bad"}}]}]})
+    response = client.post(
+        "/webhook", json={"entry": [{"changes": [{"value": {"messages": "bad"}}]}]}
+    )
 
     assert response.status_code == 400
     assert response.get_json()["status"] == "invalid payload"
@@ -106,7 +118,9 @@ def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
                         {
                             "value": {
                                 "contacts": [{"profile": {"name": "Test User"}}],
-                                "messages": [{"from": "37368826828", "type": "text", "text": {"body": "hi"}}],
+                                "messages": [
+                                    {"from": "37368826828", "type": "text", "text": {"body": "hi"}}
+                                ],
                             }
                         }
                     ]
@@ -125,7 +139,9 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
 
     monkeypatch.setattr(app_module, "find_best_faq_match", lambda text: None)
     monkeypatch.setattr(app_module, "get_ai_response", lambda text, sender_name="": "AI answer")
-    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text)))
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
+    )
 
     client = app_module.app.test_client()
     response = client.post(
@@ -137,7 +153,13 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
                         {
                             "value": {
                                 "contacts": [{"profile": {"name": "Test User"}}],
-                                "messages": [{"from": "37368826828", "type": "text", "text": {"body": "unknown question"}}],
+                                "messages": [
+                                    {
+                                        "from": "37368826828",
+                                        "type": "text",
+                                        "text": {"body": "unknown question"},
+                                    }
+                                ],
                             }
                         }
                     ]
@@ -150,8 +172,7 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
     assert sent == [
         (
             "37368826828",
-            "AI answer\n\n"
-            "_This is an automated assistant. Reply HUMAN to speak with our team._",
+            "AI answer\n\n_This is an automated assistant. Reply HUMAN to speak with our team._",
         )
     ]
 
@@ -160,7 +181,9 @@ def test_human_handoff_does_not_double_reply(content_file, monkeypatch):
     app_module = _reload_app(monkeypatch)
     sent = []
 
-    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text)))
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
+    )
 
     client = app_module.app.test_client()
     response = client.post(
@@ -172,7 +195,13 @@ def test_human_handoff_does_not_double_reply(content_file, monkeypatch):
                         {
                             "value": {
                                 "contacts": [{"profile": {"name": "Test User"}}],
-                                "messages": [{"from": "37368826828", "type": "text", "text": {"body": "HUMAN"}}],
+                                "messages": [
+                                    {
+                                        "from": "37368826828",
+                                        "type": "text",
+                                        "text": {"body": "HUMAN"},
+                                    }
+                                ],
                             }
                         }
                     ]
@@ -189,12 +218,18 @@ def test_media_message_uses_media_response(content_file, monkeypatch):
     app_module = _reload_app(monkeypatch)
     sent = []
 
-    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text)))
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
+    )
 
     client = app_module.app.test_client()
     response = client.post(
         "/webhook",
-        json={"entry": [{"changes": [{"value": {"messages": [{"from": "37368826828", "type": "image"}]}}]}]},
+        json={
+            "entry": [
+                {"changes": [{"value": {"messages": [{"from": "37368826828", "type": "image"}]}}]}
+            ]
+        },
     )
 
     assert response.status_code == 200
@@ -205,12 +240,18 @@ def test_unknown_message_type_uses_unknown_response(content_file, monkeypatch):
     app_module = _reload_app(monkeypatch)
     sent = []
 
-    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text)))
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
+    )
 
     client = app_module.app.test_client()
     response = client.post(
         "/webhook",
-        json={"entry": [{"changes": [{"value": {"messages": [{"from": "37368826828", "type": "sticker"}]}}]}]},
+        json={
+            "entry": [
+                {"changes": [{"value": {"messages": [{"from": "37368826828", "type": "sticker"}]}}]}
+            ]
+        },
     )
 
     assert response.status_code == 200
@@ -228,7 +269,21 @@ def test_processing_exception_returns_200(content_file, monkeypatch):
     client = app_module.app.test_client()
     response = client.post(
         "/webhook",
-        json={"entry": [{"changes": [{"value": {"messages": [{"from": "37368826828", "type": "text", "text": {"body": "hi"}}]}}]}]},
+        json={
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "messages": [
+                                    {"from": "37368826828", "type": "text", "text": {"body": "hi"}}
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
     )
 
     assert response.status_code == 200

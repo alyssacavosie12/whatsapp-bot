@@ -17,7 +17,6 @@ from settings import (
     REDIS_URL,
 )
 
-
 logger = logging.getLogger(__name__)
 
 REDIS_KEY_PREFIX = "wa:rate:"

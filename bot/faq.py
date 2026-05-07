@@ -11,7 +11,6 @@ from typing import Any
 from bot.content_loader import detect_language, get_faq_entries
 from core.text_utils import normalize_text, text_tokens
 
-
 # ─── JSON field names ────────────────────────────────────────
 
 KEYWORDS_FIELD = "keywords"
@@ -44,11 +43,7 @@ def _answer_for_language(entry: FAQEntry, lang: str) -> str:
     if lang == "es" and entry.get(ANSWER_ES_FIELD):
         return str(entry[ANSWER_ES_FIELD])
 
-    return str(
-        entry.get(ANSWER_EN_FIELD)
-        or entry.get(LEGACY_ANSWER_FIELD)
-        or ""
-    )
+    return str(entry.get(ANSWER_EN_FIELD) or entry.get(LEGACY_ANSWER_FIELD) or "")
 
 
 def _score_keyword_match(message: str, message_tokens: set[str], keyword: str) -> int:
