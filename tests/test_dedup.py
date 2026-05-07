@@ -56,6 +56,7 @@ def test_local_dedup_evicts_expired_entries(monkeypatch):
 
 def test_redis_backend_uses_set_nx_ex(monkeypatch):
     """RedisDedup must call SET with NX and EX so dedup is atomic and TTL'd."""
+    from core.cache import reset_redis_clients
     from webhook.dedup import _RedisDedup
 
     calls = []
@@ -71,6 +72,7 @@ def test_redis_backend_uses_set_nx_ex(monkeypatch):
             def from_url(url, **_kwargs):
                 return FakeRedis()
 
+    reset_redis_clients()
     monkeypatch.setitem(__import__("sys").modules, "redis", FakeRedisModule)
 
     dedup = _RedisDedup("redis://example", ttl_seconds=42)
@@ -83,6 +85,7 @@ def test_redis_backend_uses_set_nx_ex(monkeypatch):
 
 
 def test_redis_backend_fails_open_on_error(monkeypatch):
+    from core.cache import reset_redis_clients
     from webhook.dedup import _RedisDedup
 
     class FakeRedis:
@@ -95,6 +98,7 @@ def test_redis_backend_fails_open_on_error(monkeypatch):
             def from_url(url, **_kwargs):
                 return FakeRedis()
 
+    reset_redis_clients()
     monkeypatch.setitem(__import__("sys").modules, "redis", FakeRedisModule)
 
     dedup = _RedisDedup("redis://example", ttl_seconds=10)

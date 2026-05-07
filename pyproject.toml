@@ -48,7 +48,7 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["app.py", "settings.py", "bot", "core", "inbox", "webhook"]
+files = ["app.py", "settings.py", "bot", "core", "inbox", "webhook", "scripts"]
 
 [[tool.mypy.overrides]]
 # Untyped third-party packages — silence missing-stubs noise.
@@ -61,6 +61,8 @@ module = [
     "jsonschema",
     "psycopg",
     "psycopg.*",
+    "psycopg_pool",
+    "psycopg_pool.*",
     "redis",
     "cryptography.*",
     "dotenv",

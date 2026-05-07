@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hmac
 import logging
+from collections.abc import Callable, Sequence
+from threading import Thread
 from typing import Any, cast
 
 from flask import Flask, jsonify, request
@@ -18,6 +20,49 @@ from webhook.http_hardening import RouteDecorator
 from webhook.schema import validate_webhook_payload
 
 logger = logging.getLogger(__name__)
+
+WebhookEvent = tuple[dict[str, Any], dict[str, Any]]
+
+
+def process_webhook_events(events: Sequence[WebhookEvent]) -> list[str]:
+    """Process validated WhatsApp webhook events outside the request path.
+
+    Args:
+        events: Parsed `(value, message)` webhook message pairs.
+    """
+    statuses: list[str] = []
+
+    try:
+        for value, message in events:
+            try:
+                statuses.append(message_processor.process_webhook_message(value, message))
+            except Exception as exc:
+                logger.error("Error processing message: %s", exc.__class__.__name__)
+                statuses.append("ok")
+    except Exception as exc:
+        logger.error("Error processing webhook: %s", exc.__class__.__name__)
+
+    return statuses
+
+
+def run_in_background(
+    target: Callable[[Sequence[WebhookEvent]], list[str]],
+    events: Sequence[WebhookEvent],
+) -> None:
+    """Run webhook processing in a daemon thread.
+
+    Args:
+        target: Function that processes parsed webhook events.
+        events: Parsed webhook message pairs.
+    """
+
+    def worker() -> None:
+        try:
+            target(events)
+        except Exception as exc:
+            logger.error("Webhook background worker failed: %s", exc.__class__.__name__)
+
+    Thread(target=worker, daemon=True).start()
 
 
 def register_webhook_routes(flask_app: Flask, webhook_rate_limit: RouteDecorator) -> None:
@@ -66,26 +111,12 @@ def register_webhook_routes(flask_app: Flask, webhook_rate_limit: RouteDecorator
             )
             return jsonify({"status": "invalid payload"}), 400
 
-        try:
-            payload = cast(dict[str, Any], data)
-            events = list(iter_webhook_messages(payload))
+        payload = cast(dict[str, Any], data)
+        events = list(iter_webhook_messages(payload))
 
-            if not events:
-                return jsonify({"status": "no messages"}), 200
+        if not events:
+            return jsonify({"status": "no messages"}), 200
 
-            statuses: list[str] = []
-
-            for value, message in events:
-                try:
-                    statuses.append(message_processor.process_webhook_message(value, message))
-                except Exception as exc:
-                    logger.error("Error processing message: %s", exc.__class__.__name__)
-                    statuses.append("ok")
-
-            if len(statuses) == 1 and statuses[0] != "ok":
-                return jsonify({"status": statuses[0]}), 200
-
-        except Exception as exc:
-            logger.error("Error processing webhook: %s", exc.__class__.__name__)
+        run_in_background(process_webhook_events, events)
 
         return jsonify({"status": "ok"}), 200

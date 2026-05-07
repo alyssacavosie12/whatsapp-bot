@@ -104,34 +104,52 @@ def test_local_throttle_evicts_old_bucket_keys(monkeypatch):
 
 
 def _install_fake_redis(monkeypatch, fake_client):
+    from core.cache import reset_redis_clients
+
     class FakeRedisModule:
         class Redis:
             @staticmethod
             def from_url(_url, **_kwargs):
                 return fake_client
 
+    reset_redis_clients()
     monkeypatch.setitem(sys.modules, "redis", FakeRedisModule)
 
 
-def test_redis_throttle_records_failure_with_incr_and_first_expire(monkeypatch):
-    """First failure in a bucket must INCR and EXPIRE so the key actually times out."""
+def test_redis_throttle_records_failure_with_pipeline(monkeypatch):
+    """Redis throttle must batch INCR and EXPIRE in one pipeline round trip."""
     from inbox.auth_throttle import _RedisAuthThrottle
 
     calls = []
 
     class FakeRedis:
         counter = 0
+        last_count = 0
+
+        def pipeline(self):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
 
         def incr(self, key):
             calls.append(("incr", key))
             FakeRedis.counter += 1
-            return FakeRedis.counter
+            FakeRedis.last_count = FakeRedis.counter
+            return self
 
         def expire(self, key, seconds):
             calls.append(("expire", key, seconds))
+            return self
+
+        def execute(self):
+            return [FakeRedis.last_count, True]
 
         def get(self, _key):
-            return str(FakeRedis.counter).encode("utf-8")
+            return str(FakeRedis.counter)
 
         def delete(self, _key):
             calls.append(("delete",))
@@ -144,7 +162,7 @@ def test_redis_throttle_records_failure_with_incr_and_first_expire(monkeypatch):
     assert throttle.is_limited("key") is True
 
     expire_calls = [c for c in calls if c[0] == "expire"]
-    assert len(expire_calls) == 1, "EXPIRE must be set exactly once per bucket"
+    assert len(expire_calls) == 2, "EXPIRE must be batched with every INCR"
     assert expire_calls[0][2] == 42
 
 
@@ -156,11 +174,23 @@ def test_redis_throttle_is_limited_returns_false_when_no_record(monkeypatch):
         def get(self, _key):
             return None
 
+        def pipeline(self):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
         def incr(self, _key):
-            return 1
+            return self
 
         def expire(self, *_args):
-            pass
+            return self
+
+        def execute(self):
+            return [1, True]
 
         def delete(self, *_args):
             pass
@@ -179,6 +209,15 @@ def test_redis_throttle_fails_open_on_redis_error_in_is_limited(monkeypatch):
         def get(self, _key):
             raise RuntimeError("connection refused")
 
+        def pipeline(self):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
         def incr(self, _key):
             raise RuntimeError("connection refused")
 
@@ -187,6 +226,9 @@ def test_redis_throttle_fails_open_on_redis_error_in_is_limited(monkeypatch):
 
         def delete(self, *_args):
             raise RuntimeError("connection refused")
+
+        def execute(self):
+            return [1, True]
 
     _install_fake_redis(monkeypatch, FakeRedis())
     throttle = _RedisAuthThrottle("redis://example", max_failures=1, window_seconds=60)
@@ -206,11 +248,23 @@ def test_redis_throttle_clear_calls_delete(monkeypatch):
         def get(self, _key):
             return None
 
+        def pipeline(self):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
         def incr(self, _key):
-            return 1
+            return self
 
         def expire(self, *_args):
-            pass
+            return self
+
+        def execute(self):
+            return [1, True]
 
         def delete(self, key):
             calls.append(key)
@@ -229,6 +283,9 @@ def test_redis_throttle_empty_key_is_inert(monkeypatch):
     class FakeRedis:
         def get(self, _key):
             raise AssertionError("get must not be called for empty key")
+
+        def pipeline(self):
+            raise AssertionError("pipeline must not be called for empty key")
 
         def incr(self, _key):
             raise AssertionError("incr must not be called for empty key")

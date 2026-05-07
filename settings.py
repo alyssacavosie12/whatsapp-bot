@@ -32,6 +32,17 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if not value:
+        return default
+
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
 # ─── WhatsApp / Meta ─────────────────────────────────────────
 
 WHATSAPP_TOKEN: Final = os.getenv("WHATSAPP_TOKEN", "").strip()
@@ -57,6 +68,16 @@ FORCE_HTTPS: Final = _env_bool("FORCE_HTTPS", default=False)
 # ─── Dedup ───────────────────────────────────────────────────
 
 REDIS_URL: Final = os.getenv("REDIS_URL", "").strip()
+REDIS_MAX_CONNECTIONS: Final = _env_int("REDIS_MAX_CONNECTIONS", 20)
+REDIS_SOCKET_TIMEOUT_SECONDS: Final = _env_float("REDIS_SOCKET_TIMEOUT_SECONDS", 3.0)
+REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS: Final = _env_float(
+    "REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS",
+    2.0,
+)
+REDIS_HEALTH_CHECK_INTERVAL_SECONDS: Final = _env_int(
+    "REDIS_HEALTH_CHECK_INTERVAL_SECONDS",
+    30,
+)
 MESSAGE_TTL_SECONDS: Final = _env_int("MESSAGE_TTL_SECONDS", 60 * 60)
 MAX_LOCAL_DEDUP_SIZE: Final = _env_int("MAX_LOCAL_DEDUP_SIZE", 10_000)
 
@@ -75,18 +96,39 @@ ANTHROPIC_API_KEY: Final = os.getenv("ANTHROPIC_API_KEY", "").strip()
 ANTHROPIC_MODEL: Final = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-6").strip()
 ANTHROPIC_MAX_TOKENS: Final = _env_int("ANTHROPIC_MAX_TOKENS", 300)
 ANTHROPIC_TIMEOUT_SECONDS: Final = _env_int("ANTHROPIC_TIMEOUT_SECONDS", 30)
+ANTHROPIC_CIRCUIT_FAILURE_THRESHOLD: Final = _env_int(
+    "ANTHROPIC_CIRCUIT_FAILURE_THRESHOLD",
+    5,
+)
+ANTHROPIC_CIRCUIT_RECOVERY_SECONDS: Final = _env_int(
+    "ANTHROPIC_CIRCUIT_RECOVERY_SECONDS",
+    60,
+)
 
 
 # ─── Bot behavior ────────────────────────────────────────────
 
 BOT_DISCLOSURE: Final = _env_bool("BOT_DISCLOSURE", default=True)
 TEAM_NOTIFY_PHONE: Final = os.getenv("TEAM_NOTIFY_PHONE", "").strip()
+WHATSAPP_MAX_RETRIES: Final = _env_int("WHATSAPP_MAX_RETRIES", 3)
+WHATSAPP_RETRY_BACKOFF_SECONDS: Final = _env_float("WHATSAPP_RETRY_BACKOFF_SECONDS", 1.0)
+WHATSAPP_REQUEST_TIMEOUT_SECONDS: Final = _env_float("WHATSAPP_REQUEST_TIMEOUT_SECONDS", 10.0)
 
 
 # ─── Admin inbox ──────────────────────────────────────────────
 
 INBOX_ENABLED: Final = _env_bool("INBOX_ENABLED", default=True)
-INBOX_DATABASE_URL: Final = os.getenv("DATABASE_URL", "").strip()
+INBOX_DATABASE_URL: Final = (
+    os.getenv("DATABASE_PRIVATE_URL", "").strip()
+    or os.getenv(
+        "DATABASE_URL",
+        "",
+    ).strip()
+)
+DATABASE_POOL_MIN_SIZE: Final = _env_int("DATABASE_POOL_MIN_SIZE", 2)
+DATABASE_POOL_MAX_SIZE: Final = _env_int("DATABASE_POOL_MAX_SIZE", 10)
+DATABASE_POOL_TIMEOUT_SECONDS: Final = _env_float("DATABASE_POOL_TIMEOUT_SECONDS", 5.0)
+DATABASE_POOL_MAX_WAITING: Final = _env_int("DATABASE_POOL_MAX_WAITING", 20)
 INBOX_RETENTION_DAYS: Final = _env_int("INBOX_RETENTION_DAYS", 30)
 INBOX_REQUIRE_ENCRYPTION: Final = _env_bool("INBOX_REQUIRE_ENCRYPTION", default=True)
 INBOX_ENCRYPTION_KEY: Final = os.getenv("INBOX_ENCRYPTION_KEY", "").strip()

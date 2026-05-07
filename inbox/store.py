@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final, cast
 
+from core.database import DatabasePoolUnavailable
+from core.database import connect as pooled_connect
 from core.text_utils import sanitize_untrusted_text
 
 MAX_STORED_BODY_CHARS: Final = 8000
@@ -75,13 +77,10 @@ def _connect(database_url: str, *, dict_rows: bool = False) -> Any:
     if not database_url:
         raise MessageStoreUnavailable("DATABASE_URL is not configured")
 
-    psycopg, dict_row, _jsonb = _psycopg_modules()
-    kwargs: dict[str, Any] = {"autocommit": True, "connect_timeout": 5}
-
-    if dict_rows:
-        kwargs["row_factory"] = dict_row
-
-    return psycopg.connect(database_url, **kwargs)
+    try:
+        return pooled_connect(database_url, dict_rows=dict_rows)
+    except DatabasePoolUnavailable as exc:
+        raise MessageStoreUnavailable(str(exc)) from exc
 
 
 def _fernet(encryption_key: str) -> Any | None:
@@ -346,7 +345,6 @@ def record_incoming_message(
 ) -> None:
     """Store one incoming webhook message."""
     ensure_schema(database_url)
-    cleanup_expired_messages(database_url, retention_days)
 
     safe_message_id = sanitize_untrusted_text(
         whatsapp_message_id,

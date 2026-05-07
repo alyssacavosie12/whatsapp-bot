@@ -8,6 +8,7 @@ import threading
 import time
 from typing import Final, Protocol, cast
 
+from core.cache import get_redis
 from settings import (
     INBOX_AUTH_MAX_FAILED_ATTEMPTS,
     INBOX_AUTH_WINDOW_SECONDS,
@@ -17,7 +18,6 @@ from settings import (
 logger = logging.getLogger(__name__)
 
 REDIS_KEY_PREFIX: Final = "inbox:auth:"
-REDIS_SOCKET_TIMEOUT: Final = 2
 
 
 class _AuthThrottleBackend(Protocol):
@@ -96,13 +96,7 @@ class _RedisAuthThrottle:
     """Redis-backed fixed-window failed-login limiter."""
 
     def __init__(self, url: str, max_failures: int, window_seconds: int) -> None:
-        import redis
-
-        self._client = redis.Redis.from_url(
-            url,
-            socket_timeout=REDIS_SOCKET_TIMEOUT,
-            socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
-        )
+        self._client = get_redis(url)
         self._max_failures = max_failures
         self._window_seconds = window_seconds
 
@@ -133,9 +127,10 @@ class _RedisAuthThrottle:
 
         redis_key = self._redis_key(key)
         try:
-            count = cast(int, self._client.incr(redis_key))
-            if count == 1:
-                self._client.expire(redis_key, self._window_seconds)
+            with self._client.pipeline() as pipe:
+                pipe.incr(redis_key)
+                pipe.expire(redis_key, self._window_seconds)
+                count = cast(list[int], pipe.execute())[0]
         except Exception as exc:
             logger.error(
                 "Redis auth throttle unavailable, allowing auth attempt: %s",

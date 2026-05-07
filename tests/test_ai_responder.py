@@ -8,7 +8,7 @@ def test_no_anthropic_key_uses_fallback(content_file, monkeypatch):
 
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "")
 
-    assert ai_responder.get_ai_response("hi").startswith("Fallback EN")
+    assert ai_responder.get_ai_response("hi").startswith("Human EN")
 
 
 def test_no_anthropic_key_uses_spanish_fallback(content_file, monkeypatch):
@@ -16,7 +16,7 @@ def test_no_anthropic_key_uses_spanish_fallback(content_file, monkeypatch):
 
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "")
 
-    assert ai_responder.get_ai_response("hola").startswith("Fallback ES")
+    assert ai_responder.get_ai_response("hola").startswith("Human ES")
 
 
 def test_empty_business_context_uses_fallback(content_file, monkeypatch):
@@ -25,7 +25,7 @@ def test_empty_business_context_uses_fallback(content_file, monkeypatch):
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")
     monkeypatch.setattr(ai_responder, "get_business_context", lambda: "")
 
-    assert ai_responder.get_ai_response("hi").startswith("Fallback EN")
+    assert ai_responder.get_ai_response("hi").startswith("Human EN")
 
 
 def test_anthropic_success(content_file, monkeypatch):
@@ -68,7 +68,7 @@ def test_anthropic_empty_response_uses_fallback(content_file, monkeypatch):
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")
     monkeypatch.setattr(ai_responder.anthropic, "Anthropic", FakeClient)
 
-    assert ai_responder.get_ai_response("hi").startswith("Fallback EN")
+    assert ai_responder.get_ai_response("hi").startswith("Human EN")
 
 
 def test_anthropic_generic_exception_uses_fallback(content_file, monkeypatch):
@@ -85,7 +85,36 @@ def test_anthropic_generic_exception_uses_fallback(content_file, monkeypatch):
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")
     monkeypatch.setattr(ai_responder.anthropic, "Anthropic", FakeClient)
 
-    assert ai_responder.get_ai_response("hi").startswith("Fallback EN")
+    assert ai_responder.get_ai_response("hi").startswith("Human EN")
+
+
+def test_anthropic_circuit_breaker_opens_after_failures(content_file, monkeypatch):
+    from bot import ai_responder
+    from core.circuit_breaker import CircuitBreaker
+
+    calls = []
+
+    class FakeMessages:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("network problem")
+
+    class FakeClient:
+        def __init__(self, api_key, timeout):
+            self.messages = FakeMessages()
+
+    monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")
+    monkeypatch.setattr(ai_responder.anthropic, "Anthropic", FakeClient)
+    monkeypatch.setattr(
+        ai_responder,
+        "ANTHROPIC_BREAKER",
+        CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=60),
+    )
+
+    assert ai_responder.get_ai_response("hi").startswith("Human EN")
+    assert ai_responder.anthropic_circuit_status() == "circuit_open"
+    assert ai_responder.get_ai_response("hi again").startswith("Human EN")
+    assert len(calls) == 1
 
 
 def test_long_ai_response_is_truncated(content_file, monkeypatch):

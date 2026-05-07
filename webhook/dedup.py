@@ -13,12 +13,12 @@ import time
 from collections import OrderedDict
 from typing import Final, Protocol
 
+from core.cache import get_redis
 from settings import MAX_LOCAL_DEDUP_SIZE, MESSAGE_TTL_SECONDS, REDIS_URL
 
 logger = logging.getLogger(__name__)
 
 REDIS_KEY_PREFIX: Final = "wa:msg:"
-REDIS_SOCKET_TIMEOUT: Final = 2
 
 
 class _DedupBackend(Protocol):
@@ -68,13 +68,7 @@ class _RedisDedup:
     """Atomic Redis-backed dedup using SET NX EX. Fails open on Redis errors."""
 
     def __init__(self, url: str, ttl_seconds: int) -> None:
-        import redis
-
-        self._client = redis.Redis.from_url(
-            url,
-            socket_timeout=REDIS_SOCKET_TIMEOUT,
-            socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
-        )
+        self._client = get_redis(url)
         self._ttl = ttl_seconds
 
     def seen(self, key: str) -> bool:

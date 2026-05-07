@@ -171,7 +171,8 @@ def process_webhook_message(value: dict[str, Any], message: dict[str, Any]) -> s
             response_text = get_ai_response(incoming_text, sender_name)
             logger.info("Responded via AI")
 
-        if BOT_DISCLOSURE and not faq_answer:
+        human_handoff_response = get_response("human_handoff", lang)
+        if BOT_DISCLOSURE and not faq_answer and response_text != human_handoff_response:
             response_text += (
                 "\n\n_This is an automated assistant. Reply HUMAN to speak with our team._"
             )

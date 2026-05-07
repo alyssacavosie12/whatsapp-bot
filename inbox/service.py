@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+from collections.abc import Callable
+from threading import Thread
 from typing import Any, Final
 
 from flask import Response, request
@@ -43,6 +45,7 @@ INBOX_ROLES: Final[dict[str, int]] = {INBOX_VIEWER_ROLE: 1, INBOX_ADMIN_ROLE: 2}
 
 InboxUser = dict[str, str]
 InboxAuthResult = tuple[InboxUser | None, Response | None]
+StoreTask = Callable[[str, str, str, str, object], None]
 
 
 def inbox_configured() -> bool:
@@ -205,7 +208,23 @@ def audit_inbox_action(
         logger.error("Failed to record inbox audit event: %s", exc.__class__.__name__)
 
 
-def store_incoming_message(
+def run_store_in_background(
+    target: StoreTask,
+    message_id: str,
+    sender_phone: str,
+    sender_name: str,
+    message_type: str,
+    body: object,
+) -> None:
+    """Run inbox persistence without blocking the bot response path."""
+    Thread(
+        target=target,
+        args=(message_id, sender_phone, sender_name, message_type, body),
+        daemon=True,
+    ).start()
+
+
+def _store_incoming_message(
     message_id: str,
     sender_phone: str,
     sender_name: str,
@@ -249,3 +268,21 @@ def store_incoming_message(
         )
     except Exception as exc:
         logger.error("Failed to store incoming message: %s", exc.__class__.__name__)
+
+
+def store_incoming_message(
+    message_id: str,
+    sender_phone: str,
+    sender_name: str,
+    message_type: str,
+    body: object,
+) -> None:
+    """Queue inbound message persistence without blocking customer replies."""
+    run_store_in_background(
+        _store_incoming_message,
+        message_id,
+        sender_phone,
+        sender_name,
+        message_type,
+        body,
+    )

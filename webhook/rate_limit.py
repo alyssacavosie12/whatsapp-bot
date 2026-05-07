@@ -11,6 +11,7 @@ import threading
 import time
 from typing import Final, Protocol, cast
 
+from core.cache import get_redis
 from settings import (
     PHONE_RATE_LIMIT_MAX_MESSAGES,
     PHONE_RATE_LIMIT_WINDOW_SECONDS,
@@ -20,7 +21,6 @@ from settings import (
 logger = logging.getLogger(__name__)
 
 REDIS_KEY_PREFIX: Final = "wa:rate:"
-REDIS_SOCKET_TIMEOUT: Final = 2
 
 
 class _RateLimitBackend(Protocol):
@@ -73,13 +73,7 @@ class _RedisFixedWindowRateLimiter:
     """Fixed-window limiter backed by Redis INCR + EXPIRE."""
 
     def __init__(self, url: str, max_events: int, window_seconds: int) -> None:
-        import redis
-
-        self._client = redis.Redis.from_url(
-            url,
-            socket_timeout=REDIS_SOCKET_TIMEOUT,
-            socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
-        )
+        self._client = get_redis(url)
         self._max_events = max_events
         self._window_seconds = window_seconds
 
@@ -91,9 +85,10 @@ class _RedisFixedWindowRateLimiter:
         redis_key = f"{REDIS_KEY_PREFIX}{key}:{bucket}"
 
         try:
-            count = cast(int, self._client.incr(redis_key))
-            if count == 1:
-                self._client.expire(redis_key, self._window_seconds)
+            with self._client.pipeline() as pipe:
+                pipe.incr(redis_key)
+                pipe.expire(redis_key, self._window_seconds)
+                count = cast(list[int], pipe.execute())[0]
         except Exception as exc:
             logger.error(
                 "Redis rate limit unavailable, allowing message: %s",

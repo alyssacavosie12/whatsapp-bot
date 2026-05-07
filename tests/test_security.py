@@ -184,7 +184,7 @@ def test_duplicate_message_is_not_processed_twice(content_file, monkeypatch):
     second = client.post("/webhook", json=payload)
 
     assert first.status_code == 200
-    assert second.get_json()["status"] == "duplicate"
+    assert second.get_json()["status"] == "ok"
     assert len(sent) == 1
 
 
@@ -198,8 +198,8 @@ def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
     no timestamp, so a captured POST keeps a valid signature indefinitely
     and cannot be rejected at the signature layer. Idempotency therefore
     lives at the message-id layer: `seen_message` deduplicates by
-    `message.id`, so replaying the exact same signed body returns 200 with
-    status=duplicate and never re-triggers a reply within the dedup TTL.
+    `message.id`, so replaying the exact same signed body returns 200 and
+    never re-triggers a reply within the dedup TTL.
     """
     app_module, flask_app = _make_app()
     sent = []
@@ -230,7 +230,7 @@ def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
     assert first.status_code == 200
     assert first.get_json()["status"] == "ok"
     assert replay.status_code == 200
-    assert replay.get_json()["status"] == "duplicate"
+    assert replay.get_json()["status"] == "ok"
     assert len(sent) == 1, "Replayed signed POST must not retrigger a reply"
 
 
@@ -253,7 +253,7 @@ def test_rate_limit_skips_expensive_processing(content_file, monkeypatch):
     response = client.post("/webhook", json=_message_payload(body="unknown question"))
 
     assert response.status_code == 200
-    assert response.get_json()["status"] == "rate limited"
+    assert response.get_json()["status"] == "ok"
     assert sent == []
 
 
@@ -360,7 +360,7 @@ def test_invalid_sender_phone_is_ignored(content_file, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.get_json()["status"] == "invalid sender"
+    assert response.get_json()["status"] == "ok"
     assert sent == []
 
 

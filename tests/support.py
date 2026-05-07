@@ -64,6 +64,7 @@ class AppModuleProxy:
             "record_inbox_auth_failure": [(inbox_service, "record_inbox_auth_failure")],
             "record_incoming_message": [(inbox_store, "record_incoming_message")],
             "record_opt_in_proof": [(inbox_store, "record_opt_in_proof")],
+            "run_store_in_background": [(inbox_service, "run_store_in_background")],
             "requests": [(whatsapp_client, "requests")],
             "seen_message": [(message_processor, "seen_message")],
             "send_whatsapp_message": [(whatsapp_client, "send_whatsapp_message")],
@@ -98,5 +99,9 @@ class AppModuleProxy:
 def make_app_modules() -> tuple[AppModuleProxy, Any]:
     """Return a compatibility module proxy and a fresh Flask app."""
     import app
+    from inbox import service as inbox_service
+    from webhook import routes as webhook_routes
 
+    webhook_routes.run_in_background = lambda target, events: target(events)
+    inbox_service.run_store_in_background = lambda target, *args: target(*args)
     return AppModuleProxy(app), app.create_app()

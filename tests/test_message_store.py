@@ -276,6 +276,7 @@ def fake_db(monkeypatch):
         "_psycopg_modules",
         lambda: (FakePsycopg, fake_dict_row, fake_jsonb),
     )
+    monkeypatch.setattr(store, "_connect", lambda *_args, **_kwargs: fake_conn)
 
     # Don't let _SCHEMA_READY persist between tests.
     store._SCHEMA_READY.clear()

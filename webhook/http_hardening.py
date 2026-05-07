@@ -71,5 +71,6 @@ def build_webhook_rate_limit(
         app=flask_app,
         default_limits=[],
         storage_uri=storage_uri or "memory://",
+        swallow_errors=True,
     )
     return cast(RouteDecorator, limiter.limit(rate_limit))

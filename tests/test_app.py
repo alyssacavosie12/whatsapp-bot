@@ -24,11 +24,35 @@ def _make_app(monkeypatch=None):
 
 
 def test_root_and_health_routes(content_file):
-    app_module, flask_app = _make_app()
+    _app_module, flask_app = _make_app()
     client = flask_app.test_client()
 
     assert client.get("/").status_code == 200
-    assert client.get("/health").status_code == 200
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.get_json()["components"]["anthropic"] == "ok"
+
+
+def test_health_reports_postgres_degraded(content_file, monkeypatch):
+    import core.routes as health_routes
+
+    _app_module, flask_app = _make_app()
+
+    monkeypatch.setattr(health_routes, "INBOX_ENABLED", True)
+    monkeypatch.setattr(health_routes, "INBOX_DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(health_routes, "REDIS_URL", "")
+    monkeypatch.setattr(
+        health_routes,
+        "get_db_pool",
+        lambda _url: (_ for _ in ()).throw(RuntimeError("down")),
+    )
+
+    response = flask_app.test_client().get("/health")
+    body = response.get_json()
+
+    assert response.status_code == 503
+    assert body["status"] == "degraded"
+    assert body["components"]["postgres"] == "degraded"
 
 
 def test_webhook_verify_success(content_file, monkeypatch):
@@ -179,6 +203,49 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
             "AI answer\n\n_This is an automated assistant. Reply HUMAN to speak with our team._",
         )
     ]
+
+
+def test_ai_human_handoff_fallback_does_not_add_disclosure(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    sent = []
+
+    monkeypatch.setattr(app_module, "find_best_faq_match", lambda text: None)
+    monkeypatch.setattr(
+        app_module,
+        "get_ai_response",
+        lambda text, sender_name="": "Human EN: A team member will get back to you.",
+    )
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
+    )
+
+    client = flask_app.test_client()
+    response = client.post(
+        "/webhook",
+        json={
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "contacts": [{"profile": {"name": "Test User"}}],
+                                "messages": [
+                                    {
+                                        "from": "37368826828",
+                                        "type": "text",
+                                        "text": {"body": "unknown question"},
+                                    }
+                                ],
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert sent == [("37368826828", "Human EN: A team member will get back to you.")]
 
 
 def test_human_handoff_does_not_double_reply(content_file, monkeypatch):
@@ -334,7 +401,7 @@ def test_send_whatsapp_message_failure_status(content_file, monkeypatch):
         assert "111/messages" in url
         assert headers["Authorization"] == "Bearer token"
         assert json["to"] == "37368826828"
-        assert timeout == 20
+        assert timeout == 10.0
         return SimpleNamespace(status_code=401, text="bad token")
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "token")
@@ -355,5 +422,46 @@ def test_send_whatsapp_message_request_exception(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "token")
     monkeypatch.setattr(app_module, "WHATSAPP_PHONE_NUMBER_ID", "111")
     monkeypatch.setattr(app_module.requests, "post", fake_post)
+    monkeypatch.setattr("bot.whatsapp_client.time.sleep", lambda _seconds: None)
 
     assert app_module.send_whatsapp_message("37368826828", "hello") is None
+
+
+def test_send_whatsapp_message_retries_transient_status(content_file, monkeypatch):
+    app_module, flask_app = _make_app()
+    statuses = [503, 502, 200]
+    sleeps = []
+
+    def fake_post(*_args, **_kwargs):
+        return SimpleNamespace(status_code=statuses.pop(0), text="status")
+
+    monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "token")
+    monkeypatch.setattr(app_module, "WHATSAPP_PHONE_NUMBER_ID", "111")
+    monkeypatch.setattr(app_module.requests, "post", fake_post)
+    monkeypatch.setattr("bot.whatsapp_client.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    response = app_module.send_whatsapp_message("37368826828", "hello")
+
+    assert response.status_code == 200
+    assert sleeps == [1.0, 2.0]
+
+
+def test_send_whatsapp_message_retries_timeout_then_succeeds(content_file, monkeypatch):
+    app_module, flask_app = _make_app()
+    attempts = {"count": 0}
+
+    def fake_post(*_args, **_kwargs):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise requests.Timeout("timeout")
+        return SimpleNamespace(status_code=200, text="ok")
+
+    monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "token")
+    monkeypatch.setattr(app_module, "WHATSAPP_PHONE_NUMBER_ID", "111")
+    monkeypatch.setattr(app_module.requests, "post", fake_post)
+    monkeypatch.setattr("bot.whatsapp_client.time.sleep", lambda _seconds: None)
+
+    response = app_module.send_whatsapp_message("37368826828", "hello")
+
+    assert response.status_code == 200
+    assert attempts["count"] == 2
