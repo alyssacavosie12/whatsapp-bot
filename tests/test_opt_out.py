@@ -497,3 +497,89 @@ def test_arco_endpoint_can_delete_opt_out_record_when_requested(content_file, mo
 
     assert response.status_code == 200
     assert deletes == [(PHONE, True)]
+
+
+# ─── BSUID readiness ────────────────────────────────────────────────────
+
+
+def test_bsuid_sender_is_not_rejected_as_invalid(content_file, monkeypatch):
+    """Webhook with a BSUID `from` (post June 2026) must not be dropped."""
+    import inbox.service as service
+
+    app_module, flask_app = make_app_modules()
+    _wire_router(app_module, monkeypatch)
+
+    sent = []
+    monkeypatch.setattr(
+        app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
+    )
+    monkeypatch.setattr(service, "is_opted_out", lambda _id: False)
+
+    bsuid = "user_2026.0001:meta"
+    payload = _opt_out_payload("hi", message_id="wamid.bsuid.1", phone=bsuid)
+
+    client = flask_app.test_client()
+    response = client.post("/webhook", json=payload)
+
+    assert response.status_code == 200
+    # BSUID-addressed reply goes out unchanged (not normalized as phone).
+    assert sent and sent[0][0] == bsuid
+
+
+def test_bsuid_stop_keyword_records_opt_out_with_bsuid_type(content_file, monkeypatch):
+    """STOP from a BSUID sender records opt-out tagged sender_external_id_type='bsuid'."""
+    import inbox.service as service
+
+    app_module, flask_app = make_app_modules()
+    _wire_router(app_module, monkeypatch)
+
+    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to, text: None)
+    monkeypatch.setattr(service, "is_opted_out", lambda _id: False)
+
+    recorded = []
+
+    def fake_record(sender, **kwargs):
+        recorded.append((sender, kwargs))
+        return True
+
+    monkeypatch.setattr(service, "record_opt_out", fake_record)
+
+    bsuid = "user_2026.bsuid.opt:meta"
+    payload = _opt_out_payload("STOP", message_id="wamid.bsuid.opt.1", phone=bsuid)
+
+    client = flask_app.test_client()
+    client.post("/webhook", json=payload)
+
+    assert len(recorded) == 1
+    assert recorded[0][0] == bsuid
+    assert recorded[0][1]["sender_external_id_type"] == "bsuid"
+
+
+def test_arco_endpoint_accepts_bsuid_via_external_id_field(content_file, monkeypatch):
+    """ARCO Cancelación works for BSUID subjects too, not only E.164 phones."""
+    import inbox.service as service
+
+    app_module, flask_app = make_app_modules()
+    _configure_admin(app_module, monkeypatch)
+
+    deletes = []
+
+    def fake_delete(sender_id, *, delete_opt_out_record):
+        deletes.append((sender_id, delete_opt_out_record))
+        return {"messages": 0, "opt_in_proofs": 0, "opt_outs": 1}
+
+    monkeypatch.setattr(service, "delete_user_data", fake_delete)
+    monkeypatch.setattr(app_module, "record_audit_event", lambda *a, **kw: None)
+
+    token = app_module.inbox_csrf_token("owner", "arco_delete", 0)
+    client = flask_app.test_client()
+
+    bsuid = "user_2026.arco:meta"
+    response = client.post(
+        "/admin/data-subject/delete",
+        data={"external_id": bsuid, "csrf_token": token, "delete_opt_out_record": "true"},
+        headers=_basic_auth("owner", "secret"),
+    )
+
+    assert response.status_code == 200
+    assert deletes == [(bsuid, True)]

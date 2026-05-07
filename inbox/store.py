@@ -296,15 +296,58 @@ def ensure_schema(database_url: str) -> None:
                 """
                 CREATE TABLE IF NOT EXISTS inbox_opt_outs (
                     id BIGSERIAL PRIMARY KEY,
-                    sender_phone_hash TEXT NOT NULL UNIQUE,
+                    sender_phone_hash TEXT NOT NULL DEFAULT '',
                     sender_phone TEXT NOT NULL DEFAULT '',
                     sender_phone_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+                    sender_external_id TEXT NOT NULL DEFAULT '',
+                    sender_external_id_type TEXT NOT NULL DEFAULT 'phone',
+                    sender_external_id_hash TEXT NOT NULL DEFAULT '',
                     source TEXT NOT NULL DEFAULT '',
                     keyword_used TEXT NOT NULL DEFAULT '',
                     language TEXT NOT NULL DEFAULT '',
                     evidence_hmac TEXT NOT NULL DEFAULT '',
                     recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )
+                """
+            )
+            # BSUID readiness: legacy rows had UNIQUE on phone hash. Drop it
+            # (some Postgres versions name it inbox_opt_outs_sender_phone_hash_key,
+            # IF EXISTS keeps this idempotent), add the new external-id columns,
+            # backfill them from the phone columns, and put a partial unique
+            # index on the new column so empty external_id_hash rows (legacy
+            # phone-only) don't conflict.
+            cur.execute(
+                """
+                ALTER TABLE inbox_opt_outs
+                    ADD COLUMN IF NOT EXISTS sender_external_id TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS sender_external_id_type TEXT
+                        NOT NULL DEFAULT 'phone',
+                    ADD COLUMN IF NOT EXISTS sender_external_id_hash TEXT
+                        NOT NULL DEFAULT ''
+                """
+            )
+            cur.execute(
+                """
+                ALTER TABLE inbox_opt_outs
+                    DROP CONSTRAINT IF EXISTS inbox_opt_outs_sender_phone_hash_key
+                """
+            )
+            cur.execute(
+                """
+                UPDATE inbox_opt_outs
+                SET
+                    sender_external_id = sender_phone,
+                    sender_external_id_type = 'phone',
+                    sender_external_id_hash = sender_phone_hash
+                WHERE sender_external_id_hash = '' AND sender_phone_hash != ''
+                """
+            )
+            cur.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS inbox_opt_outs_external_id_hash_uniq
+                    ON inbox_opt_outs (sender_external_id_hash)
+                    WHERE sender_external_id_hash != ''
                 """
             )
             cur.execute(
@@ -766,32 +809,49 @@ MAX_STORED_LANGUAGE_CHARS: Final = 8
 def record_opt_out(
     database_url: str,
     *,
-    sender_phone: str,
+    sender_external_id: str,
+    sender_external_id_type: str = "phone",
     source: str,
     keyword_used: str = "",
     language: str = "",
     encryption_key: str = "",
     proof_secret: str = "",
 ) -> bool:
-    """Record an opt-out request. Returns True if newly inserted, False if already opted out.
+    """Record an opt-out request. Returns True if newly inserted, False if duplicate.
 
-    Idempotent: a second STOP from the same number does not duplicate the record.
-    The phone hash is the lookup key; the encrypted phone is stored only when an
-    encryption key is configured so subject-access requests can resolve back to
-    the original number.
+    Idempotent on `sender_external_id_hash` — a second STOP from the same
+    user (phone or BSUID) does not duplicate the record. For phone senders,
+    the legacy `sender_phone` columns are also populated so older queries
+    keep working; BSUID senders leave those empty.
     """
     if not proof_secret:
         raise MessageStoreUnavailable("INBOX_PROOF_SECRET is not configured")
+    if not sender_external_id:
+        raise MessageStoreUnavailable("Cannot record opt-out without an external id")
 
     ensure_schema(database_url)
 
-    stored_phone, phone_encrypted, phone_hash = _prepare_sensitive_field(
-        sender_phone,
-        MAX_STORED_PHONE_CHARS,
-        encryption_key,
+    safe_external_id = sanitize_untrusted_text(sender_external_id, MAX_STORED_PHONE_CHARS)
+    external_id_hash = _sha256(safe_external_id)
+    if not external_id_hash:
+        raise MessageStoreUnavailable("Cannot record opt-out for an empty external id")
+
+    safe_external_id_type = sanitize_untrusted_text(
+        sender_external_id_type, MAX_STORED_LANGUAGE_CHARS
     )
-    if not phone_hash:
-        raise MessageStoreUnavailable("Cannot record opt-out for an empty phone")
+    if safe_external_id_type not in {"phone", "bsuid"}:
+        safe_external_id_type = "phone"
+
+    # Legacy phone columns: only populated for phone senders so admin queries
+    # by sender_phone keep working; BSUID rows are external-id-only.
+    if safe_external_id_type == "phone":
+        stored_phone, phone_encrypted, phone_hash = _prepare_sensitive_field(
+            sender_external_id,
+            MAX_STORED_PHONE_CHARS,
+            encryption_key,
+        )
+    else:
+        stored_phone, phone_encrypted, phone_hash = "", False, ""
 
     safe_source = sanitize_untrusted_text(source, MAX_STORED_OPT_OUT_SOURCE_CHARS)
     safe_keyword = sanitize_untrusted_text(keyword_used, MAX_STORED_OPT_OUT_KEYWORD_CHARS)
@@ -799,7 +859,8 @@ def record_opt_out(
 
     proof_payload = json.dumps(
         {
-            "phone_hash": phone_hash,
+            "external_id_hash": external_id_hash,
+            "external_id_type": safe_external_id_type,
             "source": safe_source,
             "keyword_used": safe_keyword,
             "language": safe_language,
@@ -821,18 +882,24 @@ def record_opt_out(
                     sender_phone_hash,
                     sender_phone,
                     sender_phone_encrypted,
+                    sender_external_id,
+                    sender_external_id_type,
+                    sender_external_id_hash,
                     source,
                     keyword_used,
                     language,
                     evidence_hmac
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (sender_phone_hash) DO NOTHING
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (sender_external_id_hash) DO NOTHING
                 """,
                 (
                     phone_hash,
                     stored_phone,
                     phone_encrypted,
+                    safe_external_id,
+                    safe_external_id_type,
+                    external_id_hash,
                     safe_source,
                     safe_keyword,
                     safe_language,
@@ -842,18 +909,18 @@ def record_opt_out(
             return int(cur.rowcount or 0) > 0
 
 
-def is_opted_out(database_url: str, sender_phone: str) -> bool:
-    """Return True when the sender has a recorded opt-out.
+def is_opted_out(database_url: str, sender_external_id: str) -> bool:
+    """Return True when the sender (phone OR BSUID) has a recorded opt-out.
 
-    Lookup is by phone hash so encrypted phones still match. The schema is
-    ensured on first call per process; subsequent calls are a single
-    indexed SELECT.
+    Lookup is by external-id hash so phone and BSUID senders share one
+    code path. The schema is ensured on first call per process; subsequent
+    calls are a single indexed SELECT.
     """
-    if not sender_phone:
+    if not sender_external_id:
         return False
 
-    phone_hash = _sha256(sanitize_untrusted_text(sender_phone, MAX_STORED_PHONE_CHARS))
-    if not phone_hash:
+    external_id_hash = _sha256(sanitize_untrusted_text(sender_external_id, MAX_STORED_PHONE_CHARS))
+    if not external_id_hash:
         return False
 
     ensure_schema(database_url)
@@ -861,8 +928,11 @@ def is_opted_out(database_url: str, sender_phone: str) -> bool:
     with _connect(database_url) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT 1 FROM inbox_opt_outs WHERE sender_phone_hash = %s LIMIT 1",
-                (phone_hash,),
+                """
+                SELECT 1 FROM inbox_opt_outs
+                WHERE sender_external_id_hash = %s LIMIT 1
+                """,
+                (external_id_hash,),
             )
             return cur.fetchone() is not None
 
@@ -870,46 +940,57 @@ def is_opted_out(database_url: str, sender_phone: str) -> bool:
 def delete_user_data(
     database_url: str,
     *,
-    sender_phone: str,
+    sender_external_id: str,
     delete_opt_out_record: bool = False,
 ) -> dict[str, int]:
-    """Hard-delete all stored records for one sender phone (ARCO Cancelación).
+    """Hard-delete all stored records for one user (ARCO Cancelación).
 
-    Returns a count of rows deleted per table. The opt-out record is
-    retained by default — it's the legal evidence we need to prove ongoing
-    non-consent, so deleting it would resume contact with a user who has
-    explicitly objected. Pass `delete_opt_out_record=True` only when the
-    user wants their opt-out also removed (and accepts that future inbound
-    messages from the same number will be processed as new contacts).
+    Accepts either an E.164 phone or a BSUID. The legacy
+    inbox_messages/inbox_opt_in_proofs tables only keyed on phone hash,
+    so for those tables we still match by `sender_phone_hash`. The
+    inbox_opt_outs table uses the external-id hash. Phone senders match
+    in all three; BSUID senders only delete their opt-out row (until
+    the message tables also grow an external-id column).
+
+    The opt-out row is retained by default — it's the legal evidence
+    needed to prove ongoing non-consent. Pass
+    `delete_opt_out_record=True` only when the user accepts that future
+    inbound messages will be processed as new contacts.
     """
-    if not sender_phone:
-        raise MessageStoreUnavailable("Cannot delete data for an empty phone")
+    if not sender_external_id:
+        raise MessageStoreUnavailable("Cannot delete data for an empty id")
 
-    phone_hash = _sha256(sanitize_untrusted_text(sender_phone, MAX_STORED_PHONE_CHARS))
-    if not phone_hash:
-        raise MessageStoreUnavailable("Cannot delete data for an empty phone")
+    safe_external_id = sanitize_untrusted_text(sender_external_id, MAX_STORED_PHONE_CHARS)
+    external_id_hash = _sha256(safe_external_id)
+    if not external_id_hash:
+        raise MessageStoreUnavailable("Cannot delete data for an empty id")
 
     ensure_schema(database_url)
 
     counts: dict[str, int] = {}
     with _connect(database_url) as conn:
         with conn.cursor() as cur:
+            # Legacy tables key on phone hash; equal to external-id hash
+            # for phone senders (see backfill in ensure_schema).
             cur.execute(
                 "DELETE FROM inbox_messages WHERE sender_phone_hash = %s",
-                (phone_hash,),
+                (external_id_hash,),
             )
             counts["messages"] = int(cur.rowcount or 0)
 
             cur.execute(
                 "DELETE FROM inbox_opt_in_proofs WHERE sender_phone_hash = %s",
-                (phone_hash,),
+                (external_id_hash,),
             )
             counts["opt_in_proofs"] = int(cur.rowcount or 0)
 
             if delete_opt_out_record:
                 cur.execute(
-                    "DELETE FROM inbox_opt_outs WHERE sender_phone_hash = %s",
-                    (phone_hash,),
+                    """
+                    DELETE FROM inbox_opt_outs
+                    WHERE sender_external_id_hash = %s
+                    """,
+                    (external_id_hash,),
                 )
                 counts["opt_outs"] = int(cur.rowcount or 0)
             else:

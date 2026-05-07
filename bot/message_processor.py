@@ -10,7 +10,8 @@ from bot.ai_responder import get_ai_response
 from bot.content_loader import detect_language, get_response
 from bot.faq import find_best_faq_match
 from bot.opt_out_keywords import is_opt_out_request
-from core.phone_utils import is_valid_phone, mask_phone, normalize_phone
+from core.phone_utils import mask_phone
+from core.sender_id import mask_sender_id, parse_sender_id
 from core.text_utils import sanitize_untrusted_text
 from inbox import service as inbox_service
 from settings import (
@@ -59,11 +60,34 @@ def get_opt_out_confirmation_response(lang: str) -> str:
     return get_response("opt_out_confirmation", lang) or OPT_OUT_CONFIRMATION_FALLBACK[lang]
 
 
-def build_handoff_notification(sender_name: str, sender_phone: str) -> str:
-    """Build a safe team alert for human handoff requests."""
-    safe_name = sanitize_sender_name(sender_name) or "unknown"
-    safe_phone = sender_phone if is_valid_phone(sender_phone) else "invalid"
+def build_handoff_notification(sender_name: str, sender: object) -> str:
+    """Build a safe team alert for human handoff requests.
 
+    Accepts a `SenderId` (preferred) or a raw phone string. BSUID senders
+    can't be paged on a phone, so the line is labeled accordingly.
+    """
+    from core.sender_id import SenderId
+
+    safe_name = sanitize_sender_name(sender_name) or "unknown"
+
+    if isinstance(sender, SenderId):
+        if sender.is_phone:
+            return (
+                "HUMAN REQUESTED\n"
+                f"Customer name: {safe_name}\n"
+                f"Customer phone: +{sender.value}\n"
+                "Please respond to them directly."
+            )
+        return (
+            "HUMAN REQUESTED\n"
+            f"Customer name: {safe_name}\n"
+            f"Customer id (BSUID): {sender.value}\n"
+            "Phone is hidden by Meta; reply via WhatsApp Business inbox."
+        )
+
+    # Backward-compat: raw phone string passthrough.
+    parsed = parse_sender_id(str(sender or ""))
+    safe_phone = parsed.value if parsed and parsed.is_phone else "invalid"
     return (
         "HUMAN REQUESTED\n"
         f"Customer name: {safe_name}\n"
@@ -74,7 +98,7 @@ def build_handoff_notification(sender_name: str, sender_phone: str) -> str:
 
 def log_incoming_text_message(
     sender_name: str,
-    sender_phone: str,
+    sender_id: str,
     message_type: str,
     incoming_text: str,
 ) -> None:
@@ -83,7 +107,7 @@ def log_incoming_text_message(
         logger.info(
             "Incoming message from %s (%s), type=%s, length=%s, text=%s",
             sender_name or "unknown",
-            mask_phone(sender_phone),
+            mask_phone(sender_id),
             message_type,
             len(incoming_text),
             sanitize_untrusted_text(incoming_text, INCOMING_MESSAGE_LOG_MAX_CHARS) or "empty",
@@ -93,7 +117,7 @@ def log_incoming_text_message(
     logger.info(
         "Message from %s (%s), type=%s, length=%s",
         sender_name or "unknown",
-        mask_phone(sender_phone),
+        mask_phone(sender_id),
         message_type,
         len(incoming_text),
     )
@@ -110,25 +134,28 @@ def process_webhook_message(value: dict[str, Any], message: dict[str, Any]) -> s
         )
         return "duplicate"
 
-    sender_phone_raw = message.get("from", "")
-    sender_phone = normalize_phone(sender_phone_raw)
+    sender_raw = message.get("from", "")
+    sender = parse_sender_id(sender_raw)
 
-    if not is_valid_phone(sender_phone):
+    if sender is None:
         logger.warning(
-            "Invalid sender phone ignored: %s",
-            sanitize_untrusted_text(sender_phone_raw, 32) or "empty",
+            "Unrecognized sender id ignored: %s",
+            sanitize_untrusted_text(sender_raw, 32) or "empty",
         )
         return "invalid sender"
 
-    if not allow_phone_message(sender_phone):
-        logger.warning("Rate limit exceeded for %s", mask_phone(sender_phone))
+    sender_id = sender.value
+    masked = mask_sender_id(sender)
+
+    if not allow_phone_message(sender_id):
+        logger.warning("Rate limit exceeded for %s", masked)
         return "rate limited"
 
     # LFPDPPP Oposición / CCPA: an opted-out user must not receive any
     # outbound message. We log that they messaged us (for audit
     # reconciliation) but stop before storing or replying.
-    if inbox_service.is_opted_out(sender_phone):
-        logger.info("Opted-out sender silenced: %s", mask_phone(sender_phone))
+    if inbox_service.is_opted_out(sender_id):
+        logger.info("Opted-out sender silenced: %s", masked)
         return "opted out"
 
     message_type = message.get("type", "")
@@ -141,27 +168,31 @@ def process_webhook_message(value: dict[str, Any], message: dict[str, Any]) -> s
     if message_type == TEXT_MESSAGE_TYPE:
         incoming_text = str(message.get("text", {}).get("body", "") or "").strip()
 
-    inbox_service.store_incoming_message(
-        message_id,
-        sender_phone,
-        sender_name,
-        message_type,
-        incoming_text,
-    )
+    # The legacy inbox_messages schema keys on phone hash. BSUID storage
+    # waits on the next schema migration; for now we only record phones
+    # so the table doesn't accumulate rows we can't query consistently.
+    if sender.is_phone:
+        inbox_service.store_incoming_message(
+            message_id,
+            sender_id,
+            sender_name,
+            message_type,
+            incoming_text,
+        )
 
     if message_type == TEXT_MESSAGE_TYPE:
         lang = detect_language(incoming_text[:MAX_INCOMING_TEXT_CHARS])
 
         log_incoming_text_message(
             sender_name,
-            sender_phone,
+            sender_id,
             message_type,
             incoming_text,
         )
 
         if not incoming_text:
             whatsapp_client.send_whatsapp_message(
-                sender_phone,
+                sender_id,
                 get_response("unknown_message", lang),
             )
             return "ok"
@@ -169,35 +200,36 @@ def process_webhook_message(value: dict[str, Any], message: dict[str, Any]) -> s
         if len(incoming_text) > MAX_INCOMING_TEXT_CHARS:
             logger.warning(
                 "Incoming text too long from %s: length=%s",
-                mask_phone(sender_phone),
+                masked,
                 len(incoming_text),
             )
             whatsapp_client.send_whatsapp_message(
-                sender_phone,
+                sender_id,
                 get_message_too_long_response(lang),
             )
             return "ok"
 
         if incoming_text.upper() == HUMAN_HANDOFF_KEYWORD:
             response_text = get_response("human_handoff", lang)
-            whatsapp_client.send_whatsapp_message(sender_phone, response_text)
-            whatsapp_client.notify_team(build_handoff_notification(sender_name, sender_phone))
-            logger.info("Human handoff requested by %s", mask_phone(sender_phone))
+            whatsapp_client.send_whatsapp_message(sender_id, response_text)
+            whatsapp_client.notify_team(build_handoff_notification(sender_name, sender))
+            logger.info("Human handoff requested by %s", masked)
             return "ok"
 
         opted_out, opt_out_keyword, opt_out_lang = is_opt_out_request(incoming_text)
         if opted_out:
             inbox_service.record_opt_out(
-                sender_phone,
+                sender_id,
+                sender_external_id_type=sender.id_type,
                 source="whatsapp_keyword",
                 keyword_used=opt_out_keyword or "",
                 language=opt_out_lang or lang,
             )
             confirmation = get_opt_out_confirmation_response(opt_out_lang or lang)
-            whatsapp_client.send_whatsapp_message(sender_phone, confirmation)
+            whatsapp_client.send_whatsapp_message(sender_id, confirmation)
             logger.info(
                 "Opt-out recorded for %s via keyword=%s",
-                mask_phone(sender_phone),
+                masked,
                 opt_out_keyword,
             )
             return "opt out recorded"
@@ -217,11 +249,11 @@ def process_webhook_message(value: dict[str, Any], message: dict[str, Any]) -> s
                 "\n\n_This is an automated assistant. Reply HUMAN to speak with our team._"
             )
 
-        whatsapp_client.send_whatsapp_message(sender_phone, response_text)
+        whatsapp_client.send_whatsapp_message(sender_id, response_text)
 
     elif message_type in MEDIA_MESSAGE_TYPES:
-        whatsapp_client.send_whatsapp_message(sender_phone, get_response("media_response", "en"))
+        whatsapp_client.send_whatsapp_message(sender_id, get_response("media_response", "en"))
     else:
-        whatsapp_client.send_whatsapp_message(sender_phone, get_response("unknown_message", "en"))
+        whatsapp_client.send_whatsapp_message(sender_id, get_response("unknown_message", "en"))
 
     return "ok"

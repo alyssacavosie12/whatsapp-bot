@@ -291,44 +291,45 @@ def store_incoming_message(
 # ─── Opt-out (LFPDPPP Oposición / CCPA) ───────────────────────────────
 
 
-def is_opted_out(sender_phone: str) -> bool:
-    """Return True when the phone has a recorded opt-out.
+def is_opted_out(sender_external_id: str) -> bool:
+    """Return True when the sender (phone OR BSUID) has a recorded opt-out.
 
-    Fails open on database error: a Redis/Postgres outage must not silence
-    every customer. The error path is logged so any opted-out user reached
-    during an outage can be reconciled from logs.
+    Fails open on database error: a Postgres outage must not silence every
+    customer. The error path is logged so any opted-out user reached during
+    an outage can be reconciled from logs.
     """
     if not inbox_configured():
         return False
 
     try:
-        return inbox_store.is_opted_out(INBOX_DATABASE_URL, sender_phone)
+        return inbox_store.is_opted_out(INBOX_DATABASE_URL, sender_external_id)
     except Exception as exc:
         logger.error(
-            "opt_out_check_failed phone=%s error=%s",
-            mask_phone(sender_phone),
+            "opt_out_check_failed sender=%s error=%s",
+            mask_phone(sender_external_id),
             exc.__class__.__name__,
         )
         return False
 
 
 def record_opt_out(
-    sender_phone: str,
+    sender_external_id: str,
     *,
+    sender_external_id_type: str = "phone",
     source: str,
     keyword_used: str = "",
     language: str = "",
 ) -> bool:
     """Record an opt-out request. Returns True if newly inserted, False if duplicate.
 
-    Idempotent: a second STOP from the same number does not duplicate the
-    record. Failures are logged but not raised — the route handler still
-    sends the customer a confirmation message.
+    Idempotent on the external-id hash so a second STOP from the same user
+    (phone or BSUID) does not duplicate the row. Failures are logged but
+    not raised — the route handler still sends the customer a confirmation.
     """
     if not inbox_configured():
         logger.warning(
-            "opt_out_recorded_without_db phone=%s source=%s",
-            mask_phone(sender_phone),
+            "opt_out_recorded_without_db sender=%s source=%s",
+            mask_phone(sender_external_id),
             source,
         )
         return False
@@ -336,7 +337,8 @@ def record_opt_out(
     try:
         return inbox_store.record_opt_out(
             INBOX_DATABASE_URL,
-            sender_phone=sender_phone,
+            sender_external_id=sender_external_id,
+            sender_external_id_type=sender_external_id_type,
             source=source,
             keyword_used=keyword_used,
             language=language,
@@ -345,24 +347,27 @@ def record_opt_out(
         )
     except Exception as exc:
         logger.error(
-            "opt_out_record_failed phone=%s error=%s",
-            mask_phone(sender_phone),
+            "opt_out_record_failed sender=%s error=%s",
+            mask_phone(sender_external_id),
             exc.__class__.__name__,
         )
         return False
 
 
 def delete_user_data(
-    sender_phone: str,
+    sender_external_id: str,
     *,
     delete_opt_out_record: bool = False,
 ) -> dict[str, int]:
-    """Delete all stored records for one sender phone (ARCO Cancelación)."""
+    """Delete all stored records for one user (ARCO Cancelación).
+
+    Accepts either an E.164 phone or a BSUID.
+    """
     if not inbox_configured():
         raise RuntimeError("Inbox is not configured")
 
     return inbox_store.delete_user_data(
         INBOX_DATABASE_URL,
-        sender_phone=sender_phone,
+        sender_external_id=sender_external_id,
         delete_opt_out_record=delete_opt_out_record,
     )

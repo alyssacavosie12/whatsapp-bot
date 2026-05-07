@@ -9,6 +9,7 @@ from typing import Final
 import requests
 
 from core.phone_utils import is_valid_phone, mask_phone, normalize_phone
+from core.sender_id import is_valid_recipient
 from settings import (
     GRAPH_API_VERSION,
     TEAM_NOTIFY_PHONE,
@@ -75,8 +76,13 @@ def notify_team(message: str) -> None:
         logger.info("TEAM_NOTIFY_PHONE not set; team notification skipped")
 
 
-def send_whatsapp_message(to_phone: str, text: str) -> requests.Response | None:
-    """Send a text message through the WhatsApp Cloud API with transient retries."""
+def send_whatsapp_message(to_recipient: str, text: str) -> requests.Response | None:
+    """Send a text message through the WhatsApp Cloud API with transient retries.
+
+    `to_recipient` may be an E.164 phone number or a Business-Scoped User ID
+    (BSUID, post June 2026). Phones are normalized; BSUIDs are passed
+    through verbatim. Anything else is rejected before the network call.
+    """
     if not WHATSAPP_TOKEN:
         logger.error("WHATSAPP_TOKEN is not set")
         return None
@@ -85,14 +91,18 @@ def send_whatsapp_message(to_phone: str, text: str) -> requests.Response | None:
         logger.error("WHATSAPP_PHONE_NUMBER_ID is not set")
         return None
 
-    to_phone = normalize_phone(to_phone)
-
-    if not to_phone:
-        logger.error("Cannot send message: recipient phone is empty")
+    if not to_recipient:
+        logger.error("Cannot send message: recipient id is empty")
         return None
 
-    if not is_valid_phone(to_phone):
-        logger.error("Cannot send message: recipient phone is invalid")
+    # Normalize phones (52- prefix rule); leave BSUIDs untouched.
+    normalized = normalize_phone(to_recipient)
+    if normalized and is_valid_phone(normalized):
+        to_phone = normalized
+    elif is_valid_recipient(to_recipient):
+        to_phone = to_recipient
+    else:
+        logger.error("Cannot send message: recipient id is invalid")
         return None
 
     url = whatsapp_messages_url()

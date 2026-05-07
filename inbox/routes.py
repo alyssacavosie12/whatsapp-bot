@@ -7,7 +7,8 @@ import logging
 from flask import Flask, jsonify, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 
-from core.phone_utils import is_valid_phone, mask_phone, normalize_phone
+from core.phone_utils import mask_phone
+from core.sender_id import parse_sender_id
 from inbox import service as inbox_service
 from inbox import store as inbox_store
 from inbox.security import admin_response
@@ -99,10 +100,12 @@ def register_admin_routes(flask_app: Flask) -> None:
 
     @flask_app.route("/admin/data-subject/delete", methods=["POST"])
     def admin_data_subject_delete() -> ResponseReturnValue:
-        """Hard-delete all stored data for one phone (LFPDPPP/CCPA ARCO Cancelación).
+        """Hard-delete all stored data for one user (LFPDPPP/CCPA ARCO Cancelación).
 
         Form fields:
-        - ``phone`` (required): E.164 phone number whose data should be erased.
+        - ``phone`` (preferred for phone subjects): E.164 phone number.
+        - ``external_id`` (alternative): a Business-Scoped User ID (BSUID).
+          Either ``phone`` or ``external_id`` is required.
         - ``delete_opt_out_record`` (optional): when "true", also drop the
           opt-out record. Default keeps it as the legal proof of non-consent.
         """
@@ -115,10 +118,15 @@ def register_admin_routes(flask_app: Flask) -> None:
         if not inbox_service.valid_inbox_csrf(user["username"], "arco_delete", 0):
             return admin_response("Forbidden", 403)
 
-        raw_phone = request.form.get("phone", "").strip()
-        sender_phone = normalize_phone(raw_phone)
-        if not is_valid_phone(sender_phone):
-            return admin_response("Phone is required and must be valid E.164", 400)
+        raw_id = (
+            request.form.get("phone", "").strip() or request.form.get("external_id", "").strip()
+        )
+        sender = parse_sender_id(raw_id)
+        if sender is None:
+            return admin_response(
+                "phone or external_id is required and must be a valid E.164 or BSUID",
+                400,
+            )
 
         delete_opt_out = request.form.get("delete_opt_out_record", "").lower() in {
             "1",
@@ -129,13 +137,13 @@ def register_admin_routes(flask_app: Flask) -> None:
 
         try:
             counts = inbox_service.delete_user_data(
-                sender_phone,
+                sender.value,
                 delete_opt_out_record=delete_opt_out,
             )
         except Exception as exc:
             logger.error(
-                "arco_delete_failed phone=%s error=%s",
-                mask_phone(sender_phone),
+                "arco_delete_failed sender=%s error=%s",
+                mask_phone(sender.value),
                 exc.__class__.__name__,
             )
             return admin_response("Inbox is unavailable", 503)
@@ -144,7 +152,8 @@ def register_admin_routes(flask_app: Flask) -> None:
             user,
             "arco_cancelacion",
             metadata={
-                "phone_masked": mask_phone(sender_phone),
+                "sender_id_type": sender.id_type,
+                "sender_masked": mask_phone(sender.value),
                 "delete_opt_out_record": delete_opt_out,
                 "counts": counts,
             },

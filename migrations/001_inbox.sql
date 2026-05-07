@@ -69,15 +69,24 @@ CREATE INDEX IF NOT EXISTS inbox_opt_in_proofs_sender_phone_hash_idx
 
 CREATE TABLE IF NOT EXISTS inbox_opt_outs (
     id BIGSERIAL PRIMARY KEY,
-    sender_phone_hash TEXT NOT NULL UNIQUE,
+    sender_phone_hash TEXT NOT NULL DEFAULT '',
     sender_phone TEXT NOT NULL DEFAULT '',
     sender_phone_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+    sender_external_id TEXT NOT NULL DEFAULT '',
+    sender_external_id_type TEXT NOT NULL DEFAULT 'phone',
+    sender_external_id_hash TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL DEFAULT '',
     keyword_used TEXT NOT NULL DEFAULT '',
     language TEXT NOT NULL DEFAULT '',
     evidence_hmac TEXT NOT NULL DEFAULT '',
     recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Partial unique index lets BSUID and phone senders share the table while
+-- legacy phone-only rows (sender_external_id_hash = '') don't conflict.
+CREATE UNIQUE INDEX IF NOT EXISTS inbox_opt_outs_external_id_hash_uniq
+    ON inbox_opt_outs (sender_external_id_hash)
+    WHERE sender_external_id_hash != '';
 
 CREATE INDEX IF NOT EXISTS inbox_opt_outs_recorded_idx
     ON inbox_opt_outs (recorded_at DESC);
