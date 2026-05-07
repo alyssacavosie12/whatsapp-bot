@@ -183,6 +183,52 @@ def test_duplicate_message_is_not_processed_twice(content_file, monkeypatch):
     assert len(sent) == 1
 
 
+def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
+    content_file,
+    monkeypatch,
+):
+    """Replay protection model.
+
+    Meta's `X-Hub-Signature-256` is an HMAC over the raw body and contains
+    no timestamp, so a captured POST keeps a valid signature indefinitely
+    and cannot be rejected at the signature layer. Idempotency therefore
+    lives at the message-id layer: `seen_message` deduplicates by
+    `message.id`, so replaying the exact same signed body returns 200 with
+    status=duplicate and never re-triggers a reply within the dedup TTL.
+    """
+    app_module = _reload_app()
+    sent = []
+    seen = set()
+
+    def fake_seen(message_id):
+        already_seen = message_id in seen
+        seen.add(message_id)
+        return already_seen
+
+    monkeypatch.setattr(app_module, "META_APP_SECRET", SECRET)
+    monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
+    monkeypatch.setattr(app_module, "seen_message", fake_seen)
+    monkeypatch.setattr(
+        app_module,
+        "send_whatsapp_message",
+        lambda to, text: sent.append((to, text)),
+    )
+
+    client = app_module.app.test_client()
+    payload = _message_payload(message_id="wamid.replay")
+    body = _body(payload)
+    headers = _signature_headers(body)
+
+    first = client.post("/webhook", data=body, headers=headers)
+    replay = client.post("/webhook", data=body, headers=headers)
+
+    assert first.status_code == 200
+    assert first.get_json()["status"] == "ok"
+    assert replay.status_code == 200
+    assert replay.get_json()["status"] == "duplicate"
+    assert len(sent) == 1, "Replayed signed POST must not retrigger a reply"
+
+
 def test_rate_limit_skips_expensive_processing(content_file, monkeypatch):
     app_module = _reload_app()
     sent = []

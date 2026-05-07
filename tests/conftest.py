@@ -75,3 +75,15 @@ def content_file(tmp_path, monkeypatch):
     yield path
 
     content_loader.load_content.cache_clear()
+
+
+@pytest.fixture()
+def real_content():
+    """Load the real bot_content.json so business-content tests can guard it."""
+    from bot import content_loader
+
+    content_loader.load_content.cache_clear()
+
+    yield
+
+    content_loader.load_content.cache_clear()
