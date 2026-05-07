@@ -30,15 +30,13 @@ jobs:
 
       - name: Static security scan
         run: >
-          python -m bandit
+          python -m bandit -r
           app.py
-          ai_responder.py
-          content_loader.py
-          dedup.py
-          faq.py
-          rate_limit.py
           settings.py
-          text_utils.py
+          bot/
+          core/
+          inbox/
+          webhook/
 
       - name: Secret scan
         uses: gitleaks/gitleaks-action@v2

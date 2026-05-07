@@ -24,7 +24,7 @@ from core.text_utils import text_tokens
 
 logger = logging.getLogger(__name__)
 
-CONTENT_FILE = Path(__file__).with_name("bot_content.json")
+CONTENT_FILE = Path(__file__).resolve().parents[1] / "bot_content.json"
 
 # ─── JSON field names ────────────────────────────────────────
 
