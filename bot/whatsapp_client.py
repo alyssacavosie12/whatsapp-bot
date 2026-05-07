@@ -24,6 +24,47 @@ logger = logging.getLogger(__name__)
 
 RETRYABLE_WHATSAPP_STATUSES: Final = {429, 500, 502, 503, 504}
 
+GRAPH_API_BASE: Final = "https://graph.facebook.com"
+
+# Versions Meta has formally deprecated. The check is intentionally a static
+# allowlist instead of a network call: deploy-time hint, not runtime gate.
+# Update this list whenever Meta publishes a new deprecation in the Graph API
+# changelog (https://developers.facebook.com/docs/graph-api/changelog).
+DEPRECATED_GRAPH_API_VERSIONS: Final[frozenset[str]] = frozenset(
+    {
+        "v17.0",
+        "v18.0",
+        "v19.0",
+        "v20.0",
+        "v21.0",  # deprecated 2026-01-26
+        "v22.0",  # deprecated 2026-05-21
+    }
+)
+
+
+def whatsapp_messages_url() -> str:
+    """Return the Graph API messages endpoint for the configured number.
+
+    The URL is built lazily so monkeypatching `GRAPH_API_VERSION` (in tests)
+    or rotating it via the environment takes effect on the next call without
+    re-importing the module.
+    """
+    return f"{GRAPH_API_BASE}/{GRAPH_API_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+
+
+def warn_if_graph_api_version_deprecated() -> None:
+    """Log a warning when GRAPH_API_VERSION matches a Meta-deprecated version.
+
+    Called once at app startup. Keeps deployment honest without making a
+    network round-trip every boot.
+    """
+    if GRAPH_API_VERSION in DEPRECATED_GRAPH_API_VERSIONS:
+        logger.warning(
+            "Graph API %s is deprecated by Meta; bump GRAPH_API_VERSION "
+            "(see developers.facebook.com/docs/graph-api/changelog)",
+            GRAPH_API_VERSION,
+        )
+
 
 def notify_team(message: str) -> None:
     """Send an alert to the team WhatsApp number."""
@@ -54,7 +95,7 @@ def send_whatsapp_message(to_phone: str, text: str) -> requests.Response | None:
         logger.error("Cannot send message: recipient phone is invalid")
         return None
 
-    url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    url = whatsapp_messages_url()
     headers = {
         "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json",

@@ -379,14 +379,14 @@ def test_send_whatsapp_message_success(content_file, monkeypatch):
     app_module, flask_app = _make_app()
 
     def fake_post(url, headers, json, timeout):
-        assert "v21.0" in url
+        assert "v23.0" in url
         assert headers["Authorization"] == "Bearer token"
         assert json["to"] == "37368826828"
         return SimpleNamespace(status_code=200, text="ok")
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "token")
     monkeypatch.setattr(app_module, "WHATSAPP_PHONE_NUMBER_ID", "111")
-    monkeypatch.setattr(app_module, "GRAPH_API_VERSION", "v21.0")
+    monkeypatch.setattr(app_module, "GRAPH_API_VERSION", "v23.0")
     monkeypatch.setattr(app_module.requests, "post", fake_post)
 
     response = app_module.send_whatsapp_message("37368826828", "hello")
@@ -465,3 +465,46 @@ def test_send_whatsapp_message_retries_timeout_then_succeeds(content_file, monke
 
     assert response.status_code == 200
     assert attempts["count"] == 2
+
+
+def test_whatsapp_messages_url_uses_current_graph_version(monkeypatch):
+    """URL is built lazily so monkeypatching the version takes effect on next call."""
+    from bot import whatsapp_client
+
+    monkeypatch.setattr(whatsapp_client, "GRAPH_API_VERSION", "v25.0")
+    monkeypatch.setattr(whatsapp_client, "WHATSAPP_PHONE_NUMBER_ID", "111")
+
+    url = whatsapp_client.whatsapp_messages_url()
+
+    assert url == "https://graph.facebook.com/v25.0/111/messages"
+
+
+def test_warn_if_graph_api_version_deprecated_logs_for_known_dead_version(
+    monkeypatch,
+    caplog,
+):
+    """Startup warning fires when GRAPH_API_VERSION matches a deprecated entry."""
+    import logging as stdlib_logging
+
+    from bot import whatsapp_client
+
+    monkeypatch.setattr(whatsapp_client, "GRAPH_API_VERSION", "v21.0")
+
+    with caplog.at_level(stdlib_logging.WARNING, logger="bot.whatsapp_client"):
+        whatsapp_client.warn_if_graph_api_version_deprecated()
+
+    assert any("deprecated" in record.message.lower() for record in caplog.records)
+
+
+def test_warn_if_graph_api_version_deprecated_silent_on_supported(monkeypatch, caplog):
+    """No warning when the version isn't in the deprecation list."""
+    import logging as stdlib_logging
+
+    from bot import whatsapp_client
+
+    monkeypatch.setattr(whatsapp_client, "GRAPH_API_VERSION", "v23.0")
+
+    with caplog.at_level(stdlib_logging.WARNING, logger="bot.whatsapp_client"):
+        whatsapp_client.warn_if_graph_api_version_deprecated()
+
+    assert not any("deprecated" in record.message.lower() for record in caplog.records)

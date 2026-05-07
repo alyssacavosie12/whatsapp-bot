@@ -48,7 +48,7 @@ def _env_float(name: str, default: float) -> float:
 WHATSAPP_TOKEN: Final = os.getenv("WHATSAPP_TOKEN", "").strip()
 WHATSAPP_PHONE_NUMBER_ID: Final = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "").strip()
 VERIFY_TOKEN: Final = os.getenv("VERIFY_TOKEN", "tulum-btx-bot-token").strip()
-GRAPH_API_VERSION: Final = os.getenv("GRAPH_API_VERSION", "v21.0").strip()
+GRAPH_API_VERSION: Final = os.getenv("GRAPH_API_VERSION", "v23.0").strip()
 
 META_APP_SECRET: Final = os.getenv("META_APP_SECRET", "").strip()
 # Retained for older Railway configs; app.py now refuses unsigned POST webhooks.

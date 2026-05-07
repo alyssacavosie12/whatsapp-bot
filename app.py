@@ -8,6 +8,7 @@ import os
 from flask import Flask
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from bot.whatsapp_client import warn_if_graph_api_version_deprecated
 from core.database import initialize_db_pool
 from core.routes import handle_request_too_large, register_health_routes
 from inbox.routes import register_admin_routes
@@ -52,6 +53,7 @@ def create_app() -> Flask:
     )
     flask_app.debug = False
 
+    warn_if_graph_api_version_deprecated()
     _initialize_runtime_pools()
     configure_talisman(flask_app, force_https=FORCE_HTTPS)
     webhook_rate_limit = build_webhook_rate_limit(
