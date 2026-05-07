@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import importlib
 from datetime import UTC, datetime
 
 from werkzeug.security import generate_password_hash
@@ -9,18 +8,23 @@ from werkzeug.security import generate_password_hash
 from inbox.store import InboxMessage
 
 
-def _reload_app(monkeypatch=None):
+def _make_app(monkeypatch=None):
+    """Build a fresh Flask app for one test via the application factory.
+
+    Returns (app_module, flask_app); module-level monkeypatches go on
+    app_module, HTTP requests through flask_app.test_client().
+    """
     import app
 
-    app_module = importlib.reload(app)
+    flask_app = app.create_app()
 
     if monkeypatch is not None:
-        monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
-        monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
-        monkeypatch.setattr(app_module, "TEAM_NOTIFY_PHONE", "")
-        monkeypatch.setattr(app_module, "record_opt_in_proof", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr(app, "verify_meta_signature", lambda: True)
+        monkeypatch.setattr(app, "allow_phone_message", lambda _phone: True)
+        monkeypatch.setattr(app, "TEAM_NOTIFY_PHONE", "")
+        monkeypatch.setattr(app, "record_opt_in_proof", lambda *_args, **_kwargs: None)
 
-    return app_module
+    return app, flask_app
 
 
 def _basic_auth(username: str, password: str) -> dict[str, str]:
@@ -69,7 +73,7 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
     content_file,
     monkeypatch,
 ):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     stored = []
     proofs = []
     sent = []
@@ -93,7 +97,7 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
         lambda database_url, **kwargs: proofs.append((database_url, kwargs)),
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -145,7 +149,7 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
 
 
 def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
@@ -160,7 +164,7 @@ def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
 
     monkeypatch.setattr(app_module, "record_incoming_message", fail_record)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -191,7 +195,7 @@ def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
 
 
 def test_inbox_requires_encryption_key_when_configured(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
 
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://inbox")
@@ -204,7 +208,7 @@ def test_inbox_requires_encryption_key_when_configured(content_file, monkeypatch
         generate_password_hash("secret"),
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.get("/admin/messages", headers=_basic_auth("owner", "secret"))
 
     assert response.status_code == 503
@@ -212,19 +216,19 @@ def test_inbox_requires_encryption_key_when_configured(content_file, monkeypatch
 
 
 def test_admin_auth_is_rate_limited(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
     monkeypatch.setattr(app_module, "is_inbox_auth_limited", lambda _keys: True)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.get("/admin/messages", headers=_basic_auth("owner", "wrong"))
 
     assert response.status_code == 429
 
 
 def test_failed_admin_auth_is_recorded(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
     recorded = []
 
@@ -233,7 +237,7 @@ def test_failed_admin_auth_is_recorded(content_file, monkeypatch):
         app_module, "record_inbox_auth_failure", lambda keys: recorded.append(keys) or False
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.get("/admin/messages", headers=_basic_auth("owner", "wrong"))
 
     assert response.status_code == 401
@@ -241,10 +245,10 @@ def test_failed_admin_auth_is_recorded(content_file, monkeypatch):
 
 
 def test_admin_messages_requires_basic_auth(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.get("/admin/messages")
 
     assert response.status_code == 401
@@ -252,7 +256,7 @@ def test_admin_messages_requires_basic_auth(content_file, monkeypatch):
 
 
 def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
     audits = []
 
@@ -261,7 +265,7 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
         app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.get("/admin/messages", headers=_basic_auth("viewer", "view"))
 
     assert response.status_code == 200
@@ -273,7 +277,7 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
 
 
 def test_admin_can_soft_delete_message(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
     deleted = []
     audits = []
@@ -286,7 +290,7 @@ def test_admin_can_soft_delete_message(content_file, monkeypatch):
     )
 
     token = app_module.inbox_csrf_token("owner", "delete", 42)
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/admin/messages/42/delete",
         data={"csrf_token": token},
@@ -300,11 +304,11 @@ def test_admin_can_soft_delete_message(content_file, monkeypatch):
 
 
 def test_viewer_cannot_delete_message(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
     token = app_module.inbox_csrf_token("viewer", "delete", 42)
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/admin/messages/42/delete",
         data={"csrf_token": token},
@@ -315,7 +319,7 @@ def test_viewer_cannot_delete_message(content_file, monkeypatch):
 
 
 def test_all_messages_in_payload_are_processed(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     sent = []
     stored = []
 
@@ -329,7 +333,7 @@ def test_all_messages_in_payload_are_processed(content_file, monkeypatch):
         app_module, "record_incoming_message", lambda _url, **kwargs: stored.append(kwargs)
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={

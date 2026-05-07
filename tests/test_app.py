@@ -1,36 +1,40 @@
 from __future__ import annotations
 
-import importlib
 from types import SimpleNamespace
 
 import requests
 
 
-def _reload_app(monkeypatch=None):
+def _make_app(monkeypatch=None):
+    """Build a fresh Flask app for one test via the application factory.
+
+    Returns (app_module, flask_app). Module-level monkeypatches go on
+    app_module; HTTP requests go through flask_app.test_client().
+    """
     import app
 
-    importlib.reload(app)
+    flask_app = app.create_app()
 
     if monkeypatch is not None:
         monkeypatch.setattr(app, "verify_meta_signature", lambda: True)
         monkeypatch.setattr(app, "allow_phone_message", lambda _phone: True)
         monkeypatch.setattr(app, "TEAM_NOTIFY_PHONE", "")
 
-    return app
+    return app, flask_app
 
 
 def test_root_and_health_routes(content_file):
-    app_module = _reload_app()
-    client = app_module.app.test_client()
+    app_module, flask_app = _make_app()
+    client = flask_app.test_client()
 
     assert client.get("/").status_code == 200
     assert client.get("/health").status_code == 200
 
 
 def test_webhook_verify_success(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "VERIFY_TOKEN", "test-token")
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
 
     response = client.get(
         "/webhook?hub.mode=subscribe&hub.verify_token=test-token&hub.challenge=12345"
@@ -41,9 +45,9 @@ def test_webhook_verify_success(content_file, monkeypatch):
 
 
 def test_webhook_verify_forbidden(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "VERIFY_TOKEN", "test-token")
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
 
     assert client.get("/webhook").status_code == 403
     assert (
@@ -55,8 +59,8 @@ def test_webhook_verify_forbidden(content_file, monkeypatch):
 
 
 def test_post_non_json_returns_415(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
-    client = app_module.app.test_client()
+    app_module, flask_app = _make_app(monkeypatch)
+    client = flask_app.test_client()
 
     response = client.post("/webhook", data="not json", content_type="text/plain")
 
@@ -65,8 +69,8 @@ def test_post_non_json_returns_415(content_file, monkeypatch):
 
 
 def test_post_empty_json_returns_400(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
-    client = app_module.app.test_client()
+    app_module, flask_app = _make_app(monkeypatch)
+    client = flask_app.test_client()
 
     response = client.post("/webhook", json={})
 
@@ -75,8 +79,8 @@ def test_post_empty_json_returns_400(content_file, monkeypatch):
 
 
 def test_post_status_update_returns_no_messages(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
-    client = app_module.app.test_client()
+    app_module, flask_app = _make_app(monkeypatch)
+    client = flask_app.test_client()
 
     response = client.post(
         "/webhook", json={"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]}
@@ -87,8 +91,8 @@ def test_post_status_update_returns_no_messages(content_file, monkeypatch):
 
 
 def test_post_invalid_webhook_schema_returns_400(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
-    client = app_module.app.test_client()
+    app_module, flask_app = _make_app(monkeypatch)
+    client = flask_app.test_client()
 
     response = client.post(
         "/webhook", json={"entry": [{"changes": [{"value": {"messages": "bad"}}]}]}
@@ -99,7 +103,7 @@ def test_post_invalid_webhook_schema_returns_400(content_file, monkeypatch):
 
 
 def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
     def fake_send(to_phone, text):
@@ -108,7 +112,7 @@ def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
 
     monkeypatch.setattr(app_module, "send_whatsapp_message", fake_send)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -134,7 +138,7 @@ def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
 
 
 def test_text_message_falls_back_to_ai(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
     monkeypatch.setattr(app_module, "find_best_faq_match", lambda text: None)
@@ -143,7 +147,7 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
         app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -178,14 +182,14 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
 
 
 def test_human_handoff_does_not_double_reply(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
     monkeypatch.setattr(
         app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -215,14 +219,14 @@ def test_human_handoff_does_not_double_reply(content_file, monkeypatch):
 
 
 def test_media_message_uses_media_response(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
     monkeypatch.setattr(
         app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -237,14 +241,14 @@ def test_media_message_uses_media_response(content_file, monkeypatch):
 
 
 def test_unknown_message_type_uses_unknown_response(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
     monkeypatch.setattr(
         app_module, "send_whatsapp_message", lambda to_phone, text: sent.append((to_phone, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -259,14 +263,14 @@ def test_unknown_message_type_uses_unknown_response(content_file, monkeypatch):
 
 
 def test_processing_exception_returns_200(content_file, monkeypatch):
-    app_module = _reload_app(monkeypatch)
+    app_module, flask_app = _make_app(monkeypatch)
 
     def fail(_text):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(app_module, "find_best_faq_match", fail)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json={
@@ -291,7 +295,7 @@ def test_processing_exception_returns_200(content_file, monkeypatch):
 
 
 def test_send_whatsapp_message_missing_config(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "")
     monkeypatch.setattr(app_module, "WHATSAPP_PHONE_NUMBER_ID", "123")
@@ -305,7 +309,7 @@ def test_send_whatsapp_message_missing_config(content_file, monkeypatch):
 
 
 def test_send_whatsapp_message_success(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
 
     def fake_post(url, headers, json, timeout):
         assert "v21.0" in url
@@ -324,7 +328,7 @@ def test_send_whatsapp_message_success(content_file, monkeypatch):
 
 
 def test_send_whatsapp_message_failure_status(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
 
     def fake_post(url, headers, json, timeout):
         assert "111/messages" in url
@@ -343,7 +347,7 @@ def test_send_whatsapp_message_failure_status(content_file, monkeypatch):
 
 
 def test_send_whatsapp_message_request_exception(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
 
     def fake_post(*args, **kwargs):
         raise requests.Timeout("timeout")

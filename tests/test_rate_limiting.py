@@ -13,7 +13,6 @@ that exhausting the IP limit returns 429 from /webhook.
 
 from __future__ import annotations
 
-import importlib
 import time
 
 # ─── Per-phone: _LocalFixedWindowRateLimiter ─────────────────────────
@@ -176,21 +175,20 @@ def test_disabled_phone_limiter_always_allows(monkeypatch):
 def test_webhook_returns_429_when_ip_rate_limit_exceeded(content_file, monkeypatch):
     """Exhausting the per-IP webhook rate limit returns 429.
 
-    The /webhook route is decorated with `@webhook_rate_limit`, which is
-    built from `settings.WEBHOOK_RATE_LIMIT` at import time. We monkeypatch
-    settings to a tiny limit and reload `app` so the decorator picks it up.
+    The /webhook route is wrapped with the rate-limiter decorator that
+    `create_app()` builds from `app.WEBHOOK_RATE_LIMIT`. We monkeypatch
+    that value to a tiny limit and call `create_app()` so the decorator
+    picks it up.
     """
-    import settings
+    import app as app_module
 
-    monkeypatch.setattr(settings, "WEBHOOK_RATE_LIMIT", "2 per minute")
-    monkeypatch.setattr(settings, "RATE_LIMIT_STORAGE_URL", "")
+    monkeypatch.setattr(app_module, "WEBHOOK_RATE_LIMIT", "2 per minute")
+    monkeypatch.setattr(app_module, "RATE_LIMIT_STORAGE_URL", "")
 
-    import app
-
-    app_module = importlib.reload(app)
+    flask_app = app_module.create_app()
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     payload = {"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]}
 
     first = client.post("/webhook", json=payload)

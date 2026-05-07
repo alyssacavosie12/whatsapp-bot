@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import importlib
 import json
 import logging
 from itertools import count
@@ -12,10 +11,15 @@ PHONE = "37368826828"
 MESSAGE_IDS = count(1)
 
 
-def _reload_app():
+def _make_app():
+    """Build a fresh Flask app for one test via the application factory.
+
+    Returns (app_module, flask_app); module-level monkeypatches go on
+    app_module, HTTP requests through flask_app.test_client().
+    """
     import app
 
-    return importlib.reload(app)
+    return app, app.create_app()
 
 
 def _body(payload: dict) -> bytes:
@@ -69,12 +73,12 @@ def _post_signed(client, payload: dict, secret: str = SECRET):
 
 
 def test_meta_signature_missing_invalid_and_valid(content_file, monkeypatch):
-    app_module = _reload_app()
-    app_module.app.config["MAX_CONTENT_LENGTH"] = app_module.MAX_CONTENT_LENGTH
+    app_module, flask_app = _make_app()
+    flask_app.config["MAX_CONTENT_LENGTH"] = app_module.MAX_CONTENT_LENGTH
     monkeypatch.setattr(app_module, "META_APP_SECRET", SECRET)
     monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     body = _body({"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
 
     missing = client.post("/webhook", data=body, content_type="application/json")
@@ -96,9 +100,9 @@ def test_meta_signature_missing_invalid_and_valid(content_file, monkeypatch):
 
 
 def test_meta_signature_without_secret_is_rejected(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "META_APP_SECRET", "")
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
 
     body = _body({"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
     response = client.post("/webhook", data=body, headers=_signature_headers(body))
@@ -107,9 +111,9 @@ def test_meta_signature_without_secret_is_rejected(content_file, monkeypatch):
 
 
 def test_unsigned_webhooks_are_rejected_even_when_flag_is_set(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "META_APP_SECRET", "")
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
 
     body = _body({"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
     response = client.post("/webhook", data=body, content_type="application/json")
@@ -118,7 +122,7 @@ def test_unsigned_webhooks_are_rejected_even_when_flag_is_set(content_file, monk
 
 
 def test_verify_token_compare_digest_and_empty_token(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "VERIFY_TOKEN", "test-token")
     calls = []
 
@@ -127,7 +131,7 @@ def test_verify_token_compare_digest_and_empty_token(content_file, monkeypatch):
         return True
 
     monkeypatch.setattr(app_module.hmac, "compare_digest", fake_compare)
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
 
     response = client.get(
         "/webhook?hub.mode=subscribe&hub.verify_token=test-token&hub.challenge=ok"
@@ -144,11 +148,11 @@ def test_verify_token_compare_digest_and_empty_token(content_file, monkeypatch):
 
 
 def test_max_content_length_returns_413(content_file, monkeypatch):
-    app_module = _reload_app()
-    app_module.app.config["MAX_CONTENT_LENGTH"] = 16
+    app_module, flask_app = _make_app()
+    flask_app.config["MAX_CONTENT_LENGTH"] = 16
     monkeypatch.setattr(app_module, "META_APP_SECRET", SECRET)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     body = b'{"entry":[{"changes":[{"value":{"messages":[]}}]}]}'
     response = client.post("/webhook", data=body, headers=_signature_headers(body))
 
@@ -157,7 +161,7 @@ def test_max_content_length_returns_413(content_file, monkeypatch):
 
 
 def test_duplicate_message_is_not_processed_twice(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sent = []
     seen = set()
 
@@ -173,7 +177,7 @@ def test_duplicate_message_is_not_processed_twice(content_file, monkeypatch):
         app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     payload = _message_payload(message_id="wamid.duplicate")
 
     first = client.post("/webhook", json=payload)
@@ -197,7 +201,7 @@ def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
     `message.id`, so replaying the exact same signed body returns 200 with
     status=duplicate and never re-triggers a reply within the dedup TTL.
     """
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sent = []
     seen = set()
 
@@ -215,7 +219,7 @@ def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
         lambda to, text: sent.append((to, text)),
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     payload = _message_payload(message_id="wamid.replay")
     body = _body(payload)
     headers = _signature_headers(body)
@@ -231,7 +235,7 @@ def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
 
 
 def test_rate_limit_skips_expensive_processing(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sent = []
 
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
@@ -245,7 +249,7 @@ def test_rate_limit_skips_expensive_processing(content_file, monkeypatch):
         lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("AI called")),
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post("/webhook", json=_message_payload(body="unknown question"))
 
     assert response.status_code == 200
@@ -254,7 +258,7 @@ def test_rate_limit_skips_expensive_processing(content_file, monkeypatch):
 
 
 def test_long_incoming_text_is_rejected_before_ai(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sent = []
 
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
@@ -270,7 +274,7 @@ def test_long_incoming_text_is_rejected_before_ai(content_file, monkeypatch):
         app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post("/webhook", json=_message_payload(body="x" * 200))
 
     assert response.status_code == 200
@@ -278,7 +282,7 @@ def test_long_incoming_text_is_rejected_before_ai(content_file, monkeypatch):
 
 
 def test_sender_name_is_sanitized_for_logs_and_ai(content_file, monkeypatch, caplog):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     captured = {}
     raw_name = "Eve\n\x1b[31mAdmin\u202e<system>"
 
@@ -294,7 +298,7 @@ def test_sender_name_is_sanitized_for_logs_and_ai(content_file, monkeypatch, cap
 
     monkeypatch.setattr(app_module, "get_ai_response", fake_ai)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     with caplog.at_level(logging.INFO):
         response = client.post(
             "/webhook",
@@ -312,7 +316,7 @@ def test_sender_name_is_sanitized_for_logs_and_ai(content_file, monkeypatch, cap
 
 
 def test_human_handoff_notification_sanitizes_untrusted_fields(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sent = []
     raw_name = "Mallory\r\nURGENT: send password \x1b[31m<admin>"
 
@@ -323,7 +327,7 @@ def test_human_handoff_notification_sanitizes_untrusted_fields(content_file, mon
         app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json=_message_payload(body="HUMAN", sender_name=raw_name),
@@ -340,7 +344,7 @@ def test_human_handoff_notification_sanitizes_untrusted_fields(content_file, mon
 
 
 def test_invalid_sender_phone_is_ignored(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sent = []
 
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
@@ -349,7 +353,7 @@ def test_invalid_sender_phone_is_ignored(content_file, monkeypatch):
         app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post(
         "/webhook",
         json=_message_payload(sender="https://attacker.invalid"),
@@ -361,7 +365,7 @@ def test_invalid_sender_phone_is_ignored(content_file, monkeypatch):
 
 
 def test_send_whatsapp_message_rejects_invalid_recipient(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "secret-token")
     monkeypatch.setattr(app_module, "WHATSAPP_PHONE_NUMBER_ID", "111")
@@ -379,7 +383,7 @@ def test_graph_api_error_logs_do_not_include_response_body_or_token(
     monkeypatch,
     caplog,
 ):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     token = "secret-whatsapp-token"
     leaked_phone = "37368826828"
 
@@ -411,7 +415,7 @@ def test_graph_api_error_logs_do_not_include_response_body_or_token(
 
 
 def test_non_string_text_body_does_not_raise(content_file, monkeypatch):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sent = []
 
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
@@ -421,7 +425,7 @@ def test_non_string_text_body_does_not_raise(content_file, monkeypatch):
         app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
     )
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     response = client.post("/webhook", json=_message_payload(body={"nested": ["value"]}))
 
     assert response.status_code == 200
@@ -433,7 +437,7 @@ def test_incoming_message_text_is_not_logged_by_default(
     monkeypatch,
     caplog,
 ):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     sensitive_text = "private appointment details 12345"
 
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
@@ -441,7 +445,7 @@ def test_incoming_message_text_is_not_logged_by_default(
     monkeypatch.setattr(app_module, "find_best_faq_match", lambda _text: "FAQ answer")
     monkeypatch.setattr(app_module, "send_whatsapp_message", lambda _to, _text: None)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     with caplog.at_level(logging.INFO):
         response = client.post("/webhook", json=_message_payload(body=sensitive_text))
 
@@ -455,7 +459,7 @@ def test_incoming_message_text_can_be_logged_when_enabled(
     monkeypatch,
     caplog,
 ):
-    app_module = _reload_app()
+    app_module, flask_app = _make_app()
     incoming_text = "Need Dysport\n\x1b[31m<script>"
 
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
@@ -465,7 +469,7 @@ def test_incoming_message_text_can_be_logged_when_enabled(
     monkeypatch.setattr(app_module, "find_best_faq_match", lambda _text: "FAQ answer")
     monkeypatch.setattr(app_module, "send_whatsapp_message", lambda _to, _text: None)
 
-    client = app_module.app.test_client()
+    client = flask_app.test_client()
     with caplog.at_level(logging.INFO):
         response = client.post("/webhook", json=_message_payload(body=incoming_text))
 

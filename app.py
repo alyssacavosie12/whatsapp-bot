@@ -11,7 +11,7 @@ import logging
 import os
 
 import requests
-from flask import Flask, jsonify, redirect, request, url_for
+from flask import Flask, Response, jsonify, redirect, request, url_for
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import check_password_hash
 
@@ -88,29 +88,13 @@ MESSAGE_TOO_LONG_FALLBACK = {
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-app.config.update(
-    MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
-    SECRET_KEY=FLASK_SECRET_KEY or os.urandom(32),
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
-)
-app.debug = False
+
+# ─── Module-level helpers ────────────────────────────────────────────
 
 
 def rate_limit_key() -> str:
     """Return the client key used by Flask-Limiter."""
     return client_ip() or "unknown"
-
-
-configure_talisman(app, force_https=FORCE_HTTPS)
-webhook_rate_limit = build_webhook_rate_limit(
-    app,
-    key_func=rate_limit_key,
-    rate_limit=WEBHOOK_RATE_LIMIT,
-    storage_uri=RATE_LIMIT_STORAGE_URL,
-)
 
 
 def sanitize_sender_name(sender_name: str) -> str:
@@ -493,164 +477,6 @@ def process_webhook_message(value: dict, message: dict) -> str:
     return "ok"
 
 
-@app.route("/", methods=["GET"])
-def root():
-    return jsonify({"status": "ok", "service": "tulum-btx-whatsapp-bot"}), 200
-
-
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify({"status": "healthy"}), 200
-
-
-@app.route("/admin/messages", methods=["GET"])
-def admin_messages():
-    """Show recent incoming WhatsApp messages to authorized users."""
-    user, error_response = require_inbox_user(INBOX_VIEWER_ROLE)
-    if error_response:
-        return error_response
-
-    query = request.args.get("q", "").strip()
-
-    try:
-        limit = int(request.args.get("limit", "100"))
-    except ValueError:
-        limit = 100
-
-    limit = max(1, min(limit, 500))
-
-    try:
-        messages = list_inbox_messages(
-            INBOX_DATABASE_URL,
-            query=query,
-            limit=limit,
-            encryption_key=INBOX_ENCRYPTION_KEY,
-        )
-    except Exception as exc:
-        logger.error("Failed to load inbox messages: %s", exc.__class__.__name__)
-        return admin_response("Inbox is unavailable", 503)
-
-    audit_inbox_action(
-        user,
-        "view_messages",
-        metadata={"has_query": bool(query), "result_count": len(messages)},
-    )
-
-    return admin_response(
-        render_admin_messages_page(
-            user,
-            messages,
-            query=query,
-            limit=limit,
-            admin_role=INBOX_ADMIN_ROLE,
-            csrf_token_builder=inbox_csrf_token,
-        )
-    )
-
-
-@app.route("/admin/messages/<int:message_id>/delete", methods=["POST"])
-def admin_delete_message(message_id: int):
-    """Soft-delete one inbox message."""
-    user, error_response = require_inbox_user(INBOX_ADMIN_ROLE)
-    if error_response:
-        return error_response
-
-    if not valid_inbox_csrf(user["username"], "delete", message_id):
-        return admin_response("Forbidden", 403)
-
-    try:
-        deleted = soft_delete_message(
-            INBOX_DATABASE_URL,
-            message_id=message_id,
-            deleted_by=user["username"],
-        )
-    except Exception as exc:
-        logger.error("Failed to delete inbox message: %s", exc.__class__.__name__)
-        return admin_response("Inbox is unavailable", 503)
-
-    audit_inbox_action(
-        user,
-        "delete_message",
-        target_message_id=message_id,
-        metadata={"deleted": deleted},
-    )
-
-    return redirect(url_for("admin_messages"), code=303)
-
-
-@app.errorhandler(RequestEntityTooLarge)
-def handle_request_too_large(_exc):
-    return jsonify({"status": "payload too large"}), 413
-
-
-@app.route("/webhook", methods=["GET"])
-def verify_webhook():
-    """Meta sends a GET request to verify the webhook URL."""
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token", "")
-    challenge = request.args.get("hub.challenge")
-
-    if not VERIFY_TOKEN:
-        logger.error("VERIFY_TOKEN is not set; refusing webhook verification")
-        return "Forbidden", 403
-
-    if mode == "subscribe" and hmac.compare_digest(
-        token.encode("utf-8"), VERIFY_TOKEN.encode("utf-8")
-    ):
-        logger.info("Webhook verified successfully")
-        return challenge, 200
-
-    logger.warning("Webhook verification failed")
-    return "Forbidden", 403
-
-
-@app.route("/webhook", methods=["POST"])
-@webhook_rate_limit
-def handle_message():
-    """Process incoming WhatsApp webhook events."""
-    if not verify_meta_signature():
-        return jsonify({"status": "invalid signature"}), 401
-
-    if not request.is_json:
-        return jsonify({"status": "unsupported content type"}), 415
-
-    data = request.get_json(silent=True)
-
-    if not data:
-        return jsonify({"status": "no data"}), 400
-
-    payload_ok, payload_error = validate_webhook_payload(data)
-    if not payload_ok:
-        logger.warning(
-            "Invalid webhook payload rejected: %s",
-            sanitize_untrusted_text(payload_error, 120),
-        )
-        return jsonify({"status": "invalid payload"}), 400
-
-    try:
-        events = list(iter_webhook_messages(data))
-
-        if not events:
-            return jsonify({"status": "no messages"}), 200
-
-        statuses = []
-
-        for value, message in events:
-            try:
-                statuses.append(process_webhook_message(value, message))
-            except Exception as exc:
-                logger.error("Error processing message: %s", exc.__class__.__name__)
-                statuses.append("ok")
-
-        if len(statuses) == 1 and statuses[0] != "ok":
-            return jsonify({"status": statuses[0]}), 200
-
-    except Exception as exc:
-        logger.error("Error processing webhook: %s", exc.__class__.__name__)
-
-    return jsonify({"status": "ok"}), 200
-
-
 def notify_team(message: str) -> None:
     """Send an alert to the team WhatsApp number."""
     if TEAM_NOTIFY_PHONE:
@@ -710,7 +536,211 @@ def send_whatsapp_message(to_phone: str, text: str) -> requests.Response | None:
     return response
 
 
+def _handle_request_too_large(_exc: RequestEntityTooLarge) -> tuple[Response, int]:
+    """Convert Werkzeug's 413 into a JSON status the bot's clients expect."""
+    return jsonify({"status": "payload too large"}), 413
+
+
+# ─── Route registration helpers ──────────────────────────────────────
+
+
+def _register_health_routes(flask_app: Flask) -> None:
+    """Attach root and /health to the given Flask app."""
+
+    @flask_app.route("/", methods=["GET"])
+    def root() -> tuple[Response, int]:
+        return jsonify({"status": "ok", "service": "tulum-btx-whatsapp-bot"}), 200
+
+    @flask_app.route("/health", methods=["GET"])
+    def health() -> tuple[Response, int]:
+        return jsonify({"status": "healthy"}), 200
+
+
+def _register_admin_routes(flask_app: Flask) -> None:
+    """Attach /admin/messages and the soft-delete handler to the given Flask app."""
+
+    @flask_app.route("/admin/messages", methods=["GET"])
+    def admin_messages() -> Response:
+        """Show recent incoming WhatsApp messages to authorized users."""
+        user, error_response = require_inbox_user(INBOX_VIEWER_ROLE)
+        if error_response:
+            return error_response
+
+        query = request.args.get("q", "").strip()
+
+        try:
+            limit = int(request.args.get("limit", "100"))
+        except ValueError:
+            limit = 100
+
+        limit = max(1, min(limit, 500))
+
+        try:
+            messages = list_inbox_messages(
+                INBOX_DATABASE_URL,
+                query=query,
+                limit=limit,
+                encryption_key=INBOX_ENCRYPTION_KEY,
+            )
+        except Exception as exc:
+            logger.error("Failed to load inbox messages: %s", exc.__class__.__name__)
+            return admin_response("Inbox is unavailable", 503)
+
+        audit_inbox_action(
+            user,
+            "view_messages",
+            metadata={"has_query": bool(query), "result_count": len(messages)},
+        )
+
+        return admin_response(
+            render_admin_messages_page(
+                user,
+                messages,
+                query=query,
+                limit=limit,
+                admin_role=INBOX_ADMIN_ROLE,
+                csrf_token_builder=inbox_csrf_token,
+            )
+        )
+
+    @flask_app.route("/admin/messages/<int:message_id>/delete", methods=["POST"])
+    def admin_delete_message(message_id: int) -> Response:
+        """Soft-delete one inbox message."""
+        user, error_response = require_inbox_user(INBOX_ADMIN_ROLE)
+        if error_response:
+            return error_response
+
+        if not valid_inbox_csrf(user["username"], "delete", message_id):
+            return admin_response("Forbidden", 403)
+
+        try:
+            deleted = soft_delete_message(
+                INBOX_DATABASE_URL,
+                message_id=message_id,
+                deleted_by=user["username"],
+            )
+        except Exception as exc:
+            logger.error("Failed to delete inbox message: %s", exc.__class__.__name__)
+            return admin_response("Inbox is unavailable", 503)
+
+        audit_inbox_action(
+            user,
+            "delete_message",
+            target_message_id=message_id,
+            metadata={"deleted": deleted},
+        )
+
+        return redirect(url_for("admin_messages"), code=303)
+
+
+def _register_webhook_routes(flask_app: Flask, webhook_rate_limit) -> None:
+    """Attach the GET (verification) and POST (events) handlers to the given Flask app."""
+
+    @flask_app.route("/webhook", methods=["GET"])
+    def verify_webhook() -> tuple[str, int]:
+        """Meta sends a GET request to verify the webhook URL."""
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token", "")
+        challenge = request.args.get("hub.challenge")
+
+        if not VERIFY_TOKEN:
+            logger.error("VERIFY_TOKEN is not set; refusing webhook verification")
+            return "Forbidden", 403
+
+        if mode == "subscribe" and hmac.compare_digest(
+            token.encode("utf-8"), VERIFY_TOKEN.encode("utf-8")
+        ):
+            logger.info("Webhook verified successfully")
+            return challenge or "", 200
+
+        logger.warning("Webhook verification failed")
+        return "Forbidden", 403
+
+    @flask_app.route("/webhook", methods=["POST"])
+    @webhook_rate_limit
+    def handle_message() -> tuple[Response, int]:
+        """Process incoming WhatsApp webhook events."""
+        if not verify_meta_signature():
+            return jsonify({"status": "invalid signature"}), 401
+
+        if not request.is_json:
+            return jsonify({"status": "unsupported content type"}), 415
+
+        data = request.get_json(silent=True)
+
+        if not data:
+            return jsonify({"status": "no data"}), 400
+
+        payload_ok, payload_error = validate_webhook_payload(data)
+        if not payload_ok:
+            logger.warning(
+                "Invalid webhook payload rejected: %s",
+                sanitize_untrusted_text(payload_error, 120),
+            )
+            return jsonify({"status": "invalid payload"}), 400
+
+        try:
+            events = list(iter_webhook_messages(data))
+
+            if not events:
+                return jsonify({"status": "no messages"}), 200
+
+            statuses = []
+
+            for value, message in events:
+                try:
+                    statuses.append(process_webhook_message(value, message))
+                except Exception as exc:
+                    logger.error("Error processing message: %s", exc.__class__.__name__)
+                    statuses.append("ok")
+
+            if len(statuses) == 1 and statuses[0] != "ok":
+                return jsonify({"status": statuses[0]}), 200
+
+        except Exception as exc:
+            logger.error("Error processing webhook: %s", exc.__class__.__name__)
+
+        return jsonify({"status": "ok"}), 200
+
+
+# ─── Application factory ─────────────────────────────────────────────
+
+
+def create_app() -> Flask:
+    """Build and return a fully wired Flask application instance.
+
+    The factory pattern keeps Flask state (config, hardening middleware,
+    rate-limiter, routes, error handlers) per-instance instead of in
+    module globals — gunicorn calls this once at boot and tests call it
+    once per test for clean isolation.
+    """
+    flask_app = Flask(__name__)
+    flask_app.config.update(
+        MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
+        SECRET_KEY=FLASK_SECRET_KEY or os.urandom(32),
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+    )
+    flask_app.debug = False
+
+    configure_talisman(flask_app, force_https=FORCE_HTTPS)
+    webhook_rate_limit = build_webhook_rate_limit(
+        flask_app,
+        key_func=rate_limit_key,
+        rate_limit=WEBHOOK_RATE_LIMIT,
+        storage_uri=RATE_LIMIT_STORAGE_URL,
+    )
+
+    _register_health_routes(flask_app)
+    _register_admin_routes(flask_app)
+    _register_webhook_routes(flask_app, webhook_rate_limit)
+    flask_app.register_error_handler(RequestEntityTooLarge, _handle_request_too_large)
+
+    return flask_app
+
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
     host = os.getenv("HOST", "127.0.0.1")
-    app.run(host=host, port=port)
+    create_app().run(host=host, port=port)
