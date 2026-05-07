@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 
-from text_utils import sanitize_untrusted_text
+from core.text_utils import sanitize_untrusted_text
 
 
 def build_inbound_opt_in_evidence(

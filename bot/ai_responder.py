@@ -10,14 +10,14 @@ import logging
 
 import anthropic
 
-from content_loader import detect_language, get_business_context, get_response
+from bot.content_loader import detect_language, get_business_context, get_response
+from core.text_utils import sanitize_untrusted_text
 from settings import (
     ANTHROPIC_API_KEY,
     ANTHROPIC_MAX_TOKENS,
     ANTHROPIC_MODEL,
     ANTHROPIC_TIMEOUT_SECONDS,
 )
-from text_utils import sanitize_untrusted_text
 
 
 logger = logging.getLogger(__name__)

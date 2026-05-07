@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from content_loader import detect_language, get_faq_entries
-from text_utils import normalize_text, text_tokens
+from bot.content_loader import detect_language, get_faq_entries
+from core.text_utils import normalize_text, text_tokens
 
 
 # ─── JSON field names ────────────────────────────────────────

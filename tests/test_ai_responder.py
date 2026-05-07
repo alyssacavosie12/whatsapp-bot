@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 
 def test_no_anthropic_key_uses_fallback(content_file, monkeypatch):
-    import ai_responder
+    from bot import ai_responder
 
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "")
 
@@ -12,7 +12,7 @@ def test_no_anthropic_key_uses_fallback(content_file, monkeypatch):
 
 
 def test_no_anthropic_key_uses_spanish_fallback(content_file, monkeypatch):
-    import ai_responder
+    from bot import ai_responder
 
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "")
 
@@ -20,7 +20,7 @@ def test_no_anthropic_key_uses_spanish_fallback(content_file, monkeypatch):
 
 
 def test_empty_business_context_uses_fallback(content_file, monkeypatch):
-    import ai_responder
+    from bot import ai_responder
 
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")
     monkeypatch.setattr(ai_responder, "get_business_context", lambda: "")
@@ -29,7 +29,7 @@ def test_empty_business_context_uses_fallback(content_file, monkeypatch):
 
 
 def test_anthropic_success(content_file, monkeypatch):
-    import ai_responder
+    from bot import ai_responder
 
     class FakeMessages:
         def create(self, **kwargs):
@@ -50,7 +50,7 @@ def test_anthropic_success(content_file, monkeypatch):
 
 
 def test_anthropic_empty_response_uses_fallback(content_file, monkeypatch):
-    import ai_responder
+    from bot import ai_responder
 
     class FakeMessages:
         def create(self, **kwargs):
@@ -67,7 +67,7 @@ def test_anthropic_empty_response_uses_fallback(content_file, monkeypatch):
 
 
 def test_anthropic_generic_exception_uses_fallback(content_file, monkeypatch):
-    import ai_responder
+    from bot import ai_responder
 
     class FakeMessages:
         def create(self, **kwargs):
@@ -84,7 +84,7 @@ def test_anthropic_generic_exception_uses_fallback(content_file, monkeypatch):
 
 
 def test_long_ai_response_is_truncated(content_file, monkeypatch):
-    import ai_responder
+    from bot import ai_responder
 
     class FakeMessages:
         def create(self, **kwargs):

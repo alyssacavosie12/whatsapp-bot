@@ -20,7 +20,7 @@ from pathlib import Path
 
 from typing import Any
 
-from text_utils import text_tokens
+from core.text_utils import text_tokens
 
 logger = logging.getLogger(__name__)
 

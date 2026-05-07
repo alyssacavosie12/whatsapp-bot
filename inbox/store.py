@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from text_utils import sanitize_untrusted_text
+from core.text_utils import sanitize_untrusted_text
 
 
 MAX_STORED_BODY_CHARS = 8000

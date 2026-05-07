@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from werkzeug.security import generate_password_hash
 
-from message_store import InboxMessage
+from inbox.store import InboxMessage
 
 
 def _reload_app(monkeypatch=None):

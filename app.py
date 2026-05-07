@@ -15,30 +15,27 @@ from flask import Flask, jsonify, redirect, request, url_for
 from werkzeug.security import check_password_hash
 from werkzeug.exceptions import RequestEntityTooLarge
 
-from ai_responder import get_ai_response
-from admin_security import admin_response, client_ip, inbox_auth_challenge
-from admin_views import render_admin_messages_page
-from auth_throttle import (
+from bot.ai_responder import get_ai_response
+from bot.content_loader import detect_language, get_response
+from bot.faq import find_best_faq_match
+from core.phone_utils import is_valid_phone, mask_phone, normalize_phone
+from core.text_utils import sanitize_untrusted_text
+from inbox.auth_throttle import (
     clear_inbox_auth_failures,
     inbox_auth_keys,
     is_inbox_auth_limited,
     record_inbox_auth_failure,
 )
-from compliance import build_inbound_opt_in_evidence
-from content_loader import detect_language, get_response
-from dedup import seen_message
-from faq import find_best_faq_match
-from graph_api import summarize_graph_error
-from http_hardening import build_webhook_rate_limit, configure_talisman
-from message_store import (
+from inbox.compliance import build_inbound_opt_in_evidence
+from inbox.security import admin_response, client_ip, inbox_auth_challenge
+from inbox.store import (
     list_messages as list_inbox_messages,
     record_audit_event,
     record_incoming_message,
     record_opt_in_proof,
     soft_delete_message,
 )
-from phone_utils import is_valid_phone, mask_phone, normalize_phone
-from rate_limit import allow_phone_message
+from inbox.views import render_admin_messages_page
 from settings import (
     BOT_DISCLOSURE,
     FLASK_SECRET_KEY,
@@ -67,9 +64,12 @@ from settings import (
     WHATSAPP_PHONE_NUMBER_ID,
     WHATSAPP_TOKEN,
 )
-from text_utils import sanitize_untrusted_text
-from webhook_events import iter_webhook_messages
-from webhook_schema import validate_webhook_payload
+from webhook.dedup import seen_message
+from webhook.events import iter_webhook_messages
+from webhook.graph_api import summarize_graph_error
+from webhook.http_hardening import build_webhook_rate_limit, configure_talisman
+from webhook.rate_limit import allow_phone_message
+from webhook.schema import validate_webhook_payload
 
 
 TEXT_MESSAGE_TYPE = "text"

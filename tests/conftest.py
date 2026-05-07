@@ -64,7 +64,7 @@ SAMPLE_CONTENT = {
 @pytest.fixture()
 def content_file(tmp_path, monkeypatch):
     """Point content_loader at a temporary bot_content.json."""
-    import content_loader
+    from bot import content_loader
 
     path = tmp_path / "bot_content.json"
     path.write_text(json.dumps(SAMPLE_CONTENT, ensure_ascii=False), encoding="utf-8")
