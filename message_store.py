@@ -1,0 +1,738 @@
+"""PostgreSQL-backed admin inbox for WhatsApp messages."""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import os
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
+from text_utils import sanitize_untrusted_text
+
+
+MAX_STORED_BODY_CHARS = 8000
+MAX_STORED_NAME_CHARS = 64
+MAX_STORED_TYPE_CHARS = 32
+MAX_STORED_PHONE_CHARS = 32
+MAX_STORED_MESSAGE_ID_CHARS = 128
+
+_SCHEMA_READY: set[str] = set()
+
+
+class MessageStoreUnavailable(RuntimeError):
+    """Raised when the inbox store cannot be used."""
+
+
+@dataclass(frozen=True)
+class InboxMessage:
+    id: int
+    whatsapp_message_id: str
+    direction: str
+    sender_phone: str
+    sender_phone_masked: str
+    sender_name: str
+    message_type: str
+    body: str
+    body_encrypted: bool
+    body_length: int
+    created_at: datetime
+    deleted_at: datetime | None
+    deleted_by: str
+
+
+def _database_key(database_url: str) -> str:
+    return hashlib.sha256(database_url.encode("utf-8")).hexdigest()
+
+
+def _auto_migrate_enabled() -> bool:
+    value = os.getenv("INBOX_AUTO_MIGRATE", "true")
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _sha256(value: str) -> str:
+    if not value:
+        return ""
+
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _psycopg_modules():
+    try:
+        import psycopg
+        from psycopg.rows import dict_row
+        from psycopg.types.json import Jsonb
+    except ImportError as exc:
+        raise MessageStoreUnavailable(
+            "psycopg is required for the admin inbox"
+        ) from exc
+
+    return psycopg, dict_row, Jsonb
+
+
+def _connect(database_url: str, *, dict_rows: bool = False):
+    if not database_url:
+        raise MessageStoreUnavailable("DATABASE_URL is not configured")
+
+    psycopg, dict_row, _jsonb = _psycopg_modules()
+    kwargs: dict[str, Any] = {"autocommit": True, "connect_timeout": 5}
+
+    if dict_rows:
+        kwargs["row_factory"] = dict_row
+
+    return psycopg.connect(database_url, **kwargs)
+
+
+def _fernet(encryption_key: str):
+    if not encryption_key:
+        return None
+
+    try:
+        from cryptography.fernet import Fernet
+    except ImportError as exc:
+        raise MessageStoreUnavailable(
+            "cryptography is required when INBOX_ENCRYPTION_KEY is set"
+        ) from exc
+
+    try:
+        return Fernet(encryption_key.encode("utf-8"))
+    except (TypeError, ValueError) as exc:
+        raise MessageStoreUnavailable("INBOX_ENCRYPTION_KEY is invalid") from exc
+
+
+def _prepare_body(body: object, encryption_key: str) -> tuple[str, bool, int, str]:
+    safe_body = sanitize_untrusted_text(body, MAX_STORED_BODY_CHARS)
+    body_length = len(safe_body)
+    body_sha256 = _sha256(safe_body)
+
+    cipher = _fernet(encryption_key)
+    if not cipher:
+        return safe_body, False, body_length, body_sha256
+
+    encrypted = cipher.encrypt(safe_body.encode("utf-8")).decode("utf-8")
+    return encrypted, True, body_length, body_sha256
+
+
+def _prepare_sensitive_field(
+    value: object,
+    max_chars: int,
+    encryption_key: str,
+) -> tuple[str, bool, str]:
+    safe_value = sanitize_untrusted_text(value, max_chars)
+    value_hash = _sha256(safe_value)
+
+    cipher = _fernet(encryption_key)
+    if not cipher or not safe_value:
+        return safe_value, False, value_hash
+
+    encrypted = cipher.encrypt(safe_value.encode("utf-8")).decode("utf-8")
+    return encrypted, True, value_hash
+
+
+def _read_body(body: str, encrypted: bool, encryption_key: str) -> str:
+    if not encrypted:
+        return body
+
+    cipher = _fernet(encryption_key)
+    if not cipher:
+        return "[encrypted message unavailable: INBOX_ENCRYPTION_KEY is not set]"
+
+    try:
+        return cipher.decrypt(body.encode("utf-8")).decode("utf-8")
+    except Exception:
+        return "[encrypted message unavailable: decrypt failed]"
+
+
+def _read_sensitive_field(
+    value: str,
+    encrypted: bool,
+    encryption_key: str,
+    *,
+    fallback: str = "",
+) -> str:
+    if not encrypted:
+        return value
+
+    cipher = _fernet(encryption_key)
+    if not cipher:
+        return fallback
+
+    try:
+        return cipher.decrypt(value.encode("utf-8")).decode("utf-8")
+    except Exception:
+        return fallback
+
+
+def ensure_schema(database_url: str) -> None:
+    """Create inbox tables at runtime.
+
+    Railway private networking is runtime-only, so migrations must not depend on
+    build-time database access.
+    """
+    key = _database_key(database_url)
+    if key in _SCHEMA_READY:
+        return
+
+    if not _auto_migrate_enabled():
+        _SCHEMA_READY.add(key)
+        return
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS inbox_messages (
+                    id BIGSERIAL PRIMARY KEY,
+                    whatsapp_message_id TEXT UNIQUE,
+                    direction TEXT NOT NULL
+                        CHECK (direction IN ('incoming', 'outgoing')),
+                    sender_phone TEXT NOT NULL DEFAULT '',
+                    sender_phone_masked TEXT NOT NULL DEFAULT '',
+                    sender_phone_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+                    sender_phone_hash TEXT NOT NULL DEFAULT '',
+                    sender_name TEXT NOT NULL DEFAULT '',
+                    sender_name_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+                    sender_name_hash TEXT NOT NULL DEFAULT '',
+                    message_type TEXT NOT NULL DEFAULT '',
+                    body TEXT NOT NULL DEFAULT '',
+                    body_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+                    body_length INTEGER NOT NULL DEFAULT 0,
+                    body_sha256 TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    deleted_at TIMESTAMPTZ,
+                    deleted_by TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            cur.execute(
+                """
+                ALTER TABLE inbox_messages
+                    ADD COLUMN IF NOT EXISTS sender_phone_encrypted BOOLEAN
+                        NOT NULL DEFAULT FALSE,
+                    ADD COLUMN IF NOT EXISTS sender_phone_hash TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS sender_name_encrypted BOOLEAN
+                        NOT NULL DEFAULT FALSE,
+                    ADD COLUMN IF NOT EXISTS sender_name_hash TEXT
+                        NOT NULL DEFAULT ''
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_messages_created_idx
+                    ON inbox_messages (created_at DESC)
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_messages_sender_phone_idx
+                    ON inbox_messages (sender_phone)
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_messages_sender_phone_hash_idx
+                    ON inbox_messages (sender_phone_hash)
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_messages_sender_name_hash_idx
+                    ON inbox_messages (sender_name_hash)
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS inbox_audit_events (
+                    id BIGSERIAL PRIMARY KEY,
+                    actor TEXT NOT NULL,
+                    actor_role TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    target_message_id BIGINT,
+                    ip_address TEXT NOT NULL DEFAULT '',
+                    user_agent TEXT NOT NULL DEFAULT '',
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_audit_created_idx
+                    ON inbox_audit_events (created_at DESC)
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS inbox_opt_in_proofs (
+                    id BIGSERIAL PRIMARY KEY,
+                    whatsapp_message_id TEXT UNIQUE,
+                    sender_phone TEXT NOT NULL DEFAULT '',
+                    sender_phone_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+                    sender_phone_hash TEXT NOT NULL DEFAULT '',
+                    proof_type TEXT NOT NULL DEFAULT '',
+                    proof_source TEXT NOT NULL DEFAULT '',
+                    evidence TEXT NOT NULL DEFAULT '',
+                    evidence_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+                    evidence_sha256 TEXT NOT NULL DEFAULT '',
+                    proof_hmac TEXT NOT NULL DEFAULT '',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_opt_in_proofs_created_idx
+                    ON inbox_opt_in_proofs (created_at DESC)
+                """
+            )
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS inbox_opt_in_proofs_sender_phone_hash_idx
+                    ON inbox_opt_in_proofs (sender_phone_hash)
+                """
+            )
+
+    _SCHEMA_READY.add(key)
+
+
+def cleanup_expired_messages(database_url: str, retention_days: int) -> int:
+    """Hard-delete messages and older audit events past the retention window."""
+    if retention_days <= 0:
+        return 0
+
+    ensure_schema(database_url)
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM inbox_messages
+                WHERE created_at < now() - (%s * INTERVAL '1 day')
+                """,
+                (retention_days,),
+            )
+            deleted_messages = cur.rowcount
+            cur.execute(
+                """
+                DELETE FROM inbox_audit_events
+                WHERE created_at < now() - (%s * INTERVAL '1 day')
+                """,
+                (retention_days + 30,),
+            )
+            cur.execute(
+                """
+                DELETE FROM inbox_opt_in_proofs
+                WHERE created_at < now() - (%s * INTERVAL '1 day')
+                """,
+                (retention_days + 30,),
+            )
+
+    return deleted_messages
+
+
+def record_incoming_message(
+    database_url: str,
+    *,
+    whatsapp_message_id: str,
+    sender_phone: str,
+    sender_phone_masked: str,
+    sender_name: str,
+    message_type: str,
+    body: object,
+    encryption_key: str = "",
+    retention_days: int = 30,
+) -> None:
+    """Store one incoming webhook message."""
+    ensure_schema(database_url)
+    cleanup_expired_messages(database_url, retention_days)
+
+    safe_message_id = sanitize_untrusted_text(
+        whatsapp_message_id,
+        MAX_STORED_MESSAGE_ID_CHARS,
+    )
+    safe_masked_phone = sanitize_untrusted_text(
+        sender_phone_masked,
+        MAX_STORED_PHONE_CHARS,
+    )
+    stored_phone, phone_encrypted, phone_hash = _prepare_sensitive_field(
+        sender_phone,
+        MAX_STORED_PHONE_CHARS,
+        encryption_key,
+    )
+    stored_sender_name, sender_name_encrypted, sender_name_hash = (
+        _prepare_sensitive_field(
+            sender_name,
+            MAX_STORED_NAME_CHARS,
+            encryption_key,
+        )
+    )
+    safe_message_type = sanitize_untrusted_text(message_type, MAX_STORED_TYPE_CHARS)
+    stored_body, body_encrypted, body_length, body_sha256 = _prepare_body(
+        body,
+        encryption_key,
+    )
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO inbox_messages (
+                    whatsapp_message_id,
+                    direction,
+                    sender_phone,
+                    sender_phone_masked,
+                    sender_phone_encrypted,
+                    sender_phone_hash,
+                    sender_name,
+                    sender_name_encrypted,
+                    sender_name_hash,
+                    message_type,
+                    body,
+                    body_encrypted,
+                    body_length,
+                    body_sha256
+                )
+                VALUES (
+                    %s, 'incoming', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                ON CONFLICT (whatsapp_message_id) DO NOTHING
+                """,
+                (
+                    safe_message_id or None,
+                    stored_phone,
+                    safe_masked_phone,
+                    phone_encrypted,
+                    phone_hash,
+                    stored_sender_name,
+                    sender_name_encrypted,
+                    sender_name_hash,
+                    safe_message_type,
+                    stored_body,
+                    body_encrypted,
+                    body_length,
+                    body_sha256,
+                ),
+            )
+
+
+def record_opt_in_proof(
+    database_url: str,
+    *,
+    whatsapp_message_id: str,
+    sender_phone: str,
+    proof_type: str = "inbound_customer_initiated",
+    proof_source: str = "whatsapp_webhook",
+    evidence: dict[str, Any] | str | None = None,
+    proof_secret: str = "",
+    encryption_key: str = "",
+) -> None:
+    """Store a tamper-evident proof that the user initiated the conversation."""
+    if not proof_secret:
+        raise MessageStoreUnavailable("INBOX_PROOF_SECRET is not configured")
+
+    ensure_schema(database_url)
+
+    safe_message_id = sanitize_untrusted_text(
+        whatsapp_message_id,
+        MAX_STORED_MESSAGE_ID_CHARS,
+    )
+    stored_phone, phone_encrypted, phone_hash = _prepare_sensitive_field(
+        sender_phone,
+        MAX_STORED_PHONE_CHARS,
+        encryption_key,
+    )
+    safe_proof_type = sanitize_untrusted_text(proof_type, MAX_STORED_TYPE_CHARS)
+    safe_proof_source = sanitize_untrusted_text(proof_source, MAX_STORED_TYPE_CHARS)
+    evidence_text = (
+        json.dumps(evidence or {}, sort_keys=True, separators=(",", ":"))
+        if not isinstance(evidence, str)
+        else evidence
+    )
+    stored_evidence, evidence_encrypted, evidence_sha256 = _prepare_sensitive_field(
+        evidence_text,
+        MAX_STORED_BODY_CHARS,
+        encryption_key,
+    )
+    proof_payload = json.dumps(
+        {
+            "evidence_sha256": evidence_sha256,
+            "message_id": safe_message_id,
+            "phone_hash": phone_hash,
+            "proof_source": safe_proof_source,
+            "proof_type": safe_proof_type,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    proof_hmac = hmac.new(
+        proof_secret.encode("utf-8"),
+        proof_payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO inbox_opt_in_proofs (
+                    whatsapp_message_id,
+                    sender_phone,
+                    sender_phone_encrypted,
+                    sender_phone_hash,
+                    proof_type,
+                    proof_source,
+                    evidence,
+                    evidence_encrypted,
+                    evidence_sha256,
+                    proof_hmac
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (whatsapp_message_id) DO NOTHING
+                """,
+                (
+                    safe_message_id or None,
+                    stored_phone,
+                    phone_encrypted,
+                    phone_hash,
+                    safe_proof_type,
+                    safe_proof_source,
+                    stored_evidence,
+                    evidence_encrypted,
+                    evidence_sha256,
+                    proof_hmac,
+                ),
+            )
+
+
+def list_messages(
+    database_url: str,
+    *,
+    query: str = "",
+    limit: int = 100,
+    include_deleted: bool = False,
+    encryption_key: str = "",
+) -> list[InboxMessage]:
+    """Return recent inbox messages."""
+    ensure_schema(database_url)
+
+    safe_limit = max(1, min(int(limit or 100), 500))
+    safe_query = str(query or "").strip()
+    params: list[Any] = []
+
+    if safe_query:
+        like = f"%{safe_query}%"
+        query_hash = _sha256(safe_query)
+        params.extend([query_hash, query_hash, like, like, like, like])
+
+        if include_deleted:
+            sql = """
+                SELECT
+                    id,
+                    whatsapp_message_id,
+                    direction,
+                    sender_phone,
+                    sender_phone_masked,
+                    sender_phone_encrypted,
+                    sender_name,
+                    sender_name_encrypted,
+                    message_type,
+                    body,
+                    body_encrypted,
+                    body_length,
+                    created_at,
+                    deleted_at,
+                    deleted_by
+                FROM inbox_messages
+                WHERE (
+                    sender_phone_hash = %s
+                    OR sender_name_hash = %s
+                    OR sender_phone_masked ILIKE %s
+                    OR (sender_phone_encrypted = FALSE AND sender_phone ILIKE %s)
+                    OR (sender_name_encrypted = FALSE AND sender_name ILIKE %s)
+                    OR (body_encrypted = FALSE AND body ILIKE %s)
+                )
+                ORDER BY created_at DESC
+                LIMIT %s
+            """
+        else:
+            sql = """
+                SELECT
+                    id,
+                    whatsapp_message_id,
+                    direction,
+                    sender_phone,
+                    sender_phone_masked,
+                    sender_phone_encrypted,
+                    sender_name,
+                    sender_name_encrypted,
+                    message_type,
+                    body,
+                    body_encrypted,
+                    body_length,
+                    created_at,
+                    deleted_at,
+                    deleted_by
+                FROM inbox_messages
+                WHERE deleted_at IS NULL
+                    AND (
+                        sender_phone_hash = %s
+                        OR sender_name_hash = %s
+                        OR sender_phone_masked ILIKE %s
+                        OR (sender_phone_encrypted = FALSE AND sender_phone ILIKE %s)
+                        OR (sender_name_encrypted = FALSE AND sender_name ILIKE %s)
+                        OR (body_encrypted = FALSE AND body ILIKE %s)
+                    )
+                ORDER BY created_at DESC
+                LIMIT %s
+            """
+    elif include_deleted:
+        sql = """
+            SELECT
+                id,
+                whatsapp_message_id,
+                direction,
+                sender_phone,
+                sender_phone_masked,
+                sender_phone_encrypted,
+                sender_name,
+                sender_name_encrypted,
+                message_type,
+                body,
+                body_encrypted,
+                body_length,
+                created_at,
+                deleted_at,
+                deleted_by
+            FROM inbox_messages
+            ORDER BY created_at DESC
+            LIMIT %s
+        """
+    else:
+        sql = """
+        SELECT
+            id,
+            whatsapp_message_id,
+            direction,
+            sender_phone,
+            sender_phone_masked,
+            sender_phone_encrypted,
+            sender_name,
+            sender_name_encrypted,
+            message_type,
+            body,
+            body_encrypted,
+            body_length,
+            created_at,
+            deleted_at,
+            deleted_by
+        FROM inbox_messages
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT %s
+        """
+
+    params.append(safe_limit)
+
+    with _connect(database_url, dict_rows=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+
+    return [
+        InboxMessage(
+            id=row["id"],
+            whatsapp_message_id=row["whatsapp_message_id"] or "",
+            direction=row["direction"],
+            sender_phone=_read_sensitive_field(
+                row["sender_phone"],
+                row["sender_phone_encrypted"],
+                encryption_key,
+                fallback=row["sender_phone_masked"],
+            ),
+            sender_phone_masked=row["sender_phone_masked"],
+            sender_name=_read_sensitive_field(
+                row["sender_name"],
+                row["sender_name_encrypted"],
+                encryption_key,
+                fallback="",
+            ),
+            message_type=row["message_type"],
+            body=_read_body(row["body"], row["body_encrypted"], encryption_key),
+            body_encrypted=row["body_encrypted"],
+            body_length=row["body_length"],
+            created_at=row["created_at"],
+            deleted_at=row["deleted_at"],
+            deleted_by=row["deleted_by"],
+        )
+        for row in rows
+    ]
+
+
+def soft_delete_message(
+    database_url: str,
+    *,
+    message_id: int,
+    deleted_by: str,
+) -> bool:
+    """Soft-delete a message from the inbox."""
+    ensure_schema(database_url)
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE inbox_messages
+                SET deleted_at = now(), deleted_by = %s
+                WHERE id = %s AND deleted_at IS NULL
+                """,
+                (
+                    sanitize_untrusted_text(deleted_by, MAX_STORED_NAME_CHARS),
+                    message_id,
+                ),
+            )
+            return cur.rowcount > 0
+
+
+def record_audit_event(
+    database_url: str,
+    *,
+    actor: str,
+    actor_role: str,
+    action: str,
+    target_message_id: int | None = None,
+    ip_address: str = "",
+    user_agent: str = "",
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    """Append an admin inbox audit event."""
+    ensure_schema(database_url)
+    _psycopg, _dict_row, Jsonb = _psycopg_modules()
+
+    with _connect(database_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO inbox_audit_events (
+                    actor,
+                    actor_role,
+                    action,
+                    target_message_id,
+                    ip_address,
+                    user_agent,
+                    metadata
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    sanitize_untrusted_text(actor, MAX_STORED_NAME_CHARS),
+                    sanitize_untrusted_text(actor_role, MAX_STORED_TYPE_CHARS),
+                    sanitize_untrusted_text(action, MAX_STORED_TYPE_CHARS),
+                    target_message_id,
+                    sanitize_untrusted_text(ip_address, 64),
+                    sanitize_untrusted_text(user_agent, 256),
+                    Jsonb(metadata or {}),
+                ),
+            )

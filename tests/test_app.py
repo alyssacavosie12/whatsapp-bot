@@ -76,6 +76,16 @@ def test_post_status_update_returns_no_messages(content_file, monkeypatch):
     assert response.get_json()["status"] == "no messages"
 
 
+def test_post_invalid_webhook_schema_returns_400(content_file, monkeypatch):
+    app_module = _reload_app(monkeypatch)
+    client = app_module.app.test_client()
+
+    response = client.post("/webhook", json={"entry": [{"changes": [{"value": {"messages": "bad"}}]}]})
+
+    assert response.status_code == 400
+    assert response.get_json()["status"] == "invalid payload"
+
+
 def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
     app_module = _reload_app(monkeypatch)
     sent = []
@@ -137,7 +147,13 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert sent == [("37368826828", "AI answer")]
+    assert sent == [
+        (
+            "37368826828",
+            "AI answer\n\n"
+            "_This is an automated assistant. Reply HUMAN to speak with our team._",
+        )
+    ]
 
 
 def test_human_handoff_does_not_double_reply(content_file, monkeypatch):

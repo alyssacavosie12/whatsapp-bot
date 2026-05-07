@@ -73,7 +73,6 @@ def test_meta_signature_missing_invalid_and_valid(content_file, monkeypatch):
     app_module = _reload_app()
     app_module.app.config["MAX_CONTENT_LENGTH"] = app_module.MAX_CONTENT_LENGTH
     monkeypatch.setattr(app_module, "META_APP_SECRET", SECRET)
-    monkeypatch.setattr(app_module, "ALLOW_UNSIGNED_WEBHOOKS", False)
     monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
 
     client = app_module.app.test_client()
@@ -100,7 +99,6 @@ def test_meta_signature_missing_invalid_and_valid(content_file, monkeypatch):
 def test_meta_signature_without_secret_is_rejected(content_file, monkeypatch):
     app_module = _reload_app()
     monkeypatch.setattr(app_module, "META_APP_SECRET", "")
-    monkeypatch.setattr(app_module, "ALLOW_UNSIGNED_WEBHOOKS", False)
     client = app_module.app.test_client()
 
     body = _body({"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
@@ -109,17 +107,15 @@ def test_meta_signature_without_secret_is_rejected(content_file, monkeypatch):
     assert response.status_code == 401
 
 
-def test_unsigned_webhooks_can_be_temporarily_allowed(content_file, monkeypatch):
+def test_unsigned_webhooks_are_rejected_even_when_flag_is_set(content_file, monkeypatch):
     app_module = _reload_app()
     monkeypatch.setattr(app_module, "META_APP_SECRET", "")
-    monkeypatch.setattr(app_module, "ALLOW_UNSIGNED_WEBHOOKS", True)
     client = app_module.app.test_client()
 
     body = _body({"entry": [{"changes": [{"value": {"statuses": [{"id": "1"}]}}]}]})
     response = client.post("/webhook", data=body, content_type="application/json")
 
-    assert response.status_code == 200
-    assert response.get_json()["status"] == "no messages"
+    assert response.status_code == 401
 
 
 def test_verify_token_compare_digest_and_empty_token(content_file, monkeypatch):
@@ -373,3 +369,51 @@ def test_non_string_text_body_does_not_raise(content_file, monkeypatch):
 
     assert response.status_code == 200
     assert sent == [(PHONE, "FAQ answer")]
+
+
+def test_incoming_message_text_is_not_logged_by_default(
+    content_file,
+    monkeypatch,
+    caplog,
+):
+    app_module = _reload_app()
+    sensitive_text = "private appointment details 12345"
+
+    monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
+    monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
+    monkeypatch.setattr(app_module, "find_best_faq_match", lambda _text: "FAQ answer")
+    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda _to, _text: None)
+
+    client = app_module.app.test_client()
+    with caplog.at_level(logging.INFO):
+        response = client.post("/webhook", json=_message_payload(body=sensitive_text))
+
+    assert response.status_code == 200
+    assert "Message from Test User" in caplog.text
+    assert sensitive_text not in caplog.text
+
+
+def test_incoming_message_text_can_be_logged_when_enabled(
+    content_file,
+    monkeypatch,
+    caplog,
+):
+    app_module = _reload_app()
+    incoming_text = "Need Dysport\n\x1b[31m<script>"
+
+    monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
+    monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
+    monkeypatch.setattr(app_module, "LOG_INCOMING_MESSAGES", True)
+    monkeypatch.setattr(app_module, "INCOMING_MESSAGE_LOG_MAX_CHARS", 80)
+    monkeypatch.setattr(app_module, "find_best_faq_match", lambda _text: "FAQ answer")
+    monkeypatch.setattr(app_module, "send_whatsapp_message", lambda _to, _text: None)
+
+    client = app_module.app.test_client()
+    with caplog.at_level(logging.INFO):
+        response = client.post("/webhook", json=_message_payload(body=incoming_text))
+
+    assert response.status_code == 200
+    assert "Incoming message from Test User" in caplog.text
+    assert "Need Dysport script" in caplog.text
+    assert "\x1b" not in caplog.text
+    assert "<script>" not in caplog.text
