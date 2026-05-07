@@ -5,7 +5,6 @@ from __future__ import annotations
 import multiprocessing
 import os
 
-
 bind = f"0.0.0.0:{os.getenv('PORT', '8080')}"
 workers = int(
     os.getenv("WEB_CONCURRENCY")
