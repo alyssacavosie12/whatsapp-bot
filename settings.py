@@ -167,3 +167,21 @@ INBOX_ADMIN_USERNAME: Final = os.getenv("INBOX_ADMIN_USERNAME", "").strip()
 INBOX_ADMIN_PASSWORD_HASH: Final = os.getenv("INBOX_ADMIN_PASSWORD_HASH", "").strip()
 INBOX_VIEWER_USERNAME: Final = os.getenv("INBOX_VIEWER_USERNAME", "").strip()
 INBOX_VIEWER_PASSWORD_HASH: Final = os.getenv("INBOX_VIEWER_PASSWORD_HASH", "").strip()
+
+
+# ─── Chatwoot agent_bot integration ──────────────────────────
+#
+# When the bot operates as a Chatwoot agent_bot, Meta sends webhooks to
+# Chatwoot, Chatwoot fires our /chatwoot-webhook on incoming messages, and
+# replies go out via Chatwoot's REST API. CHATWOOT_TRANSPORT toggles which
+# outbound transport the message processor uses.
+
+CHATWOOT_TRANSPORT: Final = _env_bool("CHATWOOT_TRANSPORT", default=False)
+CHATWOOT_BASE_URL: Final = os.getenv("CHATWOOT_BASE_URL", "https://app.chatwoot.com").strip().rstrip("/")
+CHATWOOT_ACCOUNT_ID: Final = os.getenv("CHATWOOT_ACCOUNT_ID", "").strip()
+CHATWOOT_INBOX_ID: Final = os.getenv("CHATWOOT_INBOX_ID", "").strip()
+CHATWOOT_API_TOKEN: Final = os.getenv("CHATWOOT_API_TOKEN", "").strip()
+CHATWOOT_WEBHOOK_SECRET: Final = os.getenv("CHATWOOT_WEBHOOK_SECRET", "").strip()
+CHATWOOT_REQUEST_TIMEOUT_SECONDS: Final = _env_float("CHATWOOT_REQUEST_TIMEOUT_SECONDS", 10.0)
+CHATWOOT_MAX_RETRIES: Final = _env_int("CHATWOOT_MAX_RETRIES", 3)
+CHATWOOT_RETRY_BACKOFF_SECONDS: Final = _env_float("CHATWOOT_RETRY_BACKOFF_SECONDS", 1.0)
