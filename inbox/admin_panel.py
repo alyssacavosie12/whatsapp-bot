@@ -13,6 +13,7 @@ from inbox import service as inbox_service
 from inbox import store as inbox_store
 from inbox.security import admin_response
 from inbox.views import render_admin_message_detail_page, render_admin_messages_page
+from settings import INBOX_DATABASE_URL, INBOX_ENCRYPTION_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +37,13 @@ def admin_messages() -> ResponseReturnValue:
 
     try:
         messages = inbox_store.list_messages(
-            inbox_service.INBOX_DATABASE_URL,
+            INBOX_DATABASE_URL,
             query=query,
             limit=limit,
-            encryption_key=inbox_service.INBOX_ENCRYPTION_KEY,
+            encryption_key=INBOX_ENCRYPTION_KEY,
         )
-    except Exception as exc:
-        logger.error("Failed to load inbox messages: %s", exc.__class__.__name__)
+    except Exception:
+        logger.exception("Failed to load inbox messages")
         return admin_response("Inbox is unavailable", 503)
 
     inbox_service.audit_inbox_action(
@@ -73,12 +74,12 @@ def admin_message_detail(message_id: int) -> ResponseReturnValue:
 
     try:
         message = inbox_store.get_message_by_id(
-            inbox_service.INBOX_DATABASE_URL,
+            INBOX_DATABASE_URL,
             message_id,
-            encryption_key=inbox_service.INBOX_ENCRYPTION_KEY,
+            encryption_key=INBOX_ENCRYPTION_KEY,
         )
-    except Exception as exc:
-        logger.error("Failed to load inbox message: %s", exc.__class__.__name__)
+    except Exception:
+        logger.exception("Failed to load inbox message")
         return admin_response("Inbox is unavailable", 503)
 
     if message is None:
@@ -113,12 +114,12 @@ def admin_delete_message(message_id: int) -> ResponseReturnValue:
 
     try:
         deleted = inbox_store.soft_delete_message(
-            inbox_service.INBOX_DATABASE_URL,
+            INBOX_DATABASE_URL,
             message_id=message_id,
             deleted_by=user["username"],
         )
-    except Exception as exc:
-        logger.error("Failed to delete inbox message: %s", exc.__class__.__name__)
+    except Exception:
+        logger.exception("Failed to delete inbox message")
         return admin_response("Inbox is unavailable", 503)
 
     inbox_service.audit_inbox_action(
@@ -163,7 +164,7 @@ def admin_data_subject_delete() -> ResponseReturnValue:
             delete_opt_out_record=delete_opt_out,
         )
     except Exception as exc:
-        logger.error(
+        logger.exception(
             "arco_delete_failed sender=%s error=%s",
             mask_phone(sender.value),
             exc.__class__.__name__,

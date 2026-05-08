@@ -210,13 +210,30 @@ def ensure_schema(database_url: str) -> None:
             cur.execute(
                 """
                 ALTER TABLE inbox_messages
+                    ADD COLUMN IF NOT EXISTS sender_phone_masked TEXT
+                        NOT NULL DEFAULT '',
                     ADD COLUMN IF NOT EXISTS sender_phone_encrypted BOOLEAN
                         NOT NULL DEFAULT FALSE,
                     ADD COLUMN IF NOT EXISTS sender_phone_hash TEXT
                         NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS sender_name TEXT
+                        NOT NULL DEFAULT '',
                     ADD COLUMN IF NOT EXISTS sender_name_encrypted BOOLEAN
                         NOT NULL DEFAULT FALSE,
                     ADD COLUMN IF NOT EXISTS sender_name_hash TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS message_type TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS body TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS body_encrypted BOOLEAN
+                        NOT NULL DEFAULT FALSE,
+                    ADD COLUMN IF NOT EXISTS body_length INTEGER
+                        NOT NULL DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS body_sha256 TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+                    ADD COLUMN IF NOT EXISTS deleted_by TEXT
                         NOT NULL DEFAULT ''
                 """
             )
