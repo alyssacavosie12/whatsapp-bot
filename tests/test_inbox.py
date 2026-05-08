@@ -68,6 +68,7 @@ def _message(
     *,
     body: str = "Need an appointment",
     body_encrypted: bool = True,
+    sender_name: str = "Test User",
 ) -> InboxMessage:
     stored_body = "gAAAAABtestEncryptedFernetTokenWithoutPlaintext" if body_encrypted else body
 
@@ -77,7 +78,7 @@ def _message(
         direction="incoming",
         sender_phone="37368826828",
         sender_phone_masked="***6828",
-        sender_name="Test User",
+        sender_name=sender_name,
         message_type="text",
         body=stored_body,
         body_encrypted=body_encrypted,
@@ -371,6 +372,9 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
     assert response.status_code == 200
     assert b"Encrypted message" in response.data
     assert b"Decrypt this message" in response.data
+    assert b"data-hide-decrypted" in response.data
+    assert b"Search name or phone" in response.data
+    assert b'<select name="limit">' in response.data
     assert b"Need an appointment" not in response.data
     assert b"***6828" in response.data
     assert b"37368826828" not in response.data
@@ -386,7 +390,11 @@ def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkey
 
     audits = []
 
-    monkeypatch.setattr(app_module, "get_message_by_id", lambda *_args, **_kwargs: _message(42))
+    monkeypatch.setattr(
+        app_module,
+        "get_message_by_id",
+        lambda *_args, **_kwargs: _message(42, sender_name="Encrypted contact"),
+    )
     monkeypatch.setattr(
         app_module,
         "record_audit_event",
@@ -401,9 +409,14 @@ def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkey
     assert response.status_code == 200
     assert b"Encrypted message" in response.data
     assert b"Decrypt this message" in response.data
+    assert b"data-hide-decrypted" in response.data
     assert b"Need an appointment" not in response.data
+    assert b"Unknown contact" in response.data
+    assert b"Encrypted contact" not in response.data
     assert b"***6828" in response.data
     assert b"37368826828" not in response.data
+    assert b"Technical details" in response.data
+    assert b'data-copy-value="wamid.42"' in response.data
     assert b"Delete message" not in response.data
     assert audits[0][1]["actor"] == "viewer"
     assert audits[0][1]["action"] == "view_message"

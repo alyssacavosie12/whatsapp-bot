@@ -190,6 +190,9 @@
 
     const token = element.dataset.fernetToken || "";
     const output = element.querySelector("[data-decrypted-output]");
+    const decryptButton = element.querySelector("[data-decrypt-one]");
+    const hideButton = element.querySelector("[data-hide-decrypted]");
+    const result = element.querySelector("[data-decrypt-result]");
 
     if (!token || !output) {
       return;
@@ -199,6 +202,15 @@
       const plaintext = await decryptFernetToken(token, key);
       output.textContent = plaintext;
       output.hidden = false;
+      if (decryptButton) {
+        decryptButton.hidden = true;
+      }
+      if (hideButton) {
+        hideButton.hidden = false;
+      }
+      if (result) {
+        result.hidden = false;
+      }
       element.dataset.decrypted = "true";
       setStatus("Message decrypted locally in your browser.");
     } catch (error) {
@@ -217,6 +229,50 @@
 
     for (const element of encryptedElements) {
       await decryptElement(element);
+    }
+  }
+
+  function hideDecryptedElement(element) {
+    const output = element.querySelector("[data-decrypted-output]");
+    const decryptButton = element.querySelector("[data-decrypt-one]");
+    const hideButton = element.querySelector("[data-hide-decrypted]");
+    const result = element.querySelector("[data-decrypt-result]");
+
+    if (output) {
+      output.hidden = true;
+    }
+    if (decryptButton) {
+      decryptButton.hidden = false;
+    }
+    if (hideButton) {
+      hideButton.hidden = true;
+    }
+    if (result) {
+      result.hidden = true;
+    }
+
+    delete element.dataset.decrypted;
+  }
+
+  async function copyValue(button) {
+    const value = button.dataset.copyValue || "";
+    if (!value) {
+      return;
+    }
+
+    const originalText = button.textContent;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      button.textContent = "Copied";
+      setTimeout(() => {
+        button.textContent = originalText;
+      }, 1500);
+    } catch (error) {
+      button.textContent = "Copy failed";
+      setTimeout(() => {
+        button.textContent = originalText;
+      }, 1500);
     }
   }
 
@@ -243,6 +299,21 @@
 
       const target = event.target;
       if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const copyButton = target.closest("[data-copy-value]");
+      if (copyButton instanceof HTMLElement) {
+        void copyValue(copyButton);
+        return;
+      }
+
+      const hideDecrypted = target.closest("[data-hide-decrypted]");
+      if (hideDecrypted) {
+        const encryptedElement = hideDecrypted.closest("[data-fernet-token]");
+        if (encryptedElement instanceof HTMLElement) {
+          hideDecryptedElement(encryptedElement);
+        }
         return;
       }
 
