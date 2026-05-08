@@ -80,6 +80,58 @@ def test_events_skips_non_dict_message_items_but_yields_dicts():
     assert yielded[0][1]["id"] == "wamid.1"
 
 
+# ─── webhook/events.py: iter_webhook_calls ──────────────────────────
+
+
+def test_call_events_skips_when_calls_missing():
+    from webhook.events import iter_webhook_calls
+
+    payload = {"entry": [{"changes": [{"value": {"messages": []}}]}]}
+    assert list(iter_webhook_calls(payload)) == []
+
+
+def test_call_events_skips_non_list_calls():
+    from webhook.events import iter_webhook_calls
+
+    payload = {"entry": [{"changes": [{"value": {"calls": "not-a-list"}}]}]}
+    assert list(iter_webhook_calls(payload)) == []
+
+
+def test_call_events_skips_non_dict_call_items_but_yields_dicts():
+    """Non-dict call entries are skipped; valid dicts in the same list still come through."""
+    from webhook.events import iter_webhook_calls
+
+    payload = {
+        "entry": [
+            {
+                "changes": [
+                    {
+                        "value": {
+                            "calls": [
+                                "bad",
+                                None,
+                                {"id": "wacid.1", "from": "5219841050808", "status": "missed"},
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    yielded = list(iter_webhook_calls(payload))
+    assert len(yielded) == 1
+    assert yielded[0][1]["id"] == "wacid.1"
+    assert yielded[0][1]["status"] == "missed"
+
+
+def test_call_events_skips_non_dict_value():
+    from webhook.events import iter_webhook_calls
+
+    payload = {"entry": [{"changes": [{"value": "not-a-dict"}]}]}
+    assert list(iter_webhook_calls(payload)) == []
+
+
+
 # ─── webhook/schema.py: each error branch ───────────────────────────
 
 
