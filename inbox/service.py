@@ -107,7 +107,7 @@ def authenticate_inbox_user() -> InboxUser | None:
         if not hmac.compare_digest(
             auth.username.encode("utf-8"),
             user["username"].encode("utf-8"),
-):
+        ):
             continue
 
         try:
