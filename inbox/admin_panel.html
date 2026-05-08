@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{page_title}}</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Arial, sans-serif;
+            background: #f6f7f9;
+            color: #18212f;
+        }
+        body {
+            margin: 0;
+            padding: 24px;
+        }
+        main {
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 28px;
+            margin: 0;
+        }
+        .meta {
+            color: #536071;
+            font-size: 14px;
+        }
+        form.search {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        input[type="search"], input[type="number"] {
+            border: 1px solid #c9d0da;
+            border-radius: 6px;
+            font: inherit;
+            padding: 9px 10px;
+        }
+        input[type="search"] {
+            min-width: 260px;
+            flex: 1;
+        }
+        input[type="number"] {
+            width: 96px;
+        }
+        button {
+            border: 1px solid #27364a;
+            border-radius: 6px;
+            background: #27364a;
+            color: white;
+            cursor: pointer;
+            font: inherit;
+            padding: 9px 12px;
+        }
+        a.action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #6a778a;
+            border-radius: 6px;
+            color: #27364a;
+            background: white;
+            font: inherit;
+            padding: 8px 12px;
+            text-decoration: none;
+        }
+        .actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .actions form {
+            margin: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border: 1px solid #d9dee7;
+        }
+        th, td {
+            border-bottom: 1px solid #e3e7ee;
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 14px;
+        }
+        th {
+            background: #eef2f6;
+            color: #27364a;
+        }
+        td.body {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            max-width: 520px;
+        }
+        td span, .empty {
+            color: #647184;
+        }
+        @media (max-width: 760px) {
+            body {
+                padding: 12px;
+            }
+            header, form.search {
+                display: block;
+            }
+            input[type="search"], input[type="number"], button {
+                box-sizing: border-box;
+                margin-top: 8px;
+                width: 100%;
+            }
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+            thead {
+                display: none;
+            }
+            tr {
+                border-bottom: 1px solid #d9dee7;
+            }
+            td {
+                border-bottom: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>{{page_title}}</h1>
+            <div class="meta">{{username}} ({{role}})</div>
+        </header>
+        <form class="search" method="get" action="/admin/messages">
+            <input type="search" name="q" value="{{safe_query}}"
+                placeholder="Search name, phone, text">
+            <input type="number" name="limit" value="{{limit}}" min="1" max="500">
+            <button type="submit">Search</button>
+        </form>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Contact</th>
+                    <th>Type</th>
+                    <th>Message</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>{{table_body}}</tbody>
+        </table>
+    </main>
+</body>
+</html>

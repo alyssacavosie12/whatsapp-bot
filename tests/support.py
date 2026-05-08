@@ -56,6 +56,7 @@ class AppModuleProxy:
             "allow_phone_message": [(message_processor, "allow_phone_message")],
             "find_best_faq_match": [(message_processor, "find_best_faq_match")],
             "get_ai_response": [(message_processor, "get_ai_response")],
+            "get_message_by_id": [(inbox_store, "get_message_by_id")],
             "hmac": [(webhook_routes, "hmac")],
             "inbox_csrf_token": [(inbox_service, "inbox_csrf_token")],
             "is_first_contact": [(inbox_service, "is_first_contact")],

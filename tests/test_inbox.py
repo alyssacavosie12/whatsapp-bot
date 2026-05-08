@@ -275,6 +275,53 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
     assert audits[0][1]["action"] == "view_messages"
 
 
+def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    _configure_admin(app_module, monkeypatch)
+    audits = []
+
+    monkeypatch.setattr(app_module, "get_message_by_id", lambda *_args, **_kwargs: _message(42))
+    monkeypatch.setattr(
+        app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs))
+    )
+
+    client = flask_app.test_client()
+    response = client.get("/admin/messages/42", headers=_basic_auth("viewer", "view"))
+
+    assert response.status_code == 200
+    assert b"Need an appointment" in response.data
+    assert b"Delete message" not in response.data
+    assert audits[0][1]["actor"] == "viewer"
+    assert audits[0][1]["action"] == "view_message"
+    assert audits[0][1]["target_message_id"] == 42
+
+
+def test_admin_message_detail_shows_delete_for_admin(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    _configure_admin(app_module, monkeypatch)
+
+    monkeypatch.setattr(app_module, "get_message_by_id", lambda *_args, **_kwargs: _message(42))
+
+    client = flask_app.test_client()
+    response = client.get("/admin/messages/42", headers=_basic_auth("owner", "secret"))
+
+    assert response.status_code == 200
+    assert b"Delete message" in response.data
+
+
+def test_admin_message_detail_returns_404_when_missing(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    _configure_admin(app_module, monkeypatch)
+
+    monkeypatch.setattr(app_module, "get_message_by_id", lambda *_args, **_kwargs: None)
+
+    client = flask_app.test_client()
+    response = client.get("/admin/messages/404", headers=_basic_auth("owner", "secret"))
+
+    assert response.status_code == 404
+    assert b"Message not found" in response.data
+
+
 def test_admin_can_soft_delete_message(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
