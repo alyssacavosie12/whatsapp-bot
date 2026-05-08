@@ -5,11 +5,14 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import secrets
+import time
 from collections.abc import Callable
 from threading import Thread
 from typing import Any, Final
 
-from flask import Response, request
+from flask import redirect, request, session, url_for
+from flask.typing import ResponseReturnValue
 from werkzeug.security import check_password_hash
 
 from core.phone_utils import mask_phone
@@ -21,7 +24,7 @@ from inbox.auth_throttle import (
     record_inbox_auth_failure,
 )
 from inbox.compliance import build_inbound_opt_in_evidence
-from inbox.security import admin_response, client_ip, inbox_auth_challenge
+from inbox.security import admin_response, client_ip
 from settings import (
     INBOX_ADMIN_PASSWORD_HASH,
     INBOX_ADMIN_USERNAME,
@@ -32,6 +35,7 @@ from settings import (
     INBOX_PROOF_SECRET,
     INBOX_REQUIRE_ENCRYPTION,
     INBOX_RETENTION_DAYS,
+    INBOX_SESSION_TIMEOUT_SECONDS,
     INBOX_VIEWER_PASSWORD_HASH,
     INBOX_VIEWER_USERNAME,
     META_APP_SECRET,
@@ -43,8 +47,14 @@ INBOX_ADMIN_ROLE: Final = "admin"
 INBOX_VIEWER_ROLE: Final = "viewer"
 INBOX_ROLES: Final[dict[str, int]] = {INBOX_VIEWER_ROLE: 1, INBOX_ADMIN_ROLE: 2}
 
+INBOX_SESSION_AUTHENTICATED_KEY: Final = "admin_authenticated"
+INBOX_SESSION_USERNAME_KEY: Final = "inbox_username"
+INBOX_SESSION_ROLE_KEY: Final = "inbox_role"
+INBOX_SESSION_LAST_SEEN_KEY: Final = "inbox_last_seen_at"
+INBOX_LOGIN_CSRF_KEY: Final = "inbox_login_csrf_token"
+
 InboxUser = dict[str, str]
-InboxAuthResult = tuple[InboxUser | None, Response | None]
+InboxAuthResult = tuple[InboxUser | None, ResponseReturnValue | None]
 StoreTask = Callable[[str, str, str, str, object], None]
 
 
@@ -96,16 +106,57 @@ def get_inbox_users() -> list[InboxUser]:
     return users
 
 
-def authenticate_inbox_user() -> InboxUser | None:
-    """Authenticate the current request using HTTP Basic auth."""
-    auth = request.authorization
+def _now_seconds() -> int:
+    """Return current unix time in seconds."""
+    return int(time.time())
 
-    if not auth or not auth.username or auth.password is None:
+
+def clear_inbox_session() -> None:
+    """Remove admin inbox session data."""
+    for key in (
+        INBOX_SESSION_AUTHENTICATED_KEY,
+        INBOX_SESSION_USERNAME_KEY,
+        INBOX_SESSION_ROLE_KEY,
+        INBOX_SESSION_LAST_SEEN_KEY,
+        INBOX_LOGIN_CSRF_KEY,
+    ):
+        session.pop(key, None)
+
+
+def inbox_login_csrf_token() -> str:
+    """Return a per-session CSRF token for the admin login form."""
+    existing = session.get(INBOX_LOGIN_CSRF_KEY)
+    if isinstance(existing, str) and existing:
+        return existing
+
+    token = secrets.token_urlsafe(32)
+    session[INBOX_LOGIN_CSRF_KEY] = token
+    session.modified = True
+    return token
+
+
+def valid_inbox_login_csrf() -> bool:
+    """Validate the submitted admin login CSRF token."""
+    expected = session.get(INBOX_LOGIN_CSRF_KEY)
+    submitted = request.form.get("csrf_token", "")
+
+    return bool(
+        isinstance(expected, str)
+        and expected
+        and hmac.compare_digest(expected, submitted)
+    )
+
+
+def authenticate_inbox_credentials(username: str, password: str) -> InboxUser | None:
+    """Authenticate explicit username/password credentials."""
+    safe_username = username.strip()
+
+    if not safe_username or not password:
         return None
 
     for user in get_inbox_users():
         if not hmac.compare_digest(
-            auth.username.encode("utf-8"),
+            safe_username.encode("utf-8"),
             user["username"].encode("utf-8"),
         ):
             continue
@@ -113,7 +164,7 @@ def authenticate_inbox_user() -> InboxUser | None:
         try:
             password_ok = check_password_hash(
                 user["password_hash"],
-                auth.password,
+                password,
             )
         except ValueError:
             logger.error("Invalid inbox password hash for user role=%s", user["role"])
@@ -123,6 +174,91 @@ def authenticate_inbox_user() -> InboxUser | None:
             return {"username": user["username"], "role": user["role"]}
 
     return None
+
+
+def start_inbox_session(user: InboxUser) -> None:
+    """Create a logged-in admin inbox session."""
+    clear_inbox_session()
+    now = _now_seconds()
+
+    session[INBOX_SESSION_AUTHENTICATED_KEY] = True
+    session[INBOX_SESSION_USERNAME_KEY] = user["username"]
+    session[INBOX_SESSION_ROLE_KEY] = user["role"]
+    session[INBOX_SESSION_LAST_SEEN_KEY] = now
+    session.modified = True
+
+
+def current_inbox_user() -> InboxUser | None:
+    """Return the current session user, or None if logged out/expired."""
+    if session.get(INBOX_SESSION_AUTHENTICATED_KEY) is not True:
+        return None
+
+    username = session.get(INBOX_SESSION_USERNAME_KEY)
+    role = session.get(INBOX_SESSION_ROLE_KEY)
+    last_seen_raw = session.get(INBOX_SESSION_LAST_SEEN_KEY)
+
+    if not isinstance(username, str) or not isinstance(role, str):
+        clear_inbox_session()
+        return None
+
+    if isinstance(last_seen_raw, int):
+        last_seen = last_seen_raw
+    elif isinstance(last_seen_raw, str):
+        try:
+            last_seen = int(last_seen_raw)
+        except ValueError:
+            clear_inbox_session()
+            return None
+    else:
+        clear_inbox_session()
+        return None
+
+    timeout_seconds = max(60, INBOX_SESSION_TIMEOUT_SECONDS)
+    now = _now_seconds()
+
+    if now - last_seen > timeout_seconds:
+        clear_inbox_session()
+        return None
+
+    for configured_user in get_inbox_users():
+        username_matches = hmac.compare_digest(
+            username.encode("utf-8"),
+            configured_user["username"].encode("utf-8"),
+        )
+        if username_matches and configured_user["role"] == role:
+            session[INBOX_SESSION_LAST_SEEN_KEY] = now
+            session.modified = True
+            return {"username": username, "role": role}
+
+    clear_inbox_session()
+    return None
+
+
+def login_inbox_user(username: str, password: str) -> InboxAuthResult:
+    """Authenticate a login form submission and start a session."""
+    if not inbox_configured():
+        return None, admin_response("Inbox is not configured", 503)
+
+    if not inbox_encryption_configured():
+        return None, admin_response("Inbox encryption is not configured", 503)
+
+    if not inbox_auth_configured():
+        return None, admin_response("Inbox authentication is not configured", 503)
+
+    safe_username = username.strip()
+    throttle_keys = inbox_auth_keys(client_ip(), safe_username)
+
+    if is_inbox_auth_limited(throttle_keys):
+        return None, admin_response("Too many failed login attempts", 429)
+
+    user = authenticate_inbox_credentials(safe_username, password)
+    if not user:
+        record_inbox_auth_failure(throttle_keys)
+        return None, None
+
+    clear_inbox_auth_failures(throttle_keys)
+    start_inbox_session(user)
+    return user, None
 
 
 def require_inbox_user(required_role: str = INBOX_VIEWER_ROLE) -> InboxAuthResult:
@@ -136,20 +272,10 @@ def require_inbox_user(required_role: str = INBOX_VIEWER_ROLE) -> InboxAuthResul
     if not inbox_auth_configured():
         return None, admin_response("Inbox authentication is not configured", 503)
 
-    auth = request.authorization
-    auth_username = auth.username if auth and auth.username else ""
-    throttle_keys = inbox_auth_keys(client_ip(), auth_username)
-
-    if is_inbox_auth_limited(throttle_keys):
-        return None, admin_response("Too many failed login attempts", 429)
-
-    user = authenticate_inbox_user()
+    user = current_inbox_user()
     if not user:
-        if auth and auth.username:
-            record_inbox_auth_failure(throttle_keys)
-        return None, inbox_auth_challenge()
-
-    clear_inbox_auth_failures(throttle_keys)
+        next_path = request.full_path if request.query_string else request.path
+        return None, redirect(url_for("admin.admin_login", next=next_path), code=303)
 
     if not role_allows(user["role"], required_role):
         return None, admin_response("Forbidden", 403)

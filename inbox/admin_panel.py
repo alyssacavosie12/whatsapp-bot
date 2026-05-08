@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 
 from flask import jsonify, redirect, request, url_for
@@ -16,6 +17,164 @@ from inbox.views import render_admin_message_detail_page, render_admin_messages_
 from settings import INBOX_DATABASE_URL, INBOX_ENCRYPTION_KEY
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_next_path(raw_next: str) -> str:
+    """Allow only local redirect targets after login."""
+    if raw_next.startswith("/") and not raw_next.startswith("//"):
+        return raw_next
+
+    return url_for("admin.admin_messages")
+
+
+def _render_admin_login_page(*, error: str = "", next_path: str = "") -> str:
+    """Render a small admin login form."""
+    csrf_token = html.escape(inbox_service.inbox_login_csrf_token())
+    safe_error = html.escape(error)
+    safe_next = html.escape(next_path or url_for("admin.admin_messages"))
+
+    error_html = f'<p class="error">{safe_error}</p>' if safe_error else ""
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tulum Botox Admin Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #faf7f2;
+      color: #1f2933;
+      margin: 0;
+      padding: 40px 16px;
+    }}
+    main {{
+      max-width: 420px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid #e5e0d8;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.06);
+    }}
+    h1 {{
+      margin: 0 0 18px;
+      font-size: 24px;
+    }}
+    label {{
+      display: block;
+      margin-top: 14px;
+      font-weight: 600;
+    }}
+    input {{
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 6px;
+      padding: 10px 12px;
+      border: 1px solid #cfd6dd;
+      border-radius: 10px;
+      font: inherit;
+    }}
+    button {{
+      width: 100%;
+      margin-top: 20px;
+      padding: 11px 14px;
+      border: 0;
+      border-radius: 10px;
+      background: #111827;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }}
+    .error {{
+      background: #fee2e2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }}
+    .hint {{
+      color: #667085;
+      font-size: 14px;
+      margin-top: 16px;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tulum Botox Admin</h1>
+    {error_html}
+    <form method="post" action="{url_for("admin.admin_login")}">
+      <input type="hidden" name="csrf_token" value="{csrf_token}">
+      <input type="hidden" name="next" value="{safe_next}">
+
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="username" required>
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+      <button type="submit">Log in</button>
+    </form>
+    <p class="hint">Session expires after inactivity.</p>
+  </main>
+</body>
+</html>"""
+
+
+def admin_index() -> ResponseReturnValue:
+    """Redirect the admin root to the messages inbox."""
+    return redirect(url_for("admin.admin_messages"), code=303)
+
+
+def admin_login() -> ResponseReturnValue:
+    """Show and process the admin login form."""
+    next_path = _safe_next_path(request.values.get("next", ""))
+
+    if request.method == "GET":
+        if inbox_service.current_inbox_user():
+            return redirect(next_path, code=303)
+
+        return admin_response(_render_admin_login_page(next_path=next_path))
+
+    if not inbox_service.valid_inbox_login_csrf():
+        return admin_response(
+            _render_admin_login_page(
+                error="Login form expired. Please try again.",
+                next_path=next_path,
+            ),
+            400,
+        )
+
+    username = request.form.get("username", "")
+    password = request.form.get("password", "")
+
+    user, error_response = inbox_service.login_inbox_user(username, password)
+    if error_response:
+        return error_response
+
+    if user is None:
+        return admin_response(
+            _render_admin_login_page(
+                error="Invalid username or password.",
+                next_path=next_path,
+            ),
+            401,
+        )
+
+    inbox_service.audit_inbox_action(user, "login_success")
+    return redirect(next_path, code=303)
+
+
+def admin_logout() -> ResponseReturnValue:
+    """End the current admin session."""
+    user = inbox_service.current_inbox_user()
+    if user:
+        inbox_service.audit_inbox_action(user, "logout")
+
+    inbox_service.clear_inbox_session()
+    return redirect(url_for("admin.admin_login"), code=303)
 
 
 def admin_messages() -> ResponseReturnValue:

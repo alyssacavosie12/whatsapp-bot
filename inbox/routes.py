@@ -9,6 +9,24 @@ from inbox import admin_panel
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 admin_bp.add_url_rule(
+    "/",
+    "admin_index",
+    admin_panel.admin_index,
+    methods=["GET"],
+)
+admin_bp.add_url_rule(
+    "/login",
+    "admin_login",
+    admin_panel.admin_login,
+    methods=["GET", "POST"],
+)
+admin_bp.add_url_rule(
+    "/logout",
+    "admin_logout",
+    admin_panel.admin_logout,
+    methods=["GET", "POST"],
+)
+admin_bp.add_url_rule(
     "/messages",
     "admin_messages",
     admin_panel.admin_messages,
