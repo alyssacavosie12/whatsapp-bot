@@ -33,6 +33,10 @@ SAMPLE_CONTENT = {
             "en": "Human EN: A team member will get back to you.",
             "es": "Human ES: Un miembro del equipo te responderá.",
         },
+        "privacy_notice_suffix": {
+            "en": "By chatting with us, you agree to our Privacy Notice: https://www.tulumbotox.com/privacy",
+            "es": "Al chatear con nosotros, aceptas nuestro Aviso de Privacidad: https://www.tulumbotox.com/privacy",
+        },
     },
     "faq": [
         {

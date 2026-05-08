@@ -82,7 +82,32 @@ RATE_LIMIT_STORAGE_URL=${{Redis.REDIS_URL}}
 If your Redis service has a different name, use that service name instead of
 `Redis`.
 
-## 5. Deploy
+## 5. Configure scheduled retention cleanup
+
+Create a second Railway service from the same GitHub repository:
+
+```text
+Service name: inbox-retention-cleanup
+Config file path: /railway.cleanup.toml
+```
+
+The cleanup service runs `python -m scripts.cleanup_inbox` once per day via
+Railway Cron and exits after the task completes. Set these variables on that
+service:
+
+```text
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+INBOX_RETENTION_DAYS=30
+INBOX_AUTO_MIGRATE=true
+```
+
+Every successful run writes an `inbox_audit_events` row with
+`action=retention_cleanup`, so there is database evidence that retention
+cleanup actually executed.
+
+See [docs/railway_retention_cleanup.md](docs/railway_retention_cleanup.md).
+
+## 6. Deploy
 
 Redeploy the bot after adding variables. The app creates the inbox tables at
 runtime on the first message or admin page load.
@@ -93,7 +118,7 @@ Visit:
 https://<your-railway-domain>/admin/messages
 ```
 
-## 6. Strict database role option
+## 7. Strict database role option
 
 By default, `INBOX_AUTO_MIGRATE=true` lets the app create and update inbox
 tables at runtime. For stricter production least privilege:
@@ -106,7 +131,7 @@ tables at runtime. For stricter production least privilege:
 
 Keep `INBOX_AUTO_MIGRATE=true` until the migration has been run.
 
-## 7. Security checklist
+## 8. Security checklist
 
 - Keep `LOG_INCOMING_MESSAGES=false` for production.
 - Keep `ALLOW_UNSIGNED_WEBHOOKS=false` for production.
@@ -116,7 +141,16 @@ Keep `INBOX_AUTO_MIGRATE=true` until the migration has been run.
 - Seal Railway variables that contain passwords, hashes, CSRF secrets, and
   encryption keys.
 - Limit Railway project access to people who need operational access.
+- Review Railway Members, GitHub access, Meta access, Anthropic keys, and admin
+  inbox users using [docs/access_control.md](docs/access_control.md).
 - Disable external TCP access to Postgres if the project does not need it.
 - Prefer Railway private service references for Postgres and Redis.
 - Keep a documented retention value in `INBOX_RETENTION_DAYS`.
+- Keep the `inbox-retention-cleanup` Railway Cron service active.
 - Configure database backups and monitoring for production use.
+
+## 9. Backups and DR
+
+- See DR runbook: [DR_RUNBOOK.md](DR_RUNBOOK.md)
+- Sample pg_dump script: [scripts/backup_postgres.sh](scripts/backup_postgres.sh)
+- Live env/network checks: [docs/online_checks.md](docs/online_checks.md)

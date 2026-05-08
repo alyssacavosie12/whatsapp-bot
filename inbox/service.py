@@ -240,11 +240,16 @@ def _store_incoming_message(
         return
 
     try:
+        from core.sender_id import mask_sender_id, parse_sender_id
+
+        parsed_sender = parse_sender_id(sender_phone)
+        masked_sender = mask_sender_id(parsed_sender) if parsed_sender else mask_phone(sender_phone)
+
         inbox_store.record_incoming_message(
             INBOX_DATABASE_URL,
             whatsapp_message_id=message_id,
             sender_phone=sender_phone,
-            sender_phone_masked=mask_phone(sender_phone),
+            sender_phone_masked=masked_sender,
             sender_name=sender_name,
             message_type=message_type,
             body=body,
@@ -288,6 +293,29 @@ def store_incoming_message(
     )
 
 
+def is_first_contact(sender_external_id: str) -> bool:
+    """Return True when this sender has no prior inbound inbox history.
+
+    If the inbox database is unavailable, fail toward showing the Privacy
+    Notice. Repeating the notice is preferable to silently omitting it.
+    """
+    if not inbox_configured():
+        return True
+
+    try:
+        return not inbox_store.has_incoming_message_for_sender(
+            INBOX_DATABASE_URL,
+            sender_external_id,
+        )
+    except Exception as exc:
+        logger.error(
+            "first_contact_check_failed sender=%s error=%s",
+            mask_phone(sender_external_id),
+            exc.__class__.__name__,
+        )
+        return True
+
+
 # ─── Opt-out (LFPDPPP Oposición / CCPA) ───────────────────────────────
 
 
@@ -324,7 +352,8 @@ def record_opt_out(
 
     Idempotent on the external-id hash so a second STOP from the same user
     (phone or BSUID) does not duplicate the row. Failures are logged but
-    not raised — the route handler still sends the customer a confirmation.
+    not raised — the webhook handler must stay up even if inbox storage is
+    temporarily unavailable.
     """
     if not inbox_configured():
         logger.warning(

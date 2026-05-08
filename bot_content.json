@@ -20,6 +20,10 @@
     "opt_out_confirmation": {
       "en": "You've been unsubscribed and will not receive further automated messages from Tulum BTX. To re-enable contact, visit www.tulumbotox.com or WhatsApp +52 984 105 0808.",
       "es": "Has cancelado la suscripción y no recibirás más mensajes automáticos de Tulum BTX. Para reactivar contacto, visita www.tulumbotox.com o escríbenos al +52 984 105 0808."
+    },
+    "privacy_notice_suffix": {
+      "en": "By chatting with us, you agree to our Privacy Notice: https://www.tulumbotox.com/privacy",
+      "es": "Al chatear con nosotros, aceptas nuestro Aviso de Privacidad: https://www.tulumbotox.com/privacy"
     }
   },
   "faq": [

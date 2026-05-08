@@ -58,6 +58,7 @@ class AppModuleProxy:
             "get_ai_response": [(message_processor, "get_ai_response")],
             "hmac": [(webhook_routes, "hmac")],
             "inbox_csrf_token": [(inbox_service, "inbox_csrf_token")],
+            "is_first_contact": [(inbox_service, "is_first_contact")],
             "is_inbox_auth_limited": [(inbox_service, "is_inbox_auth_limited")],
             "list_inbox_messages": [(inbox_store, "list_messages")],
             "record_audit_event": [(inbox_store, "record_audit_event")],
@@ -104,4 +105,5 @@ def make_app_modules() -> tuple[AppModuleProxy, Any]:
 
     webhook_routes.run_in_background = lambda target, events: target(events)
     inbox_service.run_store_in_background = lambda target, *args: target(*args)
+    inbox_service.is_first_contact = lambda _sender: False
     return AppModuleProxy(app), app.create_app()

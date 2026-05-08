@@ -1,0 +1,38 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Mypy type check
+        run: mypy app.py settings.py bot/ core/ inbox/ webhook/ scripts/
+
+      - name: Bandit security scan
+        run: bandit -r app.py settings.py bot/ core/ inbox/ webhook/ scripts/ -c pyproject.toml
+
+      - name: pip-audit CVE check
+        run: pip-audit
+
+      - name: Run tests (fail fast)
+        run: pytest --cov=bot --cov=core --cov=inbox --cov=webhook --cov=scripts --cov-fail-under=80 -x

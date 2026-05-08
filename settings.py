@@ -110,6 +110,30 @@ ANTHROPIC_CIRCUIT_RECOVERY_SECONDS: Final = _env_int(
 
 BOT_DISCLOSURE: Final = _env_bool("BOT_DISCLOSURE", default=True)
 TEAM_NOTIFY_PHONE: Final = os.getenv("TEAM_NOTIFY_PHONE", "").strip()
+PRIVACY_NOTICE_URL: Final = os.getenv(
+    "PRIVACY_NOTICE_URL",
+    "https://www.tulumbotox.com/privacy",
+).strip()
+PRIVACY_RESPONSIBLE_NAME: Final = os.getenv(
+    "PRIVACY_RESPONSIBLE_NAME",
+    "Tulum Botox (Tulum BTX)",
+).strip()
+PRIVACY_RESPONSIBLE_ADDRESS: Final = os.getenv(
+    "PRIVACY_RESPONSIBLE_ADDRESS",
+    "Tulum Centro, Tulum, Quintana Roo, Mexico",
+).strip()
+PRIVACY_CONTACT_EMAIL: Final = os.getenv(
+    "PRIVACY_CONTACT_EMAIL",
+    "Ally@TulumBotox.com",
+).strip()
+PRIVACY_CONTACT_PHONE: Final = os.getenv(
+    "PRIVACY_CONTACT_PHONE",
+    "+52 984 105 0808",
+).strip()
+PRIVACY_NOTICE_LAST_UPDATED: Final = os.getenv(
+    "PRIVACY_NOTICE_LAST_UPDATED",
+    "2026-05-08",
+).strip()
 WHATSAPP_MAX_RETRIES: Final = _env_int("WHATSAPP_MAX_RETRIES", 3)
 WHATSAPP_RETRY_BACKOFF_SECONDS: Final = _env_float("WHATSAPP_RETRY_BACKOFF_SECONDS", 1.0)
 WHATSAPP_REQUEST_TIMEOUT_SECONDS: Final = _env_float("WHATSAPP_REQUEST_TIMEOUT_SECONDS", 10.0)

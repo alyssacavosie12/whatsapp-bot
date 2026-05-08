@@ -5,7 +5,7 @@ Four layers:
 - Service-layer opt-out check fails-open on DB outage so a Postgres
   hiccup doesn't drop every reply.
 - Router silences opted-out users (ZERO outbound) and short-circuits to
-  recording + one confirmation when a fresh user sends STOP/BAJA.
+    recording (without confirmation) when a fresh user sends STOP/BAJA.
 - /admin/data-subject/delete endpoint enforces admin auth + CSRF and
   delegates to the inbox service for ARCO Cancelación.
 """
@@ -33,17 +33,25 @@ PHONE = "37368826828"
         "Stop.",
         "stop!",
         "stop now",
+        "STOPALL",
+        "stop all",
+        "END",
+        "QUIT",
         "UNSUBSCRIBE",
         "unsubscribe",
         "please unsubscribe",
         "OPT OUT",
         "opt-out",
+        "optout",
         "remove me",
         "stop messages",
         "stop messaging",
+        "stop messaging me",
         "leave me alone",
         "do not contact me",
+        "don't contact me",
         "no more messages",
+        "no more texts",
         "DND",
     ],
 )
@@ -62,15 +70,24 @@ def test_opt_out_detection_en(message: str) -> None:
     [
         "BAJA",
         "baja",
+        "ALTO",
+        "alto por favor",
+        "PARAR",
+        "SALIR",
+        "CANCELAR",
         "no molesten",
         "no molestar",
         "darme de baja",
         "darse de baja",
+        "dar de baja",
         "no escriban",
         "DETENER",
         "detener",
         "no contactar",
+        "no me contacten",
         "no quiero mensajes",
+        "No más mensajes",
+        "Déjame en paz",
     ],
 )
 def test_opt_out_detection_es(message: str) -> None:
@@ -88,8 +105,10 @@ def test_opt_out_detection_es(message: str) -> None:
         "",
         "   ",
         "stop the rain please now",  # >2 tokens, no phrase match
-        "soy alto y guapo",  # contains "alto" but >2 tokens
+        "soy alto",  # contains "alto" but is not an opt-out request
+        "soy alto y guapo",  # contains "alto" but is not an opt-out request
         "I want to cancel my appointment please",  # >2 tokens
+        "cancel appointment",  # cancel is ambiguous
         "hello how much is botox per unit?",  # benign
         "ya no quiero ese tratamiento si me dan otro",  # contains "ya no" (we dropped that one)
     ],
@@ -102,13 +121,13 @@ def test_opt_out_detection_does_not_fire_on_ambiguous_input(message: str) -> Non
     assert not matched, f"{message!r} should NOT match (got {keyword=}, {lang=})"
 
 
-def test_opt_out_detection_skips_messages_longer_than_eight_tokens() -> None:
-    """Phrase match is bounded so an essay containing 'stop messaging' doesn't trigger."""
+def test_opt_out_detection_honors_long_messages_with_clear_opt_out_language() -> None:
+    """Clear opt-out language should still match even inside longer messages."""
     from bot.opt_out_keywords import is_opt_out_request
 
     long_message = "please stop messaging me thank you very much i hope you understand"
     matched, _kw, _lang = is_opt_out_request(long_message)
-    assert not matched
+    assert matched
 
 
 def test_opt_out_detection_tolerates_punctuation_and_case() -> None:
@@ -147,6 +166,52 @@ def test_is_opted_out_fails_open_on_database_error(monkeypatch):
     monkeypatch.setattr(store, "is_opted_out", boom)
 
     assert service.is_opted_out(PHONE) is False
+
+
+def test_is_first_contact_defaults_true_without_inbox(monkeypatch):
+    """Without inbox history, first-contact disclosure should be shown."""
+    import importlib
+
+    import inbox.service as service
+
+    service = importlib.reload(service)
+    monkeypatch.setattr(service, "INBOX_ENABLED", False)
+    monkeypatch.setattr(service, "INBOX_DATABASE_URL", "")
+
+    assert service.is_first_contact(PHONE) is True
+
+
+def test_is_first_contact_fails_toward_showing_notice(monkeypatch):
+    """A DB outage must not silently omit the Privacy Notice."""
+    import importlib
+
+    import inbox.service as service
+    import inbox.store as store
+
+    service = importlib.reload(service)
+    monkeypatch.setattr(service, "INBOX_ENABLED", True)
+    monkeypatch.setattr(service, "INBOX_DATABASE_URL", "postgresql://x")
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(store, "has_incoming_message_for_sender", boom)
+
+    assert service.is_first_contact(PHONE) is True
+
+
+def test_is_first_contact_false_when_sender_has_history(monkeypatch):
+    import importlib
+
+    import inbox.service as service
+    import inbox.store as store
+
+    service = importlib.reload(service)
+    monkeypatch.setattr(service, "INBOX_ENABLED", True)
+    monkeypatch.setattr(service, "INBOX_DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr(store, "has_incoming_message_for_sender", lambda *_args: True)
+
+    assert service.is_first_contact(PHONE) is False
 
 
 def test_record_opt_out_swallows_db_errors(monkeypatch, caplog):
@@ -250,8 +315,8 @@ def test_opted_out_user_does_not_trigger_faq_or_ai(content_file, monkeypatch):
     assert ai_calls == [], "AI must not be called for opted-out users"
 
 
-def test_stop_keyword_records_opt_out_and_sends_one_confirmation(content_file, monkeypatch):
-    """A fresh STOP records opt-out via service and sends exactly one confirmation."""
+def test_stop_keyword_records_opt_out_and_sends_no_confirmation(content_file, monkeypatch):
+    """A fresh STOP records opt-out via service and sends no confirmation."""
     import inbox.service as service
 
     app_module, flask_app = make_app_modules()
@@ -281,7 +346,7 @@ def test_stop_keyword_records_opt_out_and_sends_one_confirmation(content_file, m
     assert recorded[0][1]["source"] == "whatsapp_keyword"
     assert recorded[0][1]["keyword_used"] == "stop"
     assert recorded[0][1]["language"] == "en"
-    assert len(sent) == 1, "Exactly one confirmation must be sent"
+    assert sent == [], "Opt-out must not send any outbound message"
 
 
 def test_stop_keyword_short_circuits_before_faq_and_ai(content_file, monkeypatch):
@@ -338,12 +403,7 @@ def test_baja_records_opt_out_in_spanish(content_file, monkeypatch):
 
     assert response.status_code == 200
     assert recorded[0]["language"] == "es"
-    confirmation = sent[0][1].lower()
-    assert (
-        "cancelado" in confirmation
-        or "suscripcion" in confirmation
-        or "suscripción" in confirmation
-    )
+    assert sent == [], "Opt-out must not send any outbound message"
 
 
 # ─── ARCO endpoint (inbox/routes.py) ───────────────────────────────────

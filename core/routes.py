@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from flask import Flask, jsonify
+from flask import Flask, Response, jsonify
 from flask.typing import ResponseReturnValue
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from bot.ai_responder import anthropic_circuit_status
 from core.cache import get_redis
 from core.database import get_db_pool
+from core.privacy_notice import privacy_notice_html
 from settings import INBOX_DATABASE_URL, INBOX_ENABLED, REDIS_URL
 
 
@@ -24,6 +25,15 @@ def register_health_routes(flask_app: Flask) -> None:
     def root() -> ResponseReturnValue:
         """Return a simple service status response."""
         return jsonify({"status": "ok", "service": "tulum-btx-whatsapp-bot"}), 200
+
+    @flask_app.route("/privacy", methods=["GET"])
+    def privacy() -> ResponseReturnValue:
+        """Return the public Privacy Notice."""
+        return Response(
+            privacy_notice_html(),
+            status=200,
+            content_type="text/html; charset=utf-8",
+        )
 
     @flask_app.route("/health", methods=["GET"])
     def health() -> ResponseReturnValue:

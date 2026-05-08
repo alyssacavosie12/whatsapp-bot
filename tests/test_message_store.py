@@ -429,6 +429,30 @@ def test_record_opt_in_proof_accepts_string_evidence(fake_db):
     assert len(inserts) == 1
 
 
+# ─── first-contact lookup ─────────────────────────────────────────────
+
+
+def test_has_incoming_message_for_sender_uses_sender_hash(fake_db):
+    from inbox.store import _sha256, has_incoming_message_for_sender
+
+    fake_db._cursor._fetchall_result = [{"exists": 1}]
+
+    assert has_incoming_message_for_sender("postgresql://x", "37368826828") is True
+
+    selects = [sql for sql, _params in fake_db._cursor.executed if "SELECT 1" in sql]
+    assert selects
+    _sql, params = fake_db._cursor.executed[-1]
+    assert params == (_sha256("37368826828"),)
+
+
+def test_has_incoming_message_for_sender_returns_false_without_rows(fake_db):
+    from inbox.store import has_incoming_message_for_sender
+
+    fake_db._cursor._fetchall_result = []
+
+    assert has_incoming_message_for_sender("postgresql://x", "37368826828") is False
+
+
 # ─── list_messages ────────────────────────────────────────────────────
 
 

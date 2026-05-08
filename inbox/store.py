@@ -17,7 +17,10 @@ from core.text_utils import sanitize_untrusted_text
 MAX_STORED_BODY_CHARS: Final = 8000
 MAX_STORED_NAME_CHARS: Final = 64
 MAX_STORED_TYPE_CHARS: Final = 32
-MAX_STORED_PHONE_CHARS: Final = 32
+# Meta BSUIDs (June 2026+) can be longer than phones. We treat this limit as
+# "sender id" length (phone or BSUID) so hashes stay stable and deletions
+# remain possible.
+MAX_STORED_PHONE_CHARS: Final = 128
 MAX_STORED_MESSAGE_ID_CHARS: Final = 128
 
 _SCHEMA_READY: set[str] = set()
@@ -296,15 +299,15 @@ def ensure_schema(database_url: str) -> None:
                 """
                 CREATE TABLE IF NOT EXISTS inbox_opt_outs (
                     id BIGSERIAL PRIMARY KEY,
-                    sender_phone_hash TEXT NOT NULL DEFAULT '',
-                    sender_phone TEXT NOT NULL DEFAULT '',
+                    sender_phone_hash TEXT,
+                    sender_phone TEXT,
                     sender_phone_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
-                    sender_external_id TEXT NOT NULL DEFAULT '',
+                    sender_external_id TEXT,
                     sender_external_id_type TEXT NOT NULL DEFAULT 'phone',
                     sender_external_id_hash TEXT NOT NULL DEFAULT '',
                     source TEXT NOT NULL DEFAULT '',
-                    keyword_used TEXT NOT NULL DEFAULT '',
-                    language TEXT NOT NULL DEFAULT '',
+                    keyword_used TEXT,
+                    language TEXT,
                     evidence_hmac TEXT NOT NULL DEFAULT '',
                     recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
                 )
@@ -319,8 +322,7 @@ def ensure_schema(database_url: str) -> None:
             cur.execute(
                 """
                 ALTER TABLE inbox_opt_outs
-                    ADD COLUMN IF NOT EXISTS sender_external_id TEXT
-                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS sender_external_id TEXT,
                     ADD COLUMN IF NOT EXISTS sender_external_id_type TEXT
                         NOT NULL DEFAULT 'phone',
                     ADD COLUMN IF NOT EXISTS sender_external_id_hash TEXT
@@ -340,7 +342,37 @@ def ensure_schema(database_url: str) -> None:
                     sender_external_id = sender_phone,
                     sender_external_id_type = 'phone',
                     sender_external_id_hash = sender_phone_hash
-                WHERE sender_external_id_hash = '' AND sender_phone_hash != ''
+                WHERE (sender_external_id_hash IS NULL OR sender_external_id_hash = '')
+                    AND sender_phone_hash IS NOT NULL
+                    AND sender_phone_hash != ''
+                """
+            )
+            # Prefer NULLs over empty strings for optional fields so
+            # redaction/ARCO deletion does not leave "empty value" artifacts.
+            cur.execute(
+                """
+                ALTER TABLE inbox_opt_outs
+                    ALTER COLUMN sender_phone_hash DROP NOT NULL,
+                    ALTER COLUMN sender_phone_hash DROP DEFAULT,
+                    ALTER COLUMN sender_phone DROP NOT NULL,
+                    ALTER COLUMN sender_phone DROP DEFAULT,
+                    ALTER COLUMN sender_external_id DROP NOT NULL,
+                    ALTER COLUMN sender_external_id DROP DEFAULT,
+                    ALTER COLUMN keyword_used DROP NOT NULL,
+                    ALTER COLUMN keyword_used DROP DEFAULT,
+                    ALTER COLUMN language DROP NOT NULL,
+                    ALTER COLUMN language DROP DEFAULT
+                """
+            )
+            cur.execute(
+                """
+                UPDATE inbox_opt_outs
+                SET
+                    sender_phone_hash = NULLIF(sender_phone_hash, ''),
+                    sender_phone = NULLIF(sender_phone, ''),
+                    sender_external_id = NULLIF(sender_external_id, ''),
+                    keyword_used = NULLIF(keyword_used, ''),
+                    language = NULLIF(language, '')
                 """
             )
             cur.execute(
@@ -564,6 +596,30 @@ def record_opt_in_proof(
                     proof_hmac,
                 ),
             )
+
+
+def has_incoming_message_for_sender(database_url: str, sender_external_id: str) -> bool:
+    """Return True when a sender already has an inbound inbox message."""
+    ensure_schema(database_url)
+
+    safe_sender = sanitize_untrusted_text(sender_external_id, MAX_STORED_PHONE_CHARS)
+    sender_hash = _sha256(safe_sender)
+    if not sender_hash:
+        return False
+
+    with _connect(database_url, dict_rows=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1
+                FROM inbox_messages
+                WHERE direction = 'incoming'
+                    AND sender_phone_hash = %s
+                LIMIT 1
+                """,
+                (sender_hash,),
+            )
+            return bool(cur.fetchall())
 
 
 def list_messages(
@@ -820,9 +876,11 @@ def record_opt_out(
     """Record an opt-out request. Returns True if newly inserted, False if duplicate.
 
     Idempotent on `sender_external_id_hash` — a second STOP from the same
-    user (phone or BSUID) does not duplicate the record. For phone senders,
-    the legacy `sender_phone` columns are also populated so older queries
-    keep working; BSUID senders leave those empty.
+    user (phone or BSUID) does not duplicate the record.
+
+    To minimize stored personal data, this function does *not* persist the
+    plaintext external id by default. The opt-out check uses
+    `sender_external_id_hash` and the HMAC proof (`evidence_hmac`) instead.
     """
     if not proof_secret:
         raise MessageStoreUnavailable("INBOX_PROOF_SECRET is not configured")
@@ -842,20 +900,15 @@ def record_opt_out(
     if safe_external_id_type not in {"phone", "bsuid"}:
         safe_external_id_type = "phone"
 
-    # Legacy phone columns: only populated for phone senders so admin queries
-    # by sender_phone keep working; BSUID rows are external-id-only.
-    if safe_external_id_type == "phone":
-        stored_phone, phone_encrypted, phone_hash = _prepare_sensitive_field(
-            sender_external_id,
-            MAX_STORED_PHONE_CHARS,
-            encryption_key,
-        )
-    else:
-        stored_phone, phone_encrypted, phone_hash = "", False, ""
+    # Keep optional PII columns NULL by default (hash + HMAC proof is enough).
+    stored_phone: str | None = None
+    phone_encrypted = False
+    phone_hash: str | None = None
+    stored_external_id: str | None = None
 
     safe_source = sanitize_untrusted_text(source, MAX_STORED_OPT_OUT_SOURCE_CHARS)
-    safe_keyword = sanitize_untrusted_text(keyword_used, MAX_STORED_OPT_OUT_KEYWORD_CHARS)
-    safe_language = sanitize_untrusted_text(language, MAX_STORED_LANGUAGE_CHARS)
+    safe_keyword = sanitize_untrusted_text(keyword_used, MAX_STORED_OPT_OUT_KEYWORD_CHARS) or None
+    safe_language = sanitize_untrusted_text(language, MAX_STORED_LANGUAGE_CHARS) or None
 
     proof_payload = json.dumps(
         {
@@ -897,7 +950,7 @@ def record_opt_out(
                     phone_hash,
                     stored_phone,
                     phone_encrypted,
-                    safe_external_id,
+                    stored_external_id,
                     safe_external_id_type,
                     external_id_hash,
                     safe_source,
@@ -945,12 +998,9 @@ def delete_user_data(
 ) -> dict[str, int]:
     """Hard-delete all stored records for one user (ARCO Cancelación).
 
-    Accepts either an E.164 phone or a BSUID. The legacy
-    inbox_messages/inbox_opt_in_proofs tables only keyed on phone hash,
-    so for those tables we still match by `sender_phone_hash`. The
-    inbox_opt_outs table uses the external-id hash. Phone senders match
-    in all three; BSUID senders only delete their opt-out row (until
-    the message tables also grow an external-id column).
+    Accepts either an E.164 phone or a BSUID. Message storage and opt-out
+    lookups key on SHA-256 hashes of the sender id, so both phone and BSUID
+    subjects delete via the same hash.
 
     The opt-out row is retained by default — it's the legal evidence
     needed to prove ongoing non-consent. Pass
@@ -994,6 +1044,21 @@ def delete_user_data(
                 )
                 counts["opt_outs"] = int(cur.rowcount or 0)
             else:
+                # Keep the opt-out evidence row (hash + HMAC) but scrub any
+                # plaintext/encrypted identifiers so Cancelación does not leave
+                # residual PII.
+                cur.execute(
+                    """
+                    UPDATE inbox_opt_outs
+                    SET
+                        sender_phone_hash = NULL,
+                        sender_phone = NULL,
+                        sender_phone_encrypted = FALSE,
+                        sender_external_id = NULL
+                    WHERE sender_external_id_hash = %s
+                    """,
+                    (external_id_hash,),
+                )
                 counts["opt_outs"] = 0
 
     return counts

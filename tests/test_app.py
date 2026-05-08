@@ -33,6 +33,27 @@ def test_root_and_health_routes(content_file):
     assert response.get_json()["components"]["anthropic"] == "ok"
 
 
+def test_privacy_notice_page_contains_lfpdppp_operational_sections(content_file):
+    _app_module, flask_app = _make_app()
+
+    response = flask_app.test_client().get("/privacy")
+    body = response.data.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Privacy Notice" in body
+    assert "Aviso de Privacidad" in body
+    assert "ARCO" in body
+    assert "Meta Platforms" in body
+    assert "Railway Corporation" in body
+    assert "Anthropic PBC" in body
+    assert "Subprocessors" in body
+    assert "local FAQ does not" in body
+    assert "text of your WhatsApp message" in body
+    assert "Sensitive personal data" in body
+    assert "aesthetic procedures" in body
+    assert "Ally@TulumBotox.com" in body
+
+
 def test_health_reports_postgres_degraded(content_file, monkeypatch):
     import core.routes as health_routes
 
@@ -161,6 +182,83 @@ def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
     assert sent == [("37368826828", "Hey there! Welcome to Tulum Botox.")]
 
 
+def test_first_contact_adds_privacy_notice_to_faq_response(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    sent = []
+
+    monkeypatch.setattr(app_module, "is_first_contact", lambda _sender: True)
+    monkeypatch.setattr(
+        app_module,
+        "send_whatsapp_message",
+        lambda to_phone, text: sent.append((to_phone, text)),
+    )
+
+    response = flask_app.test_client().post(
+        "/webhook",
+        json={
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "contacts": [{"profile": {"name": "Test User"}}],
+                                "messages": [
+                                    {"from": "37368826828", "type": "text", "text": {"body": "hi"}}
+                                ],
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert sent == [
+        (
+            "37368826828",
+            "Hey there! Welcome to Tulum Botox.\n\n"
+            "By chatting with us, you agree to our Privacy Notice: "
+            "https://www.tulumbotox.com/privacy",
+        )
+    ]
+
+
+def test_returning_contact_does_not_add_privacy_notice(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    sent = []
+
+    monkeypatch.setattr(app_module, "is_first_contact", lambda _sender: False)
+    monkeypatch.setattr(
+        app_module,
+        "send_whatsapp_message",
+        lambda to_phone, text: sent.append((to_phone, text)),
+    )
+
+    response = flask_app.test_client().post(
+        "/webhook",
+        json={
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "contacts": [{"profile": {"name": "Test User"}}],
+                                "messages": [
+                                    {"from": "37368826828", "type": "text", "text": {"body": "hi"}}
+                                ],
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert sent == [("37368826828", "Hey there! Welcome to Tulum Botox.")]
+
+
 def test_text_message_falls_back_to_ai(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
@@ -203,6 +301,123 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
             "AI answer\n\n_This is an automated assistant. Reply HUMAN to speak with our team._",
         )
     ]
+
+
+def test_sensitive_faq_miss_routes_to_human_without_ai_and_redacts_storage(
+    content_file,
+    monkeypatch,
+):
+    from inbox import service as inbox_service
+
+    app_module, flask_app = _make_app(monkeypatch)
+    sent = []
+    stored = []
+
+    monkeypatch.setattr(app_module, "find_best_faq_match", lambda text: None)
+    monkeypatch.setattr(
+        app_module,
+        "get_ai_response",
+        lambda _text, sender_name="": (_ for _ in ()).throw(AssertionError("AI called")),
+    )
+    monkeypatch.setattr(
+        app_module,
+        "send_whatsapp_message",
+        lambda to_phone, text: sent.append((to_phone, text)),
+    )
+    monkeypatch.setattr(
+        inbox_service,
+        "store_incoming_message",
+        lambda *args: stored.append(args),
+    )
+
+    response = flask_app.test_client().post(
+        "/webhook",
+        json={
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "contacts": [{"profile": {"name": "Test User"}}],
+                                "messages": [
+                                    {
+                                        "from": "37368826828",
+                                        "type": "text",
+                                        "text": {
+                                            "body": "I am pregnant and want Botox",
+                                        },
+                                    }
+                                ],
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert sent == [("37368826828", "Human EN: A team member will get back to you.")]
+    assert stored
+    assert stored[0][3] == "text_sensitive_redacted"
+    assert stored[0][4] == "[sensitive message redacted: category=medical_safety]"
+    assert "pregnant" not in stored[0][4]
+    assert "Botox" not in stored[0][4]
+
+
+def test_aesthetic_faq_miss_routes_to_human_without_ai(content_file, monkeypatch):
+    from inbox import service as inbox_service
+
+    app_module, flask_app = _make_app(monkeypatch)
+    sent = []
+    stored = []
+
+    monkeypatch.setattr(app_module, "find_best_faq_match", lambda text: None)
+    monkeypatch.setattr(
+        app_module,
+        "get_ai_response",
+        lambda _text, sender_name="": (_ for _ in ()).throw(AssertionError("AI called")),
+    )
+    monkeypatch.setattr(
+        app_module,
+        "send_whatsapp_message",
+        lambda to_phone, text: sent.append((to_phone, text)),
+    )
+    monkeypatch.setattr(
+        inbox_service,
+        "store_incoming_message",
+        lambda *args: stored.append(args),
+    )
+
+    response = flask_app.test_client().post(
+        "/webhook",
+        json={
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "contacts": [{"profile": {"name": "Test User"}}],
+                                "messages": [
+                                    {
+                                        "from": "37368826828",
+                                        "type": "text",
+                                        "text": {"body": "Tell me about HarmonyCa"},
+                                    }
+                                ],
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert sent == [("37368826828", "Human EN: A team member will get back to you.")]
+    assert stored[0][3] == "text_sensitive_redacted"
+    assert stored[0][4] == ("[sensitive message redacted: category=aesthetic_service_interest]")
+    assert "HarmonyCa" not in stored[0][4]
 
 
 def test_ai_human_handoff_fallback_does_not_add_disclosure(content_file, monkeypatch):
