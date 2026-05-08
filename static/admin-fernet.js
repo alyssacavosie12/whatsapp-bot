@@ -32,25 +32,6 @@
     return diff === 0;
   }
 
-  function pkcs7Unpad(bytes) {
-    if (!bytes.length) {
-      throw new Error("Empty plaintext");
-    }
-
-    const paddingLength = bytes[bytes.length - 1];
-    if (paddingLength < 1 || paddingLength > 16 || paddingLength > bytes.length) {
-      throw new Error("Invalid padding");
-    }
-
-    for (let index = bytes.length - paddingLength; index < bytes.length; index += 1) {
-      if (bytes[index] !== paddingLength) {
-        throw new Error("Invalid padding");
-      }
-    }
-
-    return bytes.slice(0, bytes.length - paddingLength);
-  }
-
   async function importFernetKeys(keyText) {
     const keyBytes = base64UrlToBytes(keyText);
 
@@ -103,7 +84,7 @@
 
     const iv = token.slice(9, 25);
     const ciphertext = token.slice(25, token.length - 32);
-    const paddedPlaintext = new Uint8Array(
+    const plaintext = new Uint8Array(
       await crypto.subtle.decrypt(
         { name: "AES-CBC", iv },
         keys.encryptionKey,
@@ -111,7 +92,7 @@
       ),
     );
 
-    return decoder.decode(pkcs7Unpad(paddedPlaintext));
+    return decoder.decode(plaintext);
   }
 
   function getKeyInput() {
