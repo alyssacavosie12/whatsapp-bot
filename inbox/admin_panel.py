@@ -129,7 +129,7 @@ def admin_delete_message(message_id: int) -> ResponseReturnValue:
         metadata={"deleted": deleted},
     )
 
-    return redirect(url_for("admin_messages"), code=303)
+    return redirect(url_for("admin.admin_messages"), code=303)
 
 
 def admin_data_subject_delete() -> ResponseReturnValue:
