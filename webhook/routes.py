@@ -11,7 +11,7 @@ from typing import Any, cast
 from flask import Flask, jsonify, request
 from flask.typing import ResponseReturnValue
 
-from bot import message_processor
+from bot import call_processor, message_processor
 from core.text_utils import sanitize_untrusted_text
 from settings import VERIFY_TOKEN
 from webhook import signature as webhook_signature
