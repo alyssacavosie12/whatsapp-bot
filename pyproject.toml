@@ -32,6 +32,7 @@ dev = [
     "pre-commit>=4.2,<5",
     "detect-secrets>=1.5,<2",
     "alembic>=1.18,<2",
+    "types-requests",
 ]
 
 [build-system]
