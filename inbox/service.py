@@ -63,6 +63,21 @@ def inbox_configured() -> bool:
     return bool(INBOX_ENABLED and INBOX_DATABASE_URL)
 
 
+def inbox_enabled() -> bool:
+    """Return whether admin inbox storage is enabled."""
+    return INBOX_ENABLED
+
+
+def inbox_database_url() -> str:
+    """Return the configured admin inbox database URL."""
+    return INBOX_DATABASE_URL
+
+
+def inbox_encryption_key() -> str:
+    """Return the configured admin inbox encryption key."""
+    return INBOX_ENCRYPTION_KEY
+
+
 def inbox_auth_configured() -> bool:
     """Return True when at least one admin inbox user is configured."""
     return bool(
