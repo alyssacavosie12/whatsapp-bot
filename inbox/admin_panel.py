@@ -831,7 +831,8 @@ def admin_conversations() -> ResponseReturnValue:
         conversations = inbox_store.list_conversations(
             INBOX_DATABASE_URL,
             encryption_key=INBOX_ENCRYPTION_KEY,
-        )
+            decrypt=False,
+)
     except Exception:
         logger.exception("Failed to load admin conversations")
         return admin_response("Conversations are unavailable", 503)
@@ -861,7 +862,8 @@ def admin_conversation_detail(conversation_id: str) -> ResponseReturnValue:
             INBOX_DATABASE_URL,
             conversation_id,
             encryption_key=INBOX_ENCRYPTION_KEY,
-        )
+            decrypt=False,
+)
     except Exception:
         logger.exception("Failed to load admin conversation")
         return admin_response("Conversation is unavailable", 503)
@@ -937,7 +939,8 @@ def admin_messages() -> ResponseReturnValue:
             query=query,
             limit=limit,
             encryption_key=INBOX_ENCRYPTION_KEY,
-        )
+            decrypt=False,
+)
     except Exception:
         logger.exception("Failed to load inbox messages")
         return admin_response("Inbox is unavailable", 503)
@@ -973,7 +976,8 @@ def admin_message_detail(message_id: int) -> ResponseReturnValue:
             INBOX_DATABASE_URL,
             message_id,
             encryption_key=INBOX_ENCRYPTION_KEY,
-        )
+            decrypt=False,
+)
     except Exception:
         logger.exception("Failed to load inbox message")
         return admin_response("Inbox is unavailable", 503)

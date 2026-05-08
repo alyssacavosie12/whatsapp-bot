@@ -203,6 +203,38 @@ def _read_sensitive_field(
     except Exception:
         return fallback
 
+def _body_for_display(
+    body: str,
+    encrypted: bool,
+    encryption_key: str,
+    *,
+    decrypt: bool,
+) -> str:
+    """Return plaintext only when server-side decrypt is explicitly allowed."""
+    if encrypted and not decrypt:
+        return body
+
+    return _read_body(body, encrypted, encryption_key)
+
+
+def _sensitive_field_for_display(
+    value: str,
+    encrypted: bool,
+    encryption_key: str,
+    *,
+    decrypt: bool,
+    fallback: str = "",
+) -> str:
+    """Return sensitive plaintext only when server-side decrypt is explicitly allowed."""
+    if encrypted and not decrypt:
+        return fallback
+
+    return _read_sensitive_field(
+        value,
+        encrypted,
+        encryption_key,
+        fallback=fallback,
+    )
 
 def ensure_schema(database_url: str) -> None:
     """Create inbox tables at runtime.
@@ -684,6 +716,7 @@ def list_messages(
     limit: int = 100,
     include_deleted: bool = False,
     encryption_key: str = "",
+    decrypt: bool = True,
 ) -> list[InboxMessage]:
     """Return recent inbox messages."""
     ensure_schema(database_url)
@@ -811,56 +844,41 @@ def list_messages(
             cur.execute(sql, params)
             rows = cur.fetchall()
 
-    return [
-        InboxMessage(
-            id=row["id"],
-            whatsapp_message_id=row["whatsapp_message_id"] or "",
-            direction=row["direction"],
-            sender_phone=_read_sensitive_field(
-                row["sender_phone"],
-                row["sender_phone_encrypted"],
-                encryption_key,
-                fallback=row["sender_phone_masked"],
-            ),
-            sender_phone_masked=row["sender_phone_masked"],
-            sender_name=_read_sensitive_field(
-                row["sender_name"],
-                row["sender_name_encrypted"],
-                encryption_key,
-                fallback="",
-            ),
-            message_type=row["message_type"],
-            body=_read_body(row["body"], row["body_encrypted"], encryption_key),
-            body_encrypted=row["body_encrypted"],
-            body_length=row["body_length"],
-            created_at=row["created_at"],
-            deleted_at=row["deleted_at"],
-            deleted_by=row["deleted_by"],
-        )
-        for row in rows
-    ]
+    return [_row_to_inbox_message(row, encryption_key, decrypt=decrypt) for row in rows]
 
-def _row_to_inbox_message(row: Any, encryption_key: str) -> InboxMessage:
+def _row_to_inbox_message(
+    row: Any,
+    encryption_key: str,
+    *,
+    decrypt: bool = True,
+) -> InboxMessage:
     """Convert a DB row into an InboxMessage."""
     return InboxMessage(
         id=row["id"],
         whatsapp_message_id=row["whatsapp_message_id"] or "",
         direction=row["direction"],
-        sender_phone=_read_sensitive_field(
+        sender_phone=_sensitive_field_for_display(
             row["sender_phone"],
             row["sender_phone_encrypted"],
             encryption_key,
+            decrypt=decrypt,
             fallback=row["sender_phone_masked"],
         ),
         sender_phone_masked=row["sender_phone_masked"],
-        sender_name=_read_sensitive_field(
+        sender_name=_sensitive_field_for_display(
             row["sender_name"],
             row["sender_name_encrypted"],
             encryption_key,
-            fallback="",
+            decrypt=decrypt,
+            fallback="Encrypted contact" if row["sender_name_encrypted"] else "",
         ),
         message_type=row["message_type"],
-        body=_read_body(row["body"], row["body_encrypted"], encryption_key),
+        body=_body_for_display(
+            row["body"],
+            row["body_encrypted"],
+            encryption_key,
+            decrypt=decrypt,
+        ),
         body_encrypted=row["body_encrypted"],
         body_length=row["body_length"],
         created_at=row["created_at"],
@@ -868,12 +886,12 @@ def _row_to_inbox_message(row: Any, encryption_key: str) -> InboxMessage:
         deleted_by=row["deleted_by"],
     )
 
-
 def list_conversations(
     database_url: str,
     *,
     limit: int = 100,
     encryption_key: str = "",
+    decrypt: bool = True,
 ) -> list[InboxConversationSummary]:
     """Return recent conversations grouped by sender hash."""
     ensure_schema(database_url)
@@ -936,7 +954,12 @@ def list_conversations(
                 fallback="",
             ),
             last_message_type=row["message_type"],
-            last_body=_read_body(row["body"], row["body_encrypted"], encryption_key),
+            last_body=_body_for_display(
+                row["body"],
+                row["body_encrypted"],
+                encryption_key,
+                decrypt=decrypt,
+            ),
             last_body_encrypted=row["body_encrypted"],
             message_count=int(row["message_count"] or 0),
             last_message_at=row["created_at"],
@@ -951,6 +974,7 @@ def get_conversation_messages(
     *,
     limit: int = 200,
     encryption_key: str = "",
+    decrypt: bool = True,
 ) -> list[InboxMessage]:
     """Return messages for one conversation hash."""
     ensure_schema(database_url)
@@ -991,7 +1015,7 @@ def get_conversation_messages(
             )
             rows = cur.fetchall()
 
-    return [_row_to_inbox_message(row, encryption_key) for row in rows]
+    return [_row_to_inbox_message(row, encryption_key, decrypt=decrypt) for row in rows]
 
 
 def list_opt_out_records(
@@ -1081,6 +1105,7 @@ def get_message_by_id(
     message_id: int,
     *,
     encryption_key: str = "",
+    decrypt: bool = True,
 ) -> InboxMessage | None:
     """Return a single inbox message by primary key."""
     ensure_schema(database_url)
@@ -1116,31 +1141,7 @@ def get_message_by_id(
     if not row:
         return None
 
-    return InboxMessage(
-        id=row["id"],
-        whatsapp_message_id=row["whatsapp_message_id"] or "",
-        direction=row["direction"],
-        sender_phone=_read_sensitive_field(
-            row["sender_phone"],
-            row["sender_phone_encrypted"],
-            encryption_key,
-            fallback=row["sender_phone_masked"],
-        ),
-        sender_phone_masked=row["sender_phone_masked"],
-        sender_name=_read_sensitive_field(
-            row["sender_name"],
-            row["sender_name_encrypted"],
-            encryption_key,
-            fallback="",
-        ),
-        message_type=row["message_type"],
-        body=_read_body(row["body"], row["body_encrypted"], encryption_key),
-        body_encrypted=row["body_encrypted"],
-        body_length=row["body_length"],
-        created_at=row["created_at"],
-        deleted_at=row["deleted_at"],
-        deleted_by=row["deleted_by"],
-    )
+    return _row_to_inbox_message(row, encryption_key, decrypt=decrypt)
 
 
 def soft_delete_message(

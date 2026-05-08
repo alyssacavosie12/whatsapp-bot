@@ -63,7 +63,18 @@ def _set_login_csrf(client, token: str) -> str:
     return token
 
 
-def _message(message_id: int = 1) -> InboxMessage:
+def _message(
+    message_id: int = 1,
+    *,
+    body: str = "Need an appointment",
+    body_encrypted: bool = True,
+) -> InboxMessage:
+    stored_body = (
+        "gAAAAABtestEncryptedFernetTokenWithoutPlaintext"
+        if body_encrypted
+        else body
+    )
+
     return InboxMessage(
         id=message_id,
         whatsapp_message_id=f"wamid.{message_id}",
@@ -72,9 +83,9 @@ def _message(message_id: int = 1) -> InboxMessage:
         sender_phone_masked="***6828",
         sender_name="Test User",
         message_type="text",
-        body="Need an appointment",
-        body_encrypted=True,
-        body_length=19,
+        body=stored_body,
+        body_encrypted=body_encrypted,
+        body_length=len(body),
         created_at=datetime(2026, 5, 7, 12, 0, tzinfo=UTC),
         deleted_at=None,
         deleted_by="",
@@ -362,7 +373,9 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
     response = client.get("/admin/messages")
 
     assert response.status_code == 200
-    assert b"Need an appointment" in response.data
+    assert b"Encrypted message" in response.data
+    assert b"Decrypt this message" in response.data
+    assert b"Need an appointment" not in response.data
     assert b"Delete" not in response.data
     assert response.headers["Cache-Control"] == "no-store"
     assert audits[0][1]["actor"] == "viewer"
@@ -388,7 +401,9 @@ def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkey
     response = client.get("/admin/messages/42")
 
     assert response.status_code == 200
-    assert b"Need an appointment" in response.data
+    assert b"Encrypted message" in response.data
+    assert b"Decrypt this message" in response.data
+    assert b"Need an appointment" not in response.data
     assert b"Delete message" not in response.data
     assert audits[0][1]["actor"] == "viewer"
     assert audits[0][1]["action"] == "view_message"
