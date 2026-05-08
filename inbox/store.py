@@ -49,6 +49,44 @@ class InboxMessage:
     deleted_by: str
 
 
+@dataclass(frozen=True)
+class InboxConversationSummary:
+    """One conversation summary grouped by sender hash."""
+
+    conversation_id: str
+    sender_phone_masked: str
+    sender_name: str
+    last_message_type: str
+    last_body: str
+    last_body_encrypted: bool
+    message_count: int
+    last_message_at: datetime
+
+
+@dataclass(frozen=True)
+class InboxOptOutRecord:
+    """One opt-out record for the admin UI."""
+
+    id: int
+    sender_external_id_hash: str
+    sender_external_id_type: str
+    source: str
+    keyword_used: str
+    language: str
+    recorded_at: datetime
+
+@dataclass(frozen=True)
+class InboxDashboardStats:
+    """Aggregate counters for the admin dashboard."""
+
+    messages_total: int
+    messages_today: int
+    messages_active: int
+    messages_deleted: int
+    opt_in_proofs_total: int
+    opt_outs_total: int
+
+
 def _database_key(database_url: str) -> str:
     return hashlib.sha256(database_url.encode("utf-8")).hexdigest()
 
@@ -802,6 +840,241 @@ def list_messages(
         for row in rows
     ]
 
+def _row_to_inbox_message(row: Any, encryption_key: str) -> InboxMessage:
+    """Convert a DB row into an InboxMessage."""
+    return InboxMessage(
+        id=row["id"],
+        whatsapp_message_id=row["whatsapp_message_id"] or "",
+        direction=row["direction"],
+        sender_phone=_read_sensitive_field(
+            row["sender_phone"],
+            row["sender_phone_encrypted"],
+            encryption_key,
+            fallback=row["sender_phone_masked"],
+        ),
+        sender_phone_masked=row["sender_phone_masked"],
+        sender_name=_read_sensitive_field(
+            row["sender_name"],
+            row["sender_name_encrypted"],
+            encryption_key,
+            fallback="",
+        ),
+        message_type=row["message_type"],
+        body=_read_body(row["body"], row["body_encrypted"], encryption_key),
+        body_encrypted=row["body_encrypted"],
+        body_length=row["body_length"],
+        created_at=row["created_at"],
+        deleted_at=row["deleted_at"],
+        deleted_by=row["deleted_by"],
+    )
+
+
+def list_conversations(
+    database_url: str,
+    *,
+    limit: int = 100,
+    encryption_key: str = "",
+) -> list[InboxConversationSummary]:
+    """Return recent conversations grouped by sender hash."""
+    ensure_schema(database_url)
+
+    safe_limit = max(1, min(int(limit or 100), 500))
+
+    with _connect(database_url, dict_rows=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH ranked AS (
+                    SELECT
+                        id,
+                        sender_phone_hash,
+                        sender_phone_masked,
+                        sender_name,
+                        sender_name_encrypted,
+                        message_type,
+                        body,
+                        body_encrypted,
+                        created_at,
+                        COUNT(*) OVER (
+                            PARTITION BY sender_phone_hash
+                        ) AS message_count,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY sender_phone_hash
+                            ORDER BY created_at DESC, id DESC
+                        ) AS row_number
+                    FROM inbox_messages
+                    WHERE deleted_at IS NULL
+                        AND sender_phone_hash != ''
+                )
+                SELECT
+                    sender_phone_hash,
+                    sender_phone_masked,
+                    sender_name,
+                    sender_name_encrypted,
+                    message_type,
+                    body,
+                    body_encrypted,
+                    created_at,
+                    message_count
+                FROM ranked
+                WHERE row_number = 1
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (safe_limit,),
+            )
+            rows = cur.fetchall()
+
+    return [
+        InboxConversationSummary(
+            conversation_id=row["sender_phone_hash"],
+            sender_phone_masked=row["sender_phone_masked"],
+            sender_name=_read_sensitive_field(
+                row["sender_name"],
+                row["sender_name_encrypted"],
+                encryption_key,
+                fallback="",
+            ),
+            last_message_type=row["message_type"],
+            last_body=_read_body(row["body"], row["body_encrypted"], encryption_key),
+            last_body_encrypted=row["body_encrypted"],
+            message_count=int(row["message_count"] or 0),
+            last_message_at=row["created_at"],
+        )
+        for row in rows
+    ]
+
+
+def get_conversation_messages(
+    database_url: str,
+    conversation_id: str,
+    *,
+    limit: int = 200,
+    encryption_key: str = "",
+) -> list[InboxMessage]:
+    """Return messages for one conversation hash."""
+    ensure_schema(database_url)
+
+    safe_limit = max(1, min(int(limit or 200), 500))
+    safe_conversation_id = sanitize_untrusted_text(conversation_id, 128)
+
+    if not safe_conversation_id:
+        return []
+
+    with _connect(database_url, dict_rows=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    whatsapp_message_id,
+                    direction,
+                    sender_phone,
+                    sender_phone_masked,
+                    sender_phone_encrypted,
+                    sender_name,
+                    sender_name_encrypted,
+                    message_type,
+                    body,
+                    body_encrypted,
+                    body_length,
+                    created_at,
+                    deleted_at,
+                    deleted_by
+                FROM inbox_messages
+                WHERE deleted_at IS NULL
+                    AND sender_phone_hash = %s
+                ORDER BY created_at ASC, id ASC
+                LIMIT %s
+                """,
+                (safe_conversation_id, safe_limit),
+            )
+            rows = cur.fetchall()
+
+    return [_row_to_inbox_message(row, encryption_key) for row in rows]
+
+
+def list_opt_out_records(
+    database_url: str,
+    *,
+    limit: int = 100,
+) -> list[InboxOptOutRecord]:
+    """Return recent opt-out records for the admin UI."""
+    ensure_schema(database_url)
+
+    safe_limit = max(1, min(int(limit or 100), 500))
+
+    with _connect(database_url, dict_rows=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    sender_external_id_hash,
+                    sender_external_id_type,
+                    source,
+                    keyword_used,
+                    language,
+                    recorded_at
+                FROM inbox_opt_outs
+                ORDER BY recorded_at DESC
+                LIMIT %s
+                """,
+                (safe_limit,),
+            )
+            rows = cur.fetchall()
+
+    return [
+        InboxOptOutRecord(
+            id=row["id"],
+            sender_external_id_hash=row["sender_external_id_hash"] or "",
+            sender_external_id_type=row["sender_external_id_type"] or "",
+            source=row["source"] or "",
+            keyword_used=row["keyword_used"] or "",
+            language=row["language"] or "",
+            recorded_at=row["recorded_at"],
+        )
+        for row in rows
+    ]
+
+def get_dashboard_stats(database_url: str) -> InboxDashboardStats:
+    """Return aggregate counters for the admin dashboard."""
+    ensure_schema(database_url)
+
+    with _connect(database_url, dict_rows=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    COUNT(*) AS messages_total,
+                    COUNT(*) FILTER (
+                        WHERE created_at >= date_trunc('day', now())
+                    ) AS messages_today,
+                    COUNT(*) FILTER (
+                        WHERE deleted_at IS NULL
+                    ) AS messages_active,
+                    COUNT(*) FILTER (
+                        WHERE deleted_at IS NOT NULL
+                    ) AS messages_deleted
+                FROM inbox_messages
+                """
+            )
+            message_row = cur.fetchone() or {}
+
+            cur.execute("SELECT COUNT(*) AS total FROM inbox_opt_in_proofs")
+            opt_in_row = cur.fetchone() or {}
+
+            cur.execute("SELECT COUNT(*) AS total FROM inbox_opt_outs")
+            opt_out_row = cur.fetchone() or {}
+
+    return InboxDashboardStats(
+        messages_total=int(message_row.get("messages_total") or 0),
+        messages_today=int(message_row.get("messages_today") or 0),
+        messages_active=int(message_row.get("messages_active") or 0),
+        messages_deleted=int(message_row.get("messages_deleted") or 0),
+        opt_in_proofs_total=int(opt_in_row.get("total") or 0),
+        opt_outs_total=int(opt_out_row.get("total") or 0),
+    )
 
 def get_message_by_id(
     database_url: str,

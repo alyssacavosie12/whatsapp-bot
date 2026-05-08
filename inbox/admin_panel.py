@@ -8,13 +8,21 @@ import logging
 from flask import jsonify, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 
+from bot.ai_responder import anthropic_circuit_status
+from core.cache import get_redis
+from core.database import get_db_pool
 from core.phone_utils import mask_phone
 from core.sender_id import parse_sender_id
 from inbox import service as inbox_service
 from inbox import store as inbox_store
 from inbox.security import admin_response
 from inbox.views import render_admin_message_detail_page, render_admin_messages_page
-from settings import INBOX_DATABASE_URL, INBOX_ENCRYPTION_KEY
+from settings import (
+    INBOX_DATABASE_URL,
+    INBOX_ENABLED,
+    INBOX_ENCRYPTION_KEY,
+    REDIS_URL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +271,10 @@ def _render_admin_dashboard_page(
     </section>
 
     <nav>
+    <a class="primary" href="{url_for("admin.admin_messages")}">Open messages</a>
+    <a href="{url_for("admin.admin_conversations")}">Conversations</a>
+    <a href="{url_for("admin.admin_opt_outs")}">Opt-outs</a>
+    <a href="{url_for("admin.admin_health")}">Admin health</a>
       <a class="primary" href="{url_for("admin.admin_messages")}">Open messages</a>
       <a href="{url_for("admin.admin_login")}">Login page</a>
       <a href="/health">System health</a>
@@ -344,6 +356,563 @@ def admin_logout() -> ResponseReturnValue:
     inbox_service.clear_inbox_session()
     return redirect(url_for("admin.admin_login"), code=303)
 
+
+
+def _short_hash(value: str, *, chars: int = 12) -> str:
+    """Return a short display version of a hash."""
+    if len(value) <= chars:
+        return value
+
+    return f"{value[:chars]}…"
+
+
+def _valid_hash_id(value: str) -> bool:
+    """Return True for a safe hash-like URL id."""
+    return bool(value and len(value) <= 128 and all(ch.isalnum() for ch in value))
+
+
+def _format_dt(value: object) -> str:
+    """Format datetimes safely for admin HTML."""
+    return html.escape(str(value))
+
+
+def _render_admin_conversations_page(
+    user: inbox_service.InboxUser,
+    conversations: list[inbox_store.InboxConversationSummary],
+) -> str:
+    """Render conversation list."""
+    rows = []
+    for conversation in conversations:
+        sender_name = html.escape(conversation.sender_name or "Unknown")
+        masked_phone = html.escape(conversation.sender_phone_masked or "Unknown")
+        last_body = html.escape(conversation.last_body)
+        last_at = _format_dt(conversation.last_message_at)
+        conversation_url = url_for(
+            "admin.admin_conversation_detail",
+            conversation_id=conversation.conversation_id,
+        )
+
+        rows.append(
+            f"""
+            <tr>
+              <td><a href="{conversation_url}">{sender_name}</a></td>
+              <td>{masked_phone}</td>
+              <td>{conversation.message_count}</td>
+              <td>{last_body}</td>
+              <td>{last_at}</td>
+            </tr>
+            """
+        )
+
+    table_rows = "\n".join(rows) or """
+        <tr>
+          <td colspan="5">No conversations yet.</td>
+        </tr>
+    """
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin Conversations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #faf7f2;
+      color: #1f2933;
+      margin: 0;
+      padding: 24px;
+    }}
+    main {{
+      max-width: 1200px;
+      margin: 0 auto;
+    }}
+    nav {{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }}
+    a {{
+      color: #111827;
+    }}
+    .button {{
+      display: inline-block;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid #d0d5dd;
+      background: #fff;
+      text-decoration: none;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #e5e0d8;
+      border-radius: 14px;
+      overflow: hidden;
+    }}
+    th, td {{
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #ece7df;
+      vertical-align: top;
+    }}
+    th {{
+      background: #f8fafc;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: #667085;
+    }}
+    .muted {{
+      color: #667085;
+      font-size: 14px;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <nav>
+      <a class="button" href="{url_for("admin.admin_index")}">Dashboard</a>
+      <a class="button" href="{url_for("admin.admin_messages")}">Messages</a>
+      <a class="button" href="{url_for("admin.admin_opt_outs")}">Opt-outs</a>
+      <a class="button" href="{url_for("admin.admin_health")}">Health</a>
+    </nav>
+
+    <h1>Conversations</h1>
+    <p class="muted">Signed in as {html.escape(user["username"])}.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Contact</th>
+          <th>Masked ID</th>
+          <th>Messages</th>
+          <th>Last message</th>
+          <th>Last activity</th>
+        </tr>
+      </thead>
+      <tbody>{table_rows}</tbody>
+    </table>
+  </main>
+</body>
+</html>"""
+
+
+def _render_admin_conversation_detail_page(
+    user: inbox_service.InboxUser,
+    conversation_id: str,
+    messages: list[inbox_store.InboxMessage],
+) -> str:
+    """Render one conversation."""
+    items = []
+    for message in messages:
+        body = html.escape(message.body)
+        created_at = _format_dt(message.created_at)
+        message_type = html.escape(message.message_type)
+        masked_phone = html.escape(message.sender_phone_masked)
+
+        items.append(
+            f"""
+            <article class="message">
+              <div class="meta">{created_at} · {message_type} · {masked_phone}</div>
+              <div class="body">{body}</div>
+            </article>
+            """
+        )
+
+    message_items = "\n".join(items) or "<p>No messages found.</p>"
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin Conversation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #faf7f2;
+      color: #1f2933;
+      margin: 0;
+      padding: 24px;
+    }}
+    main {{
+      max-width: 900px;
+      margin: 0 auto;
+    }}
+    .button {{
+      display: inline-block;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid #d0d5dd;
+      background: #fff;
+      color: #111827;
+      text-decoration: none;
+      margin-right: 8px;
+    }}
+    .message {{
+      background: #fff;
+      border: 1px solid #e5e0d8;
+      border-radius: 14px;
+      padding: 14px;
+      margin: 12px 0;
+    }}
+    .meta {{
+      color: #667085;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }}
+    .body {{
+      white-space: pre-wrap;
+    }}
+    .muted {{
+      color: #667085;
+      font-size: 14px;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <a class="button" href="{url_for("admin.admin_conversations")}">Back to conversations</a>
+    <a class="button" href="{url_for("admin.admin_index")}">Dashboard</a>
+
+    <h1>Conversation</h1>
+    <p class="muted">
+      Conversation ID: {html.escape(_short_hash(conversation_id))}
+      · Signed in as {html.escape(user["username"])}
+    </p>
+
+    {message_items}
+  </main>
+</body>
+</html>"""
+
+
+def _render_admin_opt_outs_page(
+    user: inbox_service.InboxUser,
+    opt_outs: list[inbox_store.InboxOptOutRecord],
+) -> str:
+    """Render opt-out records."""
+    rows = []
+    for record in opt_outs:
+        rows.append(
+            f"""
+            <tr>
+              <td>{record.id}</td>
+              <td>{html.escape(record.sender_external_id_type)}</td>
+              <td>{html.escape(_short_hash(record.sender_external_id_hash))}</td>
+              <td>{html.escape(record.source)}</td>
+              <td>{html.escape(record.keyword_used)}</td>
+              <td>{html.escape(record.language)}</td>
+              <td>{_format_dt(record.recorded_at)}</td>
+            </tr>
+            """
+        )
+
+    table_rows = "\n".join(rows) or """
+        <tr>
+          <td colspan="7">No opt-outs recorded.</td>
+        </tr>
+    """
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin Opt-outs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #faf7f2;
+      color: #1f2933;
+      margin: 0;
+      padding: 24px;
+    }}
+    main {{
+      max-width: 1200px;
+      margin: 0 auto;
+    }}
+    .button {{
+      display: inline-block;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid #d0d5dd;
+      background: #fff;
+      color: #111827;
+      text-decoration: none;
+      margin-right: 8px;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #e5e0d8;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 18px;
+    }}
+    th, td {{
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #ece7df;
+      vertical-align: top;
+    }}
+    th {{
+      background: #f8fafc;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: #667085;
+    }}
+    .muted {{
+      color: #667085;
+      font-size: 14px;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <a class="button" href="{url_for("admin.admin_index")}">Dashboard</a>
+    <a class="button" href="{url_for("admin.admin_conversations")}">Conversations</a>
+    <a class="button" href="{url_for("admin.admin_messages")}">Messages</a>
+
+    <h1>Opt-outs</h1>
+    <p class="muted">
+      Shows opt-out evidence without exposing full phone numbers or external IDs.
+      Signed in as {html.escape(user["username"])}.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>ID type</th>
+          <th>Subject hash</th>
+          <th>Source</th>
+          <th>Keyword</th>
+          <th>Language</th>
+          <th>Recorded</th>
+        </tr>
+      </thead>
+      <tbody>{table_rows}</tbody>
+    </table>
+  </main>
+</body>
+</html>"""
+
+
+def _admin_health_components() -> dict[str, str]:
+    """Return protected admin health components."""
+    components: dict[str, str] = {
+        "anthropic": anthropic_circuit_status(),
+        "postgres": "disabled",
+        "redis": "disabled",
+    }
+
+    if REDIS_URL:
+        try:
+            get_redis(REDIS_URL).ping()
+            components["redis"] = "ok"
+        except Exception:
+            components["redis"] = "degraded"
+
+    if INBOX_ENABLED and INBOX_DATABASE_URL:
+        try:
+            with get_db_pool(INBOX_DATABASE_URL).connection() as conn:
+                conn.execute("SELECT 1")
+            components["postgres"] = "ok"
+        except Exception:
+            components["postgres"] = "degraded"
+
+    return components
+
+
+def _render_admin_health_page(
+    user: inbox_service.InboxUser,
+    components: dict[str, str],
+) -> str:
+    """Render protected admin health page."""
+    rows = "\n".join(
+        f"""
+        <tr>
+          <td>{html.escape(name)}</td>
+          <td>{html.escape(status)}</td>
+        </tr>
+        """
+        for name, status in components.items()
+    )
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin Health</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #faf7f2;
+      color: #1f2933;
+      margin: 0;
+      padding: 24px;
+    }}
+    main {{
+      max-width: 800px;
+      margin: 0 auto;
+    }}
+    .button {{
+      display: inline-block;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1px solid #d0d5dd;
+      background: #fff;
+      color: #111827;
+      text-decoration: none;
+      margin-right: 8px;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #e5e0d8;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-top: 18px;
+    }}
+    th, td {{
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #ece7df;
+    }}
+    th {{
+      background: #f8fafc;
+      font-size: 13px;
+      text-transform: uppercase;
+      color: #667085;
+    }}
+    .muted {{
+      color: #667085;
+      font-size: 14px;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <a class="button" href="{url_for("admin.admin_index")}">Dashboard</a>
+    <a class="button" href="{url_for("admin.admin_messages")}">Messages</a>
+
+    <h1>Admin Health</h1>
+    <p class="muted">Protected health status. Signed in as {html.escape(user["username"])}.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>{rows}</tbody>
+    </table>
+  </main>
+</body>
+</html>"""
+
+def admin_conversations() -> ResponseReturnValue:
+    """Show conversation summaries."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    try:
+        conversations = inbox_store.list_conversations(
+            INBOX_DATABASE_URL,
+            encryption_key=INBOX_ENCRYPTION_KEY,
+        )
+    except Exception:
+        logger.exception("Failed to load admin conversations")
+        return admin_response("Conversations are unavailable", 503)
+
+    inbox_service.audit_inbox_action(
+        user,
+        "view_conversations",
+        metadata={"result_count": len(conversations)},
+    )
+
+    return admin_response(_render_admin_conversations_page(user, conversations))
+
+
+def admin_conversation_detail(conversation_id: str) -> ResponseReturnValue:
+    """Show one conversation."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    if not _valid_hash_id(conversation_id):
+        return admin_response("Conversation not found", 404)
+
+    try:
+        messages = inbox_store.get_conversation_messages(
+            INBOX_DATABASE_URL,
+            conversation_id,
+            encryption_key=INBOX_ENCRYPTION_KEY,
+        )
+    except Exception:
+        logger.exception("Failed to load admin conversation")
+        return admin_response("Conversation is unavailable", 503)
+
+    if not messages:
+        return admin_response("Conversation not found", 404)
+
+    inbox_service.audit_inbox_action(
+        user,
+        "view_conversation",
+        metadata={"conversation_id": _short_hash(conversation_id), "message_count": len(messages)},
+    )
+
+    return admin_response(_render_admin_conversation_detail_page(user, conversation_id, messages))
+
+
+def admin_opt_outs() -> ResponseReturnValue:
+    """Show opt-out records."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    try:
+        opt_outs = inbox_store.list_opt_out_records(INBOX_DATABASE_URL)
+    except Exception:
+        logger.exception("Failed to load opt-out records")
+        return admin_response("Opt-outs are unavailable", 503)
+
+    inbox_service.audit_inbox_action(
+        user,
+        "view_opt_outs",
+        metadata={"result_count": len(opt_outs)},
+    )
+
+    return admin_response(_render_admin_opt_outs_page(user, opt_outs))
+
+
+def admin_health() -> ResponseReturnValue:
+    """Show protected admin health status."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    components = _admin_health_components()
+    inbox_service.audit_inbox_action(user, "view_admin_health")
+
+    return admin_response(_render_admin_health_page(user, components))
 
 def admin_messages() -> ResponseReturnValue:
     """Show recent incoming WhatsApp messages to authorized users."""

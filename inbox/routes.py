@@ -45,6 +45,30 @@ admin_bp.add_url_rule(
     methods=["POST"],
 )
 admin_bp.add_url_rule(
+    "/conversations",
+    "admin_conversations",
+    admin_panel.admin_conversations,
+    methods=["GET"],
+)
+admin_bp.add_url_rule(
+    "/conversations/<conversation_id>",
+    "admin_conversation_detail",
+    admin_panel.admin_conversation_detail,
+    methods=["GET"],
+)
+admin_bp.add_url_rule(
+    "/opt-outs",
+    "admin_opt_outs",
+    admin_panel.admin_opt_outs,
+    methods=["GET"],
+)
+admin_bp.add_url_rule(
+    "/health",
+    "admin_health",
+    admin_panel.admin_health,
+    methods=["GET"],
+)
+admin_bp.add_url_rule(
     "/data-subject/delete",
     "admin_data_subject_delete",
     admin_panel.admin_data_subject_delete,
