@@ -12,7 +12,7 @@ Four layers:
 
 from __future__ import annotations
 
-import base64
+import time
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -409,15 +409,11 @@ def test_baja_records_opt_out_in_spanish(content_file, monkeypatch):
 # ─── ARCO endpoint (inbox/routes.py) ───────────────────────────────────
 
 
-def _basic_auth(username: str, password: str) -> dict[str, str]:
-    token = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
-    return {"Authorization": f"Basic {token}"}
-
-
 def _configure_admin(app_module, monkeypatch):
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://x")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "configured-key")
+    monkeypatch.setattr(app_module, "INBOX_REQUIRE_ENCRYPTION", True)
     monkeypatch.setattr(app_module, "INBOX_ADMIN_USERNAME", "owner")
     monkeypatch.setattr(
         app_module,
@@ -433,16 +429,25 @@ def _configure_admin(app_module, monkeypatch):
     monkeypatch.setattr(app_module, "META_APP_SECRET", "csrf-secret")
 
 
+def _login_session(client, *, username: str = "owner", role: str = "admin") -> None:
+    with client.session_transaction() as sess:
+        sess["admin_authenticated"] = True
+        sess["inbox_username"] = username
+        sess["inbox_role"] = role
+        sess["inbox_last_seen_at"] = int(time.time())
+
+
 def test_arco_endpoint_rejects_viewer_role(content_file, monkeypatch):
     """Viewer role cannot trigger ARCO deletion (admin-only)."""
     app_module, flask_app = make_app_modules()
     _configure_admin(app_module, monkeypatch)
 
     client = flask_app.test_client()
+    _login_session(client, username="viewer", role="viewer")
+
     response = client.post(
         "/admin/data-subject/delete",
         data={"phone": PHONE},
-        headers=_basic_auth("viewer", "view"),
     )
 
     assert response.status_code == 403
@@ -454,10 +459,11 @@ def test_arco_endpoint_requires_csrf_token(content_file, monkeypatch):
     _configure_admin(app_module, monkeypatch)
 
     client = flask_app.test_client()
+    _login_session(client, username="owner", role="admin")
+
     response = client.post(
         "/admin/data-subject/delete",
         data={"phone": PHONE},
-        headers=_basic_auth("owner", "secret"),
     )
 
     assert response.status_code == 403
@@ -471,6 +477,7 @@ def test_arco_endpoint_validates_phone(content_file, monkeypatch):
     _configure_admin(app_module, monkeypatch)
 
     deletes = []
+
     monkeypatch.setattr(
         service,
         "delete_user_data",
@@ -478,17 +485,17 @@ def test_arco_endpoint_validates_phone(content_file, monkeypatch):
     )
 
     token = app_module.inbox_csrf_token("owner", "arco_delete", 0)
+
     client = flask_app.test_client()
+    _login_session(client, username="owner", role="admin")
 
     empty = client.post(
         "/admin/data-subject/delete",
         data={"phone": "", "csrf_token": token},
-        headers=_basic_auth("owner", "secret"),
     )
     invalid = client.post(
         "/admin/data-subject/delete",
         data={"phone": "https://attacker.invalid", "csrf_token": token},
-        headers=_basic_auth("owner", "secret"),
     )
 
     assert empty.status_code == 400
@@ -515,11 +522,13 @@ def test_arco_endpoint_deletes_data_and_audits(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "record_audit_event", lambda *a, **kw: audits.append(kw))
 
     token = app_module.inbox_csrf_token("owner", "arco_delete", 0)
+
     client = flask_app.test_client()
+    _login_session(client, username="owner", role="admin")
+
     response = client.post(
         "/admin/data-subject/delete",
         data={"phone": PHONE, "csrf_token": token},
-        headers=_basic_auth("owner", "secret"),
     )
 
     assert response.status_code == 200
@@ -548,11 +557,17 @@ def test_arco_endpoint_can_delete_opt_out_record_when_requested(content_file, mo
     monkeypatch.setattr(app_module, "record_audit_event", lambda *a, **kw: None)
 
     token = app_module.inbox_csrf_token("owner", "arco_delete", 0)
+
     client = flask_app.test_client()
+    _login_session(client, username="owner", role="admin")
+
     response = client.post(
         "/admin/data-subject/delete",
-        data={"phone": PHONE, "csrf_token": token, "delete_opt_out_record": "true"},
-        headers=_basic_auth("owner", "secret"),
+        data={
+            "phone": PHONE,
+            "csrf_token": token,
+            "delete_opt_out_record": "true",
+        },
     )
 
     assert response.status_code == 200
@@ -632,13 +647,18 @@ def test_arco_endpoint_accepts_bsuid_via_external_id_field(content_file, monkeyp
     monkeypatch.setattr(app_module, "record_audit_event", lambda *a, **kw: None)
 
     token = app_module.inbox_csrf_token("owner", "arco_delete", 0)
+
     client = flask_app.test_client()
+    _login_session(client, username="owner", role="admin")
 
     bsuid = "user_2026.arco:meta"
     response = client.post(
         "/admin/data-subject/delete",
-        data={"external_id": bsuid, "csrf_token": token, "delete_opt_out_record": "true"},
-        headers=_basic_auth("owner", "secret"),
+        data={
+            "external_id": bsuid,
+            "csrf_token": token,
+            "delete_opt_out_record": "true",
+        },
     )
 
     assert response.status_code == 200

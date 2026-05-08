@@ -22,6 +22,41 @@ def _render_template(template: str, values: dict[str, str]) -> str:
     return template
 
 
+def _render_decrypt_controls() -> str:
+    """Render browser-only Fernet decrypt controls."""
+    return """
+        <section class="decrypt-controls" aria-label="Browser-side decrypt controls">
+            <label for="fernet-key">Fernet key for local decrypt</label>
+            <input id="fernet-key" data-fernet-key type="password"
+                autocomplete="off" spellcheck="false"
+                placeholder="Paste INBOX_ENCRYPTION_KEY locally">
+            <button type="button" data-decrypt-all>Decrypt visible messages</button>
+            <button type="button" data-forget-fernet-key>Forget key</button>
+            <p class="decrypt-note">
+                The key is used only in this browser tab and is not submitted to the server.
+            </p>
+            <p class="decrypt-status" data-decrypt-status hidden></p>
+        </section>
+    """
+
+
+def _render_message_body(message: InboxMessage) -> str:
+    """Render message body without server-side plaintext decrypt."""
+    if not message.body_encrypted:
+        return html.escape(message.body or "")
+
+    token = html.escape(message.body or "", quote=True)
+    return f"""
+        <div class="encrypted-message" data-fernet-token="{token}">
+            <p class="encrypted-placeholder">
+                Encrypted message. Decrypt locally in your browser.
+            </p>
+            <button type="button" data-decrypt-one>Decrypt this message</button>
+            <pre class="decrypted-output" data-decrypted-output hidden></pre>
+        </div>
+    """
+
+
 def render_admin_messages_page(
     user: dict[str, str],
     messages: Iterable[InboxMessage],
@@ -37,10 +72,10 @@ def render_admin_messages_page(
 
     for message in messages:
         created_at = html.escape(message.created_at.strftime("%Y-%m-%d %H:%M:%S %Z"))
-        sender_name = html.escape(message.sender_name or "unknown")
-        sender_phone = html.escape(message.sender_phone)
+        sender_name = html.escape(message.sender_name or "Encrypted contact")
+        sender_phone = html.escape(message.sender_phone_masked or "Hidden")
         message_type = html.escape(message.message_type)
-        body = html.escape(message.body or "")
+        body = _render_message_body(message)
         encrypted = " yes" if message.body_encrypted else ""
         actions = f'<a class="action" href="/admin/messages/{message.id}">View</a>'
 
@@ -80,6 +115,7 @@ def render_admin_messages_page(
             "role": role,
             "safe_query": safe_query,
             "limit": str(limit),
+            "decrypt_controls": _render_decrypt_controls(),
             "table_body": table_body,
         },
     )
@@ -98,10 +134,10 @@ def render_admin_message_detail_page(
     message_id = str(message.id)
     whatsapp_message_id = html.escape(message.whatsapp_message_id or "n/a")
     created_at = html.escape(message.created_at.strftime("%Y-%m-%d %H:%M:%S %Z"))
-    sender_name = html.escape(message.sender_name or "unknown")
-    sender_phone = html.escape(message.sender_phone)
+    sender_name = html.escape(message.sender_name or "Encrypted contact")
+    sender_phone = html.escape(message.sender_phone_masked or "Hidden")
     message_type = html.escape(message.message_type)
-    body = html.escape(message.body or "")
+    body = _render_message_body(message)
     body_encrypted = "yes" if message.body_encrypted else "no"
     body_length = str(message.body_length)
     deleted_at = (
@@ -140,6 +176,7 @@ def render_admin_message_detail_page(
             "deleted_at": deleted_at,
             "deleted_by": deleted_by,
             "delete_action": delete_action,
+            "decrypt_controls": _render_decrypt_controls(),
             "body": body,
         },
     )

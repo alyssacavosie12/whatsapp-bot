@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import base64
+import time
 from datetime import UTC, datetime
 
 from werkzeug.security import generate_password_hash
@@ -26,15 +26,11 @@ def _make_app(monkeypatch=None):
     return app_module, flask_app
 
 
-def _basic_auth(username: str, password: str) -> dict[str, str]:
-    token = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
-    return {"Authorization": f"Basic {token}"}
-
-
 def _configure_admin(app_module, monkeypatch):
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://inbox")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "configured-key")
+    monkeypatch.setattr(app_module, "INBOX_REQUIRE_ENCRYPTION", True)
     monkeypatch.setattr(app_module, "INBOX_ADMIN_USERNAME", "owner")
     monkeypatch.setattr(
         app_module,
@@ -50,7 +46,31 @@ def _configure_admin(app_module, monkeypatch):
     monkeypatch.setattr(app_module, "META_APP_SECRET", "csrf-secret")
 
 
-def _message(message_id: int = 1) -> InboxMessage:
+def _login_session(client, *, username: str = "owner", role: str = "admin") -> None:
+    """Mark the Flask test client as logged in to the admin panel."""
+    with client.session_transaction() as sess:
+        sess["admin_authenticated"] = True
+        sess["inbox_username"] = username
+        sess["inbox_role"] = role
+        sess["inbox_last_seen_at"] = int(time.time())
+
+
+def _set_login_csrf(client, token: str) -> str:
+    """Install a login CSRF token in the test session."""
+    with client.session_transaction() as sess:
+        sess["inbox_login_csrf_token"] = token
+
+    return token
+
+
+def _message(
+    message_id: int = 1,
+    *,
+    body: str = "Need an appointment",
+    body_encrypted: bool = True,
+) -> InboxMessage:
+    stored_body = "gAAAAABtestEncryptedFernetTokenWithoutPlaintext" if body_encrypted else body
+
     return InboxMessage(
         id=message_id,
         whatsapp_message_id=f"wamid.{message_id}",
@@ -59,9 +79,9 @@ def _message(message_id: int = 1) -> InboxMessage:
         sender_phone_masked="***6828",
         sender_name="Test User",
         message_type="text",
-        body="Need an appointment",
-        body_encrypted=True,
-        body_length=19,
+        body=stored_body,
+        body_encrypted=body_encrypted,
+        body_length=len(body),
         created_at=datetime(2026, 5, 7, 12, 0, tzinfo=UTC),
         deleted_at=None,
         deleted_by="",
@@ -73,6 +93,7 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
     monkeypatch,
 ):
     app_module, flask_app = _make_app(monkeypatch)
+
     stored = []
     proofs = []
     sent = []
@@ -83,7 +104,9 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
     monkeypatch.setattr(app_module, "INBOX_PROOF_SECRET", "proof-secret")
     monkeypatch.setattr(app_module, "INBOX_RETENTION_DAYS", 14)
     monkeypatch.setattr(
-        app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
+        app_module,
+        "send_whatsapp_message",
+        lambda to, text: sent.append((to, text)),
     )
 
     def fake_record(database_url, **kwargs):
@@ -149,13 +172,16 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
 
 def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
+
     sent = []
 
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://inbox")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "test-key")
     monkeypatch.setattr(
-        app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
+        app_module,
+        "send_whatsapp_message",
+        lambda to, text: sent.append((to, text)),
     )
 
     def fail_record(*_args, **_kwargs):
@@ -208,67 +234,146 @@ def test_inbox_requires_encryption_key_when_configured(content_file, monkeypatch
     )
 
     client = flask_app.test_client()
-    response = client.get("/admin/messages", headers=_basic_auth("owner", "secret"))
+    response = client.get("/admin/messages")
 
     assert response.status_code == 503
     assert b"Inbox encryption is not configured" in response.data
 
 
-def test_admin_auth_is_rate_limited(content_file, monkeypatch):
+def test_admin_login_is_rate_limited(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
     monkeypatch.setattr(app_module, "is_inbox_auth_limited", lambda _keys: True)
 
     client = flask_app.test_client()
-    response = client.get("/admin/messages", headers=_basic_auth("owner", "wrong"))
+    token = _set_login_csrf(client, "test-login-csrf")
+
+    response = client.post(
+        "/admin/login",
+        data={
+            "username": "owner",
+            "password": "wrong",
+            "csrf_token": token,
+        },
+    )
 
     assert response.status_code == 429
 
 
-def test_failed_admin_auth_is_recorded(content_file, monkeypatch):
+def test_failed_admin_login_is_recorded(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
+
     recorded = []
 
     monkeypatch.setattr(app_module, "is_inbox_auth_limited", lambda _keys: False)
     monkeypatch.setattr(
-        app_module, "record_inbox_auth_failure", lambda keys: recorded.append(keys) or False
+        app_module,
+        "record_inbox_auth_failure",
+        lambda keys: recorded.append(keys) or False,
     )
 
     client = flask_app.test_client()
-    response = client.get("/admin/messages", headers=_basic_auth("owner", "wrong"))
+    token = _set_login_csrf(client, "test-login-csrf")
+
+    response = client.post(
+        "/admin/login",
+        data={
+            "username": "owner",
+            "password": "wrong",
+            "csrf_token": token,
+        },
+    )
 
     assert response.status_code == 401
     assert recorded
 
 
-def test_admin_messages_requires_basic_auth(content_file, monkeypatch):
+def test_admin_messages_redirects_to_login(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
     client = flask_app.test_client()
     response = client.get("/admin/messages")
 
-    assert response.status_code == 401
-    assert "WWW-Authenticate" in response.headers
+    assert response.status_code == 303
+    assert "/admin/login" in response.headers["Location"]
+
+
+def test_admin_login_success_redirects_to_messages_and_audits(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    _configure_admin(app_module, monkeypatch)
+
+    audits = []
+    monkeypatch.setattr(
+        app_module,
+        "record_audit_event",
+        lambda *args, **kwargs: audits.append((args, kwargs)),
+    )
+
+    client = flask_app.test_client()
+    token = _set_login_csrf(client, "test-login-csrf")
+
+    response = client.post(
+        "/admin/login",
+        data={
+            "username": "owner",
+            "password": "secret",
+            "csrf_token": token,
+            "next": "/admin/messages",
+        },
+    )
+
+    assert response.status_code == 303
+    assert response.headers["Location"] == "/admin/messages"
+    assert audits[0][1]["actor"] == "owner"
+    assert audits[0][1]["action"] == "login_success"
+
+
+def test_admin_login_rejects_bad_csrf(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    _configure_admin(app_module, monkeypatch)
+
+    client = flask_app.test_client()
+
+    response = client.post(
+        "/admin/login",
+        data={
+            "username": "owner",
+            "password": "secret",
+            "csrf_token": "wrong",
+        },
+    )
+
+    assert response.status_code == 400
+    assert b"Login form expired" in response.data
 
 
 def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
+
     audits = []
 
     monkeypatch.setattr(app_module, "list_inbox_messages", lambda *_args, **_kwargs: [_message()])
     monkeypatch.setattr(
-        app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs))
+        app_module,
+        "record_audit_event",
+        lambda *args, **kwargs: audits.append((args, kwargs)),
     )
 
     client = flask_app.test_client()
-    response = client.get("/admin/messages", headers=_basic_auth("viewer", "view"))
+    _login_session(client, username="viewer", role="viewer")
+
+    response = client.get("/admin/messages")
 
     assert response.status_code == 200
-    assert b"Need an appointment" in response.data
+    assert b"Encrypted message" in response.data
+    assert b"Decrypt this message" in response.data
+    assert b"Need an appointment" not in response.data
+    assert b"***6828" in response.data
+    assert b"37368826828" not in response.data
     assert b"Delete" not in response.data
     assert response.headers["Cache-Control"] == "no-store"
     assert audits[0][1]["actor"] == "viewer"
@@ -278,18 +383,27 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
 def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
+
     audits = []
 
     monkeypatch.setattr(app_module, "get_message_by_id", lambda *_args, **_kwargs: _message(42))
     monkeypatch.setattr(
-        app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs))
+        app_module,
+        "record_audit_event",
+        lambda *args, **kwargs: audits.append((args, kwargs)),
     )
 
     client = flask_app.test_client()
-    response = client.get("/admin/messages/42", headers=_basic_auth("viewer", "view"))
+    _login_session(client, username="viewer", role="viewer")
+
+    response = client.get("/admin/messages/42")
 
     assert response.status_code == 200
-    assert b"Need an appointment" in response.data
+    assert b"Encrypted message" in response.data
+    assert b"Decrypt this message" in response.data
+    assert b"Need an appointment" not in response.data
+    assert b"***6828" in response.data
+    assert b"37368826828" not in response.data
     assert b"Delete message" not in response.data
     assert audits[0][1]["actor"] == "viewer"
     assert audits[0][1]["action"] == "view_message"
@@ -303,7 +417,9 @@ def test_admin_message_detail_shows_delete_for_admin(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "get_message_by_id", lambda *_args, **_kwargs: _message(42))
 
     client = flask_app.test_client()
-    response = client.get("/admin/messages/42", headers=_basic_auth("owner", "secret"))
+    _login_session(client, username="owner", role="admin")
+
+    response = client.get("/admin/messages/42")
 
     assert response.status_code == 200
     assert b"Delete message" in response.data
@@ -316,7 +432,9 @@ def test_admin_message_detail_returns_404_when_missing(content_file, monkeypatch
     monkeypatch.setattr(app_module, "get_message_by_id", lambda *_args, **_kwargs: None)
 
     client = flask_app.test_client()
-    response = client.get("/admin/messages/404", headers=_basic_auth("owner", "secret"))
+    _login_session(client, username="owner", role="admin")
+
+    response = client.get("/admin/messages/404")
 
     assert response.status_code == 404
     assert b"Message not found" in response.data
@@ -325,22 +443,29 @@ def test_admin_message_detail_returns_404_when_missing(content_file, monkeypatch
 def test_admin_can_soft_delete_message(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
+
     deleted = []
     audits = []
 
     monkeypatch.setattr(
-        app_module, "soft_delete_message", lambda *_args, **kwargs: deleted.append(kwargs) or True
+        app_module,
+        "soft_delete_message",
+        lambda *_args, **kwargs: deleted.append(kwargs) or True,
     )
     monkeypatch.setattr(
-        app_module, "record_audit_event", lambda *args, **kwargs: audits.append((args, kwargs))
+        app_module,
+        "record_audit_event",
+        lambda *args, **kwargs: audits.append((args, kwargs)),
     )
 
     token = app_module.inbox_csrf_token("owner", "delete", 42)
+
     client = flask_app.test_client()
+    _login_session(client, username="owner", role="admin")
+
     response = client.post(
         "/admin/messages/42/delete",
         data={"csrf_token": token},
-        headers=_basic_auth("owner", "secret"),
     )
 
     assert response.status_code == 303
@@ -354,18 +479,38 @@ def test_viewer_cannot_delete_message(content_file, monkeypatch):
     _configure_admin(app_module, monkeypatch)
 
     token = app_module.inbox_csrf_token("viewer", "delete", 42)
+
     client = flask_app.test_client()
+    _login_session(client, username="viewer", role="viewer")
+
     response = client.post(
         "/admin/messages/42/delete",
         data={"csrf_token": token},
-        headers=_basic_auth("viewer", "view"),
     )
 
     assert response.status_code == 403
 
 
+def test_admin_logout_clears_session(content_file, monkeypatch):
+    app_module, flask_app = _make_app(monkeypatch)
+    _configure_admin(app_module, monkeypatch)
+
+    client = flask_app.test_client()
+    _login_session(client, username="owner", role="admin")
+
+    response = client.post("/admin/logout")
+
+    assert response.status_code == 303
+    assert "/admin/login" in response.headers["Location"]
+
+    follow_up = client.get("/admin/messages")
+    assert follow_up.status_code == 303
+    assert "/admin/login" in follow_up.headers["Location"]
+
+
 def test_all_messages_in_payload_are_processed(content_file, monkeypatch):
     app_module, flask_app = _make_app(monkeypatch)
+
     sent = []
     stored = []
 
@@ -373,10 +518,14 @@ def test_all_messages_in_payload_are_processed(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://inbox")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "test-key")
     monkeypatch.setattr(
-        app_module, "send_whatsapp_message", lambda to, text: sent.append((to, text))
+        app_module,
+        "send_whatsapp_message",
+        lambda to, text: sent.append((to, text)),
     )
     monkeypatch.setattr(
-        app_module, "record_incoming_message", lambda _url, **kwargs: stored.append(kwargs)
+        app_module,
+        "record_incoming_message",
+        lambda _url, **kwargs: stored.append(kwargs),
     )
 
     client = flask_app.test_client()

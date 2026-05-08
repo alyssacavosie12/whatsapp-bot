@@ -5,6 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{page_title}}</title>
     <style>
+        .decrypt-controls {
+            background: white;
+            border: 1px solid #d9dee7;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        .decrypt-controls label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .decrypt-controls input {
+            border: 1px solid #c9d0da;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font: inherit;
+            margin: 0 8px 8px 0;
+            min-width: 320px;
+            padding: 9px 10px;
+        }
+        .decrypt-note,
+        .decrypt-status,
+        .encrypted-placeholder {
+            color: #647184;
+            font-size: 13px;
+        }
+        .decrypt-status[data-error="true"] {
+            color: #b42318;
+        }
+        .decrypted-output {
+            background: #f8fafc;
+            border: 1px solid #e3e7ee;
+            border-radius: 8px;
+            margin: 8px 0 0;
+            padding: 10px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
         :root {
             color-scheme: light;
             font-family: Arial, sans-serif;
@@ -146,6 +185,7 @@
             <input type="number" name="limit" value="{{limit}}" min="1" max="500">
             <button type="submit">Search</button>
         </form>
+         {{decrypt_controls}}
         <table>
             <thead>
                 <tr>
@@ -159,5 +199,6 @@
             <tbody>{{table_body}}</tbody>
         </table>
     </main>
+        <script src="/static/admin-fernet.js" defer></script>
 </body>
 </html>
