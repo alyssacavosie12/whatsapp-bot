@@ -1,0 +1,131 @@
+"""Admin message list, detail, and deletion route handlers."""
+
+from __future__ import annotations
+
+import logging
+
+from flask import redirect, request, url_for
+from flask.typing import ResponseReturnValue
+
+from inbox import service as inbox_service
+from inbox import store as inbox_store
+from inbox.security import admin_response
+from inbox.views import render_admin_message_detail_page, render_admin_messages_page
+
+logger = logging.getLogger(__name__)
+
+
+def admin_messages() -> ResponseReturnValue:
+    """Show recent incoming WhatsApp messages to authorized users."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    query = request.args.get("q", "").strip()
+
+    try:
+        limit = int(request.args.get("limit", "100"))
+    except ValueError:
+        limit = 100
+
+    limit = max(1, min(limit, 500))
+
+    try:
+        messages = inbox_store.list_messages(
+            inbox_service.inbox_database_url(),
+            query=query,
+            limit=limit,
+            encryption_key=inbox_service.inbox_encryption_key(),
+            decrypt=False,
+        )
+    except Exception:
+        logger.exception("Failed to load inbox messages")
+        return admin_response("Inbox is unavailable", 503)
+
+    inbox_service.audit_inbox_action(
+        user,
+        "view_messages",
+        metadata={"has_query": bool(query), "result_count": len(messages)},
+    )
+
+    return admin_response(
+        render_admin_messages_page(
+            user,
+            messages,
+            query=query,
+            limit=limit,
+            admin_role=inbox_service.INBOX_ADMIN_ROLE,
+            csrf_token_builder=inbox_service.inbox_csrf_token,
+        )
+    )
+
+
+def admin_message_detail(message_id: int) -> ResponseReturnValue:
+    """Show a single inbox message for review."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    try:
+        message = inbox_store.get_message_by_id(
+            inbox_service.inbox_database_url(),
+            message_id,
+            encryption_key=inbox_service.inbox_encryption_key(),
+            decrypt=False,
+        )
+    except Exception:
+        logger.exception("Failed to load inbox message")
+        return admin_response("Inbox is unavailable", 503)
+
+    if message is None:
+        return admin_response("Message not found", 404)
+
+    inbox_service.audit_inbox_action(
+        user,
+        "view_message",
+        target_message_id=message_id,
+    )
+
+    return admin_response(
+        render_admin_message_detail_page(
+            user,
+            message,
+            admin_role=inbox_service.INBOX_ADMIN_ROLE,
+            csrf_token_builder=inbox_service.inbox_csrf_token,
+        )
+    )
+
+
+def admin_delete_message(message_id: int) -> ResponseReturnValue:
+    """Soft-delete one inbox message."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_ADMIN_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    if not inbox_service.valid_inbox_csrf(user["username"], "delete", message_id):
+        return admin_response("Forbidden", 403)
+
+    try:
+        deleted = inbox_store.soft_delete_message(
+            inbox_service.inbox_database_url(),
+            message_id=message_id,
+            deleted_by=user["username"],
+        )
+    except Exception:
+        logger.exception("Failed to delete inbox message")
+        return admin_response("Inbox is unavailable", 503)
+
+    inbox_service.audit_inbox_action(
+        user,
+        "delete_message",
+        target_message_id=message_id,
+        metadata={"deleted": deleted},
+    )
+
+    return redirect(url_for("admin.admin_messages"), code=303)

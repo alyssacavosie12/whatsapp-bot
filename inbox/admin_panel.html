@@ -44,6 +44,29 @@
             white-space: pre-wrap;
             overflow-wrap: anywhere;
         }
+        .encrypted-message {
+            display: inline-block;
+            max-width: 100%;
+            border: 1px solid #e3e7ee;
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: 10px;
+        }
+        .encrypted-placeholder {
+            margin: 0 0 8px;
+        }
+        .decrypt-result {
+            display: inline-flex;
+            align-items: center;
+            color: #067647;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .muted-value {
+            color: #647184;
+            font-weight: 500;
+        }
         :root {
             color-scheme: light;
             font-family: Arial, sans-serif;
@@ -78,7 +101,7 @@
             gap: 8px;
             margin-bottom: 16px;
         }
-        input[type="search"], input[type="number"] {
+        input[type="search"], select {
             border: 1px solid #c9d0da;
             border-radius: 6px;
             font: inherit;
@@ -88,8 +111,16 @@
             min-width: 260px;
             flex: 1;
         }
-        input[type="number"] {
-            width: 96px;
+        .show-limit {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #536071;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .show-limit select {
+            min-width: 88px;
         }
         button {
             border: 1px solid #27364a;
@@ -153,10 +184,16 @@
             header, form.search {
                 display: block;
             }
-            input[type="search"], input[type="number"], button {
+            input[type="search"], select, button {
                 box-sizing: border-box;
                 margin-top: 8px;
                 width: 100%;
+            }
+            .show-limit {
+                align-items: flex-start;
+                display: flex;
+                flex-direction: column;
+                gap: 0;
             }
             table, thead, tbody, th, td, tr {
                 display: block;
@@ -181,8 +218,11 @@
         </header>
         <form class="search" method="get" action="/admin/messages">
             <input type="search" name="q" value="{{safe_query}}"
-                placeholder="Search name, phone, text">
-            <input type="number" name="limit" value="{{limit}}" min="1" max="500">
+                placeholder="Search name or phone">
+            <label class="show-limit">
+                <span>Show</span>
+                <select name="limit">{{limit_options}}</select>
+            </label>
             <button type="submit">Search</button>
         </form>
          {{decrypt_controls}}

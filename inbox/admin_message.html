@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{page_title}}</title>
     <style>
-                .decrypt-controls {
+        .decrypt-controls {
             background: white;
             border: 1px solid #d9dee7;
             border-radius: 10px;
@@ -43,6 +43,25 @@
             padding: 10px;
             white-space: pre-wrap;
             overflow-wrap: anywhere;
+        }
+        .encrypted-message {
+            display: inline-block;
+            max-width: 100%;
+            border: 1px solid #e3e7ee;
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: 10px;
+        }
+        .encrypted-placeholder {
+            margin: 0 0 8px;
+        }
+        .decrypt-result {
+            display: inline-flex;
+            align-items: center;
+            color: #067647;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 8px;
         }
         :root {
             color-scheme: light;
@@ -87,7 +106,7 @@
             background: white;
             border: 1px solid #d9dee7;
             border-radius: 10px;
-            padding: 16px;
+            padding: 14px;
             margin-bottom: 16px;
         }
         dl {
@@ -97,12 +116,43 @@
             margin: 0;
         }
         dt {
-            color: #647184;
-            font-weight: 600;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
         }
         dd {
             margin: 0;
-            color: #18212f;
+            color: #111827;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        .muted-value {
+            color: #647184;
+            font-weight: 500;
+        }
+        .copy-value {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 100%;
+        }
+        .copy-value span {
+            overflow-wrap: anywhere;
+        }
+        .copy-button {
+            background: white;
+            border-color: #c9d0da;
+            color: #27364a;
+            padding: 5px 8px;
+            white-space: nowrap;
+        }
+        .technical-details summary {
+            color: #27364a;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .technical-details dl {
+            margin-top: 12px;
         }
         h2 {
             font-size: 18px;
@@ -151,8 +201,6 @@
         </header>
         <section class="card">
             <dl>
-                <dt>Message ID</dt>
-                <dd>{{message_id}}</dd>
                 <dt>WhatsApp ID</dt>
                 <dd>{{whatsapp_message_id}}</dd>
                 <dt>Time</dt>
@@ -165,8 +213,6 @@
                 <dd>{{message_type}}</dd>
                 <dt>Encrypted</dt>
                 <dd>{{body_encrypted}}</dd>
-                <dt>Body length</dt>
-                <dd>{{body_length}}</dd>
                 <dt>Deleted at</dt>
                 <dd>{{deleted_at}}</dd>
                 <dt>Deleted by</dt>
@@ -177,6 +223,15 @@
             <h2>Message</h2>
             <div class="body">{{body}}</div>
         </section>
+        <details class="card technical-details">
+            <summary>Technical details</summary>
+            <dl>
+                <dt>Internal ID</dt>
+                <dd>{{message_id}}</dd>
+                <dt>Body length</dt>
+                <dd>{{body_length}}</dd>
+            </dl>
+        </details>
         <div class="actions">{{delete_action}}</div>
     </main>
     <script src="/static/admin-fernet.js" defer></script>
