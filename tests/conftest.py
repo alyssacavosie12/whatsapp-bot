@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -34,6 +33,10 @@ SAMPLE_CONTENT = {
             "en": "Human EN: A team member will get back to you.",
             "es": "Human ES: Un miembro del equipo te responderá.",
         },
+        "privacy_notice_suffix": {
+            "en": "By chatting with us, you agree to our Privacy Notice: https://www.tulumbotox.com/privacy",
+            "es": "Al chatear con nosotros, aceptas nuestro Aviso de Privacidad: https://www.tulumbotox.com/privacy",
+        },
     },
     "faq": [
         {
@@ -46,7 +49,15 @@ SAMPLE_CONTENT = {
         {
             "category": "Pricing",
             "question": "How much does Botox/Dysport cost?",
-            "keywords": ["botox cost", "botox price", "dysport cost", "price", "precio", "cuanto", "cuesta"],
+            "keywords": [
+                "botox cost",
+                "botox price",
+                "dysport cost",
+                "price",
+                "precio",
+                "cuanto",
+                "cuesta",
+            ],
             "answer_en": "Dysport is 135 MXN per unit.",
             "answer_es": "Dysport cuesta 135 MXN por unidad.",
         },
@@ -64,7 +75,7 @@ SAMPLE_CONTENT = {
 @pytest.fixture()
 def content_file(tmp_path, monkeypatch):
     """Point content_loader at a temporary bot_content.json."""
-    import content_loader
+    from bot import content_loader
 
     path = tmp_path / "bot_content.json"
     path.write_text(json.dumps(SAMPLE_CONTENT, ensure_ascii=False), encoding="utf-8")
@@ -73,5 +84,17 @@ def content_file(tmp_path, monkeypatch):
     content_loader.load_content.cache_clear()
 
     yield path
+
+    content_loader.load_content.cache_clear()
+
+
+@pytest.fixture()
+def real_content():
+    """Load the real bot_content.json so business-content tests can guard it."""
+    from bot import content_loader
+
+    content_loader.load_content.cache_clear()
+
+    yield
 
     content_loader.load_content.cache_clear()

@@ -6,34 +6,33 @@ editing the core webhook code.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 
-from content_loader import detect_language, get_faq_entries
-from text_utils import normalize_text, text_tokens
-
+from bot.content_loader import detect_language, get_faq_entries
+from core.text_utils import normalize_text, text_tokens
 
 # ─── JSON field names ────────────────────────────────────────
 
-KEYWORDS_FIELD = "keywords"
-QUESTION_FIELD = "question"
-ANSWER_EN_FIELD = "answer_en"
-ANSWER_ES_FIELD = "answer_es"
-LEGACY_ANSWER_FIELD = "answer"
+KEYWORDS_FIELD: Final = "keywords"
+QUESTION_FIELD: Final = "question"
+ANSWER_EN_FIELD: Final = "answer_en"
+ANSWER_ES_FIELD: Final = "answer_es"
+LEGACY_ANSWER_FIELD: Final = "answer"
 
 
 # ─── Matching scores ─────────────────────────────────────────
 
-EXACT_MATCH_SCORE = 6
-PHRASE_MATCH_SCORE = 4
-TOKEN_MATCH_SCORE = 3
-SUBSTRING_MATCH_SCORE = 1
-QUESTION_TOKEN_SCORE = 1
+EXACT_MATCH_SCORE: Final = 6
+PHRASE_MATCH_SCORE: Final = 4
+TOKEN_MATCH_SCORE: Final = 3
+SUBSTRING_MATCH_SCORE: Final = 1
+QUESTION_TOKEN_SCORE: Final = 1
 
-DEFAULT_MATCH_THRESHOLD = 2
-SHORT_MESSAGE_TOKEN_LIMIT = 3
-SHORT_MESSAGE_THRESHOLD = 1
-MIN_SUBSTRING_LENGTH = 4
-MIN_QUESTION_TOKEN_LENGTH = 4
+DEFAULT_MATCH_THRESHOLD: Final = 2
+SHORT_MESSAGE_TOKEN_LIMIT: Final = 3
+SHORT_MESSAGE_THRESHOLD: Final = 1
+MIN_SUBSTRING_LENGTH: Final = 4
+MIN_QUESTION_TOKEN_LENGTH: Final = 4
 
 
 FAQEntry = dict[str, Any]
@@ -44,11 +43,7 @@ def _answer_for_language(entry: FAQEntry, lang: str) -> str:
     if lang == "es" and entry.get(ANSWER_ES_FIELD):
         return str(entry[ANSWER_ES_FIELD])
 
-    return str(
-        entry.get(ANSWER_EN_FIELD)
-        or entry.get(LEGACY_ANSWER_FIELD)
-        or ""
-    )
+    return str(entry.get(ANSWER_EN_FIELD) or entry.get(LEGACY_ANSWER_FIELD) or "")
 
 
 def _score_keyword_match(message: str, message_tokens: set[str], keyword: str) -> int:
