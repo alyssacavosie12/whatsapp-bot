@@ -274,8 +274,8 @@ def _store_incoming_message(
             proof_secret=inbox_proof_secret(),
             encryption_key=INBOX_ENCRYPTION_KEY,
         )
-    except Exception as exc:
-        logger.error("Failed to store incoming message: %s", exc.__class__.__name__)
+    except Exception:
+        logger.exception("Failed to store incoming message")
 
 
 def store_incoming_message(

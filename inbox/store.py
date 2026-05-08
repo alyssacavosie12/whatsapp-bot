@@ -210,13 +210,30 @@ def ensure_schema(database_url: str) -> None:
             cur.execute(
                 """
                 ALTER TABLE inbox_messages
+                    ADD COLUMN IF NOT EXISTS sender_phone_masked TEXT
+                        NOT NULL DEFAULT '',
                     ADD COLUMN IF NOT EXISTS sender_phone_encrypted BOOLEAN
                         NOT NULL DEFAULT FALSE,
                     ADD COLUMN IF NOT EXISTS sender_phone_hash TEXT
                         NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS sender_name TEXT
+                        NOT NULL DEFAULT '',
                     ADD COLUMN IF NOT EXISTS sender_name_encrypted BOOLEAN
                         NOT NULL DEFAULT FALSE,
                     ADD COLUMN IF NOT EXISTS sender_name_hash TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS message_type TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS body TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS body_encrypted BOOLEAN
+                        NOT NULL DEFAULT FALSE,
+                    ADD COLUMN IF NOT EXISTS body_length INTEGER
+                        NOT NULL DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS body_sha256 TEXT
+                        NOT NULL DEFAULT '',
+                    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ,
+                    ADD COLUMN IF NOT EXISTS deleted_by TEXT
                         NOT NULL DEFAULT ''
                 """
             )
@@ -784,6 +801,73 @@ def list_messages(
         )
         for row in rows
     ]
+
+
+def get_message_by_id(
+    database_url: str,
+    message_id: int,
+    *,
+    encryption_key: str = "",
+) -> InboxMessage | None:
+    """Return a single inbox message by primary key."""
+    ensure_schema(database_url)
+
+    with _connect(database_url, dict_rows=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    whatsapp_message_id,
+                    direction,
+                    sender_phone,
+                    sender_phone_masked,
+                    sender_phone_encrypted,
+                    sender_name,
+                    sender_name_encrypted,
+                    message_type,
+                    body,
+                    body_encrypted,
+                    body_length,
+                    created_at,
+                    deleted_at,
+                    deleted_by
+                FROM inbox_messages
+                WHERE id = %s
+                LIMIT 1
+                """,
+                (message_id,),
+            )
+            row = cur.fetchone()
+
+    if not row:
+        return None
+
+    return InboxMessage(
+        id=row["id"],
+        whatsapp_message_id=row["whatsapp_message_id"] or "",
+        direction=row["direction"],
+        sender_phone=_read_sensitive_field(
+            row["sender_phone"],
+            row["sender_phone_encrypted"],
+            encryption_key,
+            fallback=row["sender_phone_masked"],
+        ),
+        sender_phone_masked=row["sender_phone_masked"],
+        sender_name=_read_sensitive_field(
+            row["sender_name"],
+            row["sender_name_encrypted"],
+            encryption_key,
+            fallback="",
+        ),
+        message_type=row["message_type"],
+        body=_read_body(row["body"], row["body_encrypted"], encryption_key),
+        body_encrypted=row["body_encrypted"],
+        body_length=row["body_length"],
+        created_at=row["created_at"],
+        deleted_at=row["deleted_at"],
+        deleted_by=row["deleted_by"],
+    )
 
 
 def soft_delete_message(

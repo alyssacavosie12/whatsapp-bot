@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{page_title}}</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Arial, sans-serif;
+            background: #f6f7f9;
+            color: #18212f;
+        }
+        body {
+            margin: 0;
+            padding: 24px;
+        }
+        main {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        header div {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        h1 {
+            font-size: 28px;
+            margin: 0;
+        }
+        .meta {
+            color: #536071;
+            font-size: 14px;
+        }
+        a.back {
+            color: #27364a;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .card {
+            background: white;
+            border: 1px solid #d9dee7;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        dl {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 10px 16px;
+            margin: 0;
+        }
+        dt {
+            color: #647184;
+            font-weight: 600;
+        }
+        dd {
+            margin: 0;
+            color: #18212f;
+        }
+        h2 {
+            font-size: 18px;
+            margin: 0 0 8px;
+        }
+        .body {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            font-size: 15px;
+        }
+        .actions form {
+            margin: 0;
+        }
+        button {
+            border: 1px solid #27364a;
+            border-radius: 6px;
+            background: #27364a;
+            color: white;
+            cursor: pointer;
+            font: inherit;
+            padding: 9px 12px;
+        }
+        @media (max-width: 760px) {
+            body {
+                padding: 12px;
+            }
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            dl {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <div>
+                <a class="back" href="{{back_url}}">Back to inbox</a>
+                <h1>{{page_title}}</h1>
+            </div>
+            <div class="meta">{{username}} ({{role}})</div>
+        </header>
+        <section class="card">
+            <dl>
+                <dt>Message ID</dt>
+                <dd>{{message_id}}</dd>
+                <dt>WhatsApp ID</dt>
+                <dd>{{whatsapp_message_id}}</dd>
+                <dt>Time</dt>
+                <dd>{{created_at}}</dd>
+                <dt>Contact name</dt>
+                <dd>{{sender_name}}</dd>
+                <dt>Contact phone</dt>
+                <dd>{{sender_phone}}</dd>
+                <dt>Type</dt>
+                <dd>{{message_type}}</dd>
+                <dt>Encrypted</dt>
+                <dd>{{body_encrypted}}</dd>
+                <dt>Body length</dt>
+                <dd>{{body_length}}</dd>
+                <dt>Deleted at</dt>
+                <dd>{{deleted_at}}</dd>
+                <dt>Deleted by</dt>
+                <dd>{{deleted_by}}</dd>
+            </dl>
+        </section>
+        <section class="card">
+            <h2>Message</h2>
+            <div class="body">{{body}}</div>
+        </section>
+        <div class="actions">{{delete_action}}</div>
+    </main>
+</body>
+</html>
