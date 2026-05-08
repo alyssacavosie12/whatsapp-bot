@@ -15,29 +15,49 @@ from bot import message_processor
 from core.text_utils import sanitize_untrusted_text
 from settings import VERIFY_TOKEN
 from webhook import signature as webhook_signature
-from webhook.events import iter_webhook_messages
+from webhook.events import iter_webhook_calls, iter_webhook_messages
 from webhook.http_hardening import RouteDecorator
 from webhook.schema import validate_webhook_payload
 
 logger = logging.getLogger(__name__)
 
-WebhookEvent = tuple[dict[str, Any], dict[str, Any]]
+# A processed webhook event is tagged with its kind so the background
+# worker can dispatch to the right processor function. New kinds (e.g.
+# delivery statuses) can be added without changing the dispatch shape.
+WebhookEvent = tuple[str, dict[str, Any], dict[str, Any]]
+
+EVENT_KIND_MESSAGE = "message"
+EVENT_KIND_CALL = "call"
 
 
 def process_webhook_events(events: Sequence[WebhookEvent]) -> list[str]:
     """Process validated WhatsApp webhook events outside the request path.
 
     Args:
-        events: Parsed `(value, message)` webhook message pairs.
+        events: Parsed `(kind, value, payload)` webhook event triples.
     """
     statuses: list[str] = []
 
     try:
-        for value, message in events:
+        for kind, value, payload in events:
             try:
-                statuses.append(message_processor.process_webhook_message(value, message))
+                if kind == EVENT_KIND_MESSAGE:
+                    statuses.append(
+                        message_processor.process_webhook_message(value, payload)
+                    )
+                elif kind == EVENT_KIND_CALL:
+                    statuses.append(
+                        message_processor.process_call_event(value, payload)
+                    )
+                else:
+                    logger.warning("Unknown webhook event kind: %s", kind)
+                    statuses.append("ok")
             except Exception as exc:
-                logger.error("Error processing message: %s", exc.__class__.__name__)
+                logger.error(
+                    "Error processing %s event: %s",
+                    kind,
+                    exc.__class__.__name__,
+                )
                 statuses.append("ok")
     except Exception as exc:
         logger.error("Error processing webhook: %s", exc.__class__.__name__)
@@ -53,7 +73,7 @@ def run_in_background(
 
     Args:
         target: Function that processes parsed webhook events.
-        events: Parsed webhook message pairs.
+        events: Parsed webhook event triples.
     """
 
     def worker() -> None:
@@ -91,7 +111,7 @@ def register_webhook_routes(flask_app: Flask, webhook_rate_limit: RouteDecorator
     @flask_app.route("/webhook", methods=["POST"])
     @webhook_rate_limit
     def handle_message() -> ResponseReturnValue:
-        """Process incoming WhatsApp webhook events."""
+        """Process incoming WhatsApp webhook events (messages and calls)."""
         if not webhook_signature.verify_meta_signature():
             return jsonify({"status": "invalid signature"}), 401
 
@@ -112,7 +132,16 @@ def register_webhook_routes(flask_app: Flask, webhook_rate_limit: RouteDecorator
             return jsonify({"status": "invalid payload"}), 400
 
         payload = cast(dict[str, Any], data)
-        events = list(iter_webhook_messages(payload))
+
+        events: list[WebhookEvent] = []
+        events.extend(
+            (EVENT_KIND_MESSAGE, value, message)
+            for value, message in iter_webhook_messages(payload)
+        )
+        events.extend(
+            (EVENT_KIND_CALL, value, call)
+            for value, call in iter_webhook_calls(payload)
+        )
 
         if not events:
             return jsonify({"status": "no messages"}), 200
