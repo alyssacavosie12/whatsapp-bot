@@ -487,7 +487,7 @@ def record_incoming_message(
                     body_sha256
                 )
                 VALUES (
-                    %s, 'incoming', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                   %s, 'incoming', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
                 ON CONFLICT (whatsapp_message_id) DO NOTHING
                 """,
