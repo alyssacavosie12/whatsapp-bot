@@ -69,11 +69,7 @@ def _message(
     body: str = "Need an appointment",
     body_encrypted: bool = True,
 ) -> InboxMessage:
-    stored_body = (
-        "gAAAAABtestEncryptedFernetTokenWithoutPlaintext"
-        if body_encrypted
-        else body
-    )
+    stored_body = "gAAAAABtestEncryptedFernetTokenWithoutPlaintext" if body_encrypted else body
 
     return InboxMessage(
         id=message_id,

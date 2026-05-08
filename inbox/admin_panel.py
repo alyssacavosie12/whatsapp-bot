@@ -357,7 +357,6 @@ def admin_logout() -> ResponseReturnValue:
     return redirect(url_for("admin.admin_login"), code=303)
 
 
-
 def _short_hash(value: str, *, chars: int = 12) -> str:
     """Return a short display version of a hash."""
     if len(value) <= chars:
@@ -404,11 +403,14 @@ def _render_admin_conversations_page(
             """
         )
 
-    table_rows = "\n".join(rows) or """
+    table_rows = (
+        "\n".join(rows)
+        or """
         <tr>
           <td colspan="5">No conversations yet.</td>
         </tr>
     """
+    )
 
     return f"""<!doctype html>
 <html lang="en">
@@ -611,11 +613,14 @@ def _render_admin_opt_outs_page(
             """
         )
 
-    table_rows = "\n".join(rows) or """
+    table_rows = (
+        "\n".join(rows)
+        or """
         <tr>
           <td colspan="7">No opt-outs recorded.</td>
         </tr>
     """
+    )
 
     return f"""<!doctype html>
 <html lang="en">
@@ -819,6 +824,7 @@ def _render_admin_health_page(
 </body>
 </html>"""
 
+
 def admin_conversations() -> ResponseReturnValue:
     """Show conversation summaries."""
     user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
@@ -832,7 +838,7 @@ def admin_conversations() -> ResponseReturnValue:
             INBOX_DATABASE_URL,
             encryption_key=INBOX_ENCRYPTION_KEY,
             decrypt=False,
-)
+        )
     except Exception:
         logger.exception("Failed to load admin conversations")
         return admin_response("Conversations are unavailable", 503)
@@ -863,7 +869,7 @@ def admin_conversation_detail(conversation_id: str) -> ResponseReturnValue:
             conversation_id,
             encryption_key=INBOX_ENCRYPTION_KEY,
             decrypt=False,
-)
+        )
     except Exception:
         logger.exception("Failed to load admin conversation")
         return admin_response("Conversation is unavailable", 503)
@@ -916,6 +922,7 @@ def admin_health() -> ResponseReturnValue:
 
     return admin_response(_render_admin_health_page(user, components))
 
+
 def admin_messages() -> ResponseReturnValue:
     """Show recent incoming WhatsApp messages to authorized users."""
     user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
@@ -940,7 +947,7 @@ def admin_messages() -> ResponseReturnValue:
             limit=limit,
             encryption_key=INBOX_ENCRYPTION_KEY,
             decrypt=False,
-)
+        )
     except Exception:
         logger.exception("Failed to load inbox messages")
         return admin_response("Inbox is unavailable", 503)
@@ -977,7 +984,7 @@ def admin_message_detail(message_id: int) -> ResponseReturnValue:
             message_id,
             encryption_key=INBOX_ENCRYPTION_KEY,
             decrypt=False,
-)
+        )
     except Exception:
         logger.exception("Failed to load inbox message")
         return admin_response("Inbox is unavailable", 503)

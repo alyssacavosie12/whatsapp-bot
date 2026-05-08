@@ -75,6 +75,7 @@ class InboxOptOutRecord:
     language: str
     recorded_at: datetime
 
+
 @dataclass(frozen=True)
 class InboxDashboardStats:
     """Aggregate counters for the admin dashboard."""
@@ -203,6 +204,7 @@ def _read_sensitive_field(
     except Exception:
         return fallback
 
+
 def _body_for_display(
     body: str,
     encrypted: bool,
@@ -235,6 +237,7 @@ def _sensitive_field_for_display(
         encryption_key,
         fallback=fallback,
     )
+
 
 def ensure_schema(database_url: str) -> None:
     """Create inbox tables at runtime.
@@ -846,6 +849,7 @@ def list_messages(
 
     return [_row_to_inbox_message(row, encryption_key, decrypt=decrypt) for row in rows]
 
+
 def _row_to_inbox_message(
     row: Any,
     encryption_key: str,
@@ -885,6 +889,7 @@ def _row_to_inbox_message(
         deleted_at=row["deleted_at"],
         deleted_by=row["deleted_by"],
     )
+
 
 def list_conversations(
     database_url: str,
@@ -1061,6 +1066,7 @@ def list_opt_out_records(
         for row in rows
     ]
 
+
 def get_dashboard_stats(database_url: str) -> InboxDashboardStats:
     """Return aggregate counters for the admin dashboard."""
     ensure_schema(database_url)
@@ -1099,6 +1105,7 @@ def get_dashboard_stats(database_url: str) -> InboxDashboardStats:
         opt_in_proofs_total=int(opt_in_row.get("total") or 0),
         opt_outs_total=int(opt_out_row.get("total") or 0),
     )
+
 
 def get_message_by_id(
     database_url: str,

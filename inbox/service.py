@@ -140,11 +140,7 @@ def valid_inbox_login_csrf() -> bool:
     expected = session.get(INBOX_LOGIN_CSRF_KEY)
     submitted = request.form.get("csrf_token", "")
 
-    return bool(
-        isinstance(expected, str)
-        and expected
-        and hmac.compare_digest(expected, submitted)
-    )
+    return bool(isinstance(expected, str) and expected and hmac.compare_digest(expected, submitted))
 
 
 def authenticate_inbox_credentials(username: str, password: str) -> InboxUser | None:
