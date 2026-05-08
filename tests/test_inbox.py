@@ -376,6 +376,8 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
     assert b"Encrypted message" in response.data
     assert b"Decrypt this message" in response.data
     assert b"Need an appointment" not in response.data
+    assert b"***6828" in response.data
+    assert b"37368826828" not in response.data
     assert b"Delete" not in response.data
     assert response.headers["Cache-Control"] == "no-store"
     assert audits[0][1]["actor"] == "viewer"
@@ -404,6 +406,8 @@ def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkey
     assert b"Encrypted message" in response.data
     assert b"Decrypt this message" in response.data
     assert b"Need an appointment" not in response.data
+    assert b"***6828" in response.data
+    assert b"37368826828" not in response.data
     assert b"Delete message" not in response.data
     assert audits[0][1]["actor"] == "viewer"
     assert audits[0][1]["action"] == "view_message"
