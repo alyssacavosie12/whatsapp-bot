@@ -123,9 +123,177 @@ def _render_admin_login_page(*, error: str = "", next_path: str = "") -> str:
 </html>"""
 
 
+def _render_admin_dashboard_page(
+    user: inbox_service.InboxUser,
+    stats: inbox_store.InboxDashboardStats,
+) -> str:
+    """Render the admin dashboard."""
+    safe_username = html.escape(user["username"])
+    safe_role = html.escape(user["role"])
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tulum Botox Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #faf7f2;
+      color: #1f2933;
+      margin: 0;
+      padding: 24px;
+    }}
+    main {{
+      max-width: 1100px;
+      margin: 0 auto;
+    }}
+    header {{
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 24px;
+    }}
+    h1 {{
+      margin: 0;
+      font-size: 28px;
+    }}
+    .muted {{
+      color: #667085;
+      font-size: 14px;
+    }}
+    .grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }}
+    .card {{
+      background: #fff;
+      border: 1px solid #e5e0d8;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.05);
+    }}
+    .number {{
+      font-size: 32px;
+      font-weight: 800;
+      margin: 8px 0 0;
+    }}
+    .label {{
+      color: #667085;
+      font-size: 14px;
+      font-weight: 600;
+    }}
+    nav {{
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }}
+    a, button {{
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #d0d5dd;
+      background: #fff;
+      color: #111827;
+      text-decoration: none;
+      font: inherit;
+      cursor: pointer;
+    }}
+    .primary {{
+      background: #111827;
+      color: #fff;
+      border-color: #111827;
+    }}
+    form {{
+      margin: 0;
+    }}
+    .note {{
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-top: 18px;
+      font-size: 14px;
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Tulum Botox Admin</h1>
+        <div class="muted">Signed in as {safe_username} · {safe_role}</div>
+      </div>
+      <form method="post" action="{url_for("admin.admin_logout")}">
+        <button type="submit">Log out</button>
+      </form>
+    </header>
+
+    <section class="grid" aria-label="Dashboard counters">
+      <div class="card">
+        <div class="label">Messages today</div>
+        <div class="number">{stats.messages_today}</div>
+      </div>
+      <div class="card">
+        <div class="label">Total messages</div>
+        <div class="number">{stats.messages_total}</div>
+      </div>
+      <div class="card">
+        <div class="label">Active messages</div>
+        <div class="number">{stats.messages_active}</div>
+      </div>
+      <div class="card">
+        <div class="label">Deleted messages</div>
+        <div class="number">{stats.messages_deleted}</div>
+      </div>
+      <div class="card">
+        <div class="label">Opt-in proofs</div>
+        <div class="number">{stats.opt_in_proofs_total}</div>
+      </div>
+      <div class="card">
+        <div class="label">Opt-outs</div>
+        <div class="number">{stats.opt_outs_total}</div>
+      </div>
+    </section>
+
+    <nav>
+      <a class="primary" href="{url_for("admin.admin_messages")}">Open messages</a>
+      <a href="{url_for("admin.admin_login")}">Login page</a>
+      <a href="/health">System health</a>
+    </nav>
+
+    <p class="note">
+      FAQ hits and AI calls are not shown yet because they are not currently stored
+      as metrics. Add a telemetry table to track those accurately.
+    </p>
+  </main>
+</body>
+</html>"""
+
+
 def admin_index() -> ResponseReturnValue:
-    """Redirect the admin root to the messages inbox."""
-    return redirect(url_for("admin.admin_messages"), code=303)
+    """Show the admin dashboard."""
+    user, error_response = inbox_service.require_inbox_user(inbox_service.INBOX_VIEWER_ROLE)
+    if error_response:
+        return error_response
+    if user is None:
+        return admin_response("Unauthorized", 401)
+
+    try:
+        stats = inbox_store.get_dashboard_stats(INBOX_DATABASE_URL)
+    except Exception:
+        logger.exception("Failed to load admin dashboard stats")
+        return admin_response("Dashboard is unavailable", 503)
+
+    inbox_service.audit_inbox_action(user, "view_dashboard")
+
+    return admin_response(_render_admin_dashboard_page(user, stats))
 
 
 def admin_login() -> ResponseReturnValue:
