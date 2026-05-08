@@ -8,12 +8,14 @@ import os
 from flask import Flask
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from bot.message_processor import chatwoot_transport_misconfiguration
 from bot.whatsapp_client import warn_if_graph_api_version_deprecated
 from core.database import initialize_db_pool
 from core.routes import handle_request_too_large, register_health_routes
 from inbox.routes import register_admin_routes
 from inbox.security import client_ip
 from settings import (
+    CHATWOOT_TRANSPORT,
     FLASK_SECRET_KEY,
     FORCE_HTTPS,
     INBOX_DATABASE_URL,
@@ -22,6 +24,7 @@ from settings import (
     RATE_LIMIT_STORAGE_URL,
     WEBHOOK_RATE_LIMIT,
 )
+from webhook.chatwoot_routes import register_chatwoot_routes
 from webhook.http_hardening import build_webhook_rate_limit, configure_talisman
 from webhook.routes import register_webhook_routes
 
@@ -41,6 +44,16 @@ def _initialize_runtime_pools() -> None:
         logger.error("Failed to initialize DB pool: %s", exc.__class__.__name__)
 
 
+def _validate_chatwoot_configuration() -> None:
+    """Fail loudly at boot if CHATWOOT_TRANSPORT is on but config is incomplete."""
+    if not CHATWOOT_TRANSPORT:
+        return
+
+    misconfiguration = chatwoot_transport_misconfiguration()
+    if misconfiguration:
+        raise RuntimeError(misconfiguration)
+
+
 def create_app() -> Flask:
     """Build and return a fully wired Flask application instance."""
     flask_app = Flask(__name__)
@@ -54,6 +67,7 @@ def create_app() -> Flask:
     flask_app.debug = False
 
     warn_if_graph_api_version_deprecated()
+    _validate_chatwoot_configuration()
     _initialize_runtime_pools()
     configure_talisman(flask_app, force_https=FORCE_HTTPS)
     webhook_rate_limit = build_webhook_rate_limit(
@@ -66,6 +80,7 @@ def create_app() -> Flask:
     register_health_routes(flask_app)
     register_admin_routes(flask_app)
     register_webhook_routes(flask_app, webhook_rate_limit)
+    register_chatwoot_routes(flask_app, webhook_rate_limit)
     flask_app.register_error_handler(RequestEntityTooLarge, handle_request_too_large)
 
     return flask_app
