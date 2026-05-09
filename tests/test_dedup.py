@@ -1,28 +1,29 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 
 from webhook.dedup import _LocalDedup
 
 
-def test_local_dedup_first_seen_is_false():
+def test_local_dedup_first_seen_is_false() -> None:
     cache = _LocalDedup(max_size=10, ttl_seconds=60)
     assert cache.seen("abc") is False
 
 
-def test_local_dedup_repeated_message_is_true():
+def test_local_dedup_repeated_message_is_true() -> None:
     cache = _LocalDedup(max_size=10, ttl_seconds=60)
     cache.seen("abc")
     assert cache.seen("abc") is True
 
 
-def test_local_dedup_empty_key_never_seen():
+def test_local_dedup_empty_key_never_seen() -> None:
     cache = _LocalDedup(max_size=10, ttl_seconds=60)
     assert cache.seen("") is False
     assert cache.seen("") is False
 
 
-def test_local_dedup_evicts_when_over_capacity():
+def test_local_dedup_evicts_when_over_capacity() -> None:
     cache = _LocalDedup(max_size=3, ttl_seconds=60)
 
     for key in ("a", "b", "c", "d"):
@@ -33,7 +34,7 @@ def test_local_dedup_evicts_when_over_capacity():
     assert cache.seen("d") is True
 
 
-def test_local_dedup_capacity_strictly_bounded():
+def test_local_dedup_capacity_strictly_bounded() -> None:
     cache = _LocalDedup(max_size=5, ttl_seconds=60)
 
     for i in range(1000):
@@ -42,7 +43,7 @@ def test_local_dedup_capacity_strictly_bounded():
     assert len(cache._items) <= 5
 
 
-def test_local_dedup_evicts_expired_entries(monkeypatch):
+def test_local_dedup_evicts_expired_entries(monkeypatch: Any) -> None:
     cache = _LocalDedup(max_size=10, ttl_seconds=1)
 
     base = 1_000_000.0
@@ -54,7 +55,7 @@ def test_local_dedup_evicts_expired_entries(monkeypatch):
     assert "old" in cache._items
 
 
-def test_redis_backend_uses_set_nx_ex(monkeypatch):
+def test_redis_backend_uses_set_nx_ex(monkeypatch: Any) -> None:
     """RedisDedup must call SET with NX and EX so dedup is atomic and TTL'd."""
     from core.cache import reset_redis_clients
     from webhook.dedup import _RedisDedup
@@ -62,14 +63,14 @@ def test_redis_backend_uses_set_nx_ex(monkeypatch):
     calls = []
 
     class FakeRedis:
-        def set(self, key, value, nx=False, ex=None):
+        def set(self, key: Any, value: Any, nx: Any = False, ex: Any = None) -> Any:
             calls.append({"key": key, "value": value, "nx": nx, "ex": ex})
             return True if len(calls) == 1 else None  # first stores, second collides
 
     class FakeRedisModule:
         class Redis:
             @staticmethod
-            def from_url(url, **_kwargs):
+            def from_url(url: Any, **_kwargs: Any) -> Any:
                 return FakeRedis()
 
     reset_redis_clients()
@@ -84,18 +85,18 @@ def test_redis_backend_uses_set_nx_ex(monkeypatch):
     assert calls[0]["key"].endswith("msg-1")
 
 
-def test_redis_backend_fails_open_on_error(monkeypatch):
+def test_redis_backend_fails_open_on_error(monkeypatch: Any) -> None:
     from core.cache import reset_redis_clients
     from webhook.dedup import _RedisDedup
 
     class FakeRedis:
-        def set(self, *_args, **_kwargs):
-            raise RuntimeError("connection refused")
+        def set(self, *_args: Any, **_kwargs: Any) -> Any:
+            raise OSError("connection refused")
 
     class FakeRedisModule:
         class Redis:
             @staticmethod
-            def from_url(url, **_kwargs):
+            def from_url(url: Any, **_kwargs: Any) -> Any:
                 return FakeRedis()
 
     reset_redis_clients()

@@ -197,7 +197,18 @@ def delete_user_data(
     connect_factory: ConnectFactory = _connect,
     ensure_schema_func: Callable[[str], None] = ensure_schema,
 ) -> dict[str, int]:
-    """Hard-delete all stored records for one user."""
+    """Delete personal data for one user while preserving minimal legal proof.
+
+    ARCO/CCPA-style cancellation removes inbox messages and opt-in proof linked
+    to the sender. By default, the opt-out record is retained in minimized form:
+    plaintext identifiers are cleared, legacy phone fields are nulled, and the
+    hashed external id plus HMAC evidence remain so the clinic can prove it
+    honored the user's opposition/non-consent request.
+
+    Pass ``delete_opt_out_record=True`` only when the user explicitly requests
+    deletion of the opt-out proof too and accepts that future inbound messages
+    may be treated as a new contact.
+    """
     if not sender_external_id:
         raise MessageStoreUnavailable("Cannot delete data for an empty id")
 
@@ -211,12 +222,15 @@ def delete_user_data(
     counts: dict[str, int] = {}
     with connect_factory(database_url) as conn:
         with conn.cursor() as cur:
+            # Hard-delete user-controlled message content and contact fields.
             cur.execute(
                 "DELETE FROM inbox_messages WHERE sender_phone_hash = %s",
                 (external_id_hash,),
             )
             counts["messages"] = int(cur.rowcount or 0)
 
+            # Hard-delete opt-in evidence because it can contain user/contact
+            # metadata. Opt-out evidence is handled separately below.
             cur.execute(
                 "DELETE FROM inbox_opt_in_proofs WHERE sender_phone_hash = %s",
                 (external_id_hash,),
@@ -224,6 +238,8 @@ def delete_user_data(
             counts["opt_in_proofs"] = int(cur.rowcount or 0)
 
             if delete_opt_out_record:
+                # Full deletion: future inbound messages from this sender will
+                # no longer be blocked by this stored opt-out proof.
                 cur.execute(
                     """
                     DELETE FROM inbox_opt_outs
@@ -233,6 +249,8 @@ def delete_user_data(
                 )
                 counts["opt_outs"] = int(cur.rowcount or 0)
             else:
+                # Data-minimized retention: keep only what is needed to honor
+                # the opposition request and demonstrate compliance.
                 cur.execute(
                     """
                     UPDATE inbox_opt_outs

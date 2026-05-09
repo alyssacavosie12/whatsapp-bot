@@ -90,7 +90,7 @@ pytestmark = [
 ]
 
 
-def test_online_env_contract_is_safe_and_complete():
+def test_online_env_contract_is_safe_and_complete() -> None:
     required = [
         "PUBLIC_BASE_URL",
         "WHATSAPP_TOKEN",
@@ -113,7 +113,7 @@ def test_online_env_contract_is_safe_and_complete():
     assert os.getenv("DATABASE_URL") or os.getenv("DATABASE_PRIVATE_URL")
 
 
-def test_public_health_endpoint_is_reachable():
+def test_public_health_endpoint_is_reachable() -> None:
     response = _request("GET", _url("/health"))
     payload = response.json()
 
@@ -128,7 +128,7 @@ def test_public_health_endpoint_is_reachable():
         assert payload["status"] in {"ok", "degraded"}
 
 
-def test_public_privacy_notice_is_reachable():
+def test_public_privacy_notice_is_reachable() -> None:
     response = _request("GET", _url("/privacy"))
 
     assert response.status_code == 200, _safe_response(response)
@@ -137,7 +137,7 @@ def test_public_privacy_notice_is_reachable():
     assert "Anthropic PBC" in response.text
 
 
-def test_webhook_verify_token_matches_deployed_env():
+def test_webhook_verify_token_matches_deployed_env() -> None:
     challenge = "online-check-challenge"
     response = _request(
         "GET",
@@ -153,7 +153,7 @@ def test_webhook_verify_token_matches_deployed_env():
     assert response.text == challenge
 
 
-def test_unsigned_webhook_post_is_rejected():
+def test_unsigned_webhook_post_is_rejected() -> None:
     response = _request(
         "POST",
         _url("/webhook"),
@@ -163,7 +163,7 @@ def test_unsigned_webhook_post_is_rejected():
     assert response.status_code == 401, _safe_response(response)
 
 
-def test_signed_status_webhook_is_accepted_without_sending_messages():
+def test_signed_status_webhook_is_accepted_without_sending_messages() -> None:
     body, headers = _signed_webhook_body(
         {"entry": [{"changes": [{"value": {"statuses": [{"id": "online-check"}]}}]}]},
         _required_env("META_APP_SECRET"),
@@ -179,7 +179,7 @@ def test_signed_status_webhook_is_accepted_without_sending_messages():
     assert response.json()["status"] in {"no messages", "ok"}
 
 
-def test_meta_graph_token_can_read_configured_phone_number():
+def test_meta_graph_token_can_read_configured_phone_number() -> None:
     version = os.getenv("GRAPH_API_VERSION", "v23.0").strip() or "v23.0"
     phone_number_id = _required_env("WHATSAPP_PHONE_NUMBER_ID")
     response = _request(
@@ -193,7 +193,7 @@ def test_meta_graph_token_can_read_configured_phone_number():
     assert str(response.json()["id"]) == phone_number_id
 
 
-def test_anthropic_api_key_can_list_models():
+def test_anthropic_api_key_can_list_models() -> None:
     client = anthropic.Anthropic(
         api_key=_required_env("ANTHROPIC_API_KEY"),
         timeout=_timeout(),
@@ -210,7 +210,7 @@ def test_anthropic_api_key_can_list_models():
     not _flag("ONLINE_CHECK_DATABASE"),
     reason="set ONLINE_CHECK_DATABASE=true when Postgres is reachable from this runner",
 )
-def test_postgres_url_accepts_connections():
+def test_postgres_url_accepts_connections() -> None:
     import psycopg
 
     database_url = (
@@ -225,17 +225,20 @@ def test_postgres_url_accepts_connections():
     ) as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT 1")
-            assert cur.fetchone()[0] == 1
+            row = cur.fetchone()
+            assert row is not None
+            assert row[0] == 1
 
 
 @pytest.mark.skipif(
     not _flag("ONLINE_CHECK_REDIS"),
     reason="set ONLINE_CHECK_REDIS=true when Redis is reachable from this runner",
 )
-def test_redis_url_accepts_connections():
+def test_redis_url_accepts_connections() -> None:
     import redis
 
-    client = redis.from_url(
+    redis_module: Any = redis
+    client = redis_module.from_url(
         _required_env("REDIS_URL"),
         socket_connect_timeout=_timeout(),
         socket_timeout=_timeout(),
@@ -248,7 +251,7 @@ def test_redis_url_accepts_connections():
     not _flag("ONLINE_CHECK_ADMIN"),
     reason="set ONLINE_CHECK_ADMIN=true and provide ONLINE_INBOX_USERNAME/PASSWORD",
 )
-def test_admin_inbox_basic_auth_works():
+def test_admin_inbox_basic_auth_works() -> None:
     response = _request(
         "GET",
         _url("/admin/messages?limit=1"),

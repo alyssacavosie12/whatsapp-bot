@@ -7,10 +7,10 @@ import logging
 from flask import jsonify, request
 from flask.typing import ResponseReturnValue
 
-from core.phone_utils import mask_phone
-from core.sender_id import parse_sender_id
+from core.sender_id import mask_sender_id, parse_sender_id
 from inbox import service as inbox_service
 from inbox.security import admin_response
+from inbox.store_common import STORE_OPERATION_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +61,10 @@ def admin_data_subject_delete() -> ResponseReturnValue:
             sender.value,
             delete_opt_out_record=delete_opt_out,
         )
-    except Exception as exc:
+    except STORE_OPERATION_ERRORS as exc:
         logger.exception(
             "arco_delete_failed sender=%s error=%s",
-            mask_phone(sender.value),
+            mask_sender_id(sender),
             exc.__class__.__name__,
         )
         return admin_response("Inbox is unavailable", 503)
@@ -74,7 +74,7 @@ def admin_data_subject_delete() -> ResponseReturnValue:
         "arco_cancelacion",
         metadata={
             "sender_id_type": sender.id_type,
-            "sender_masked": mask_phone(sender.value),
+            "sender_masked": mask_sender_id(sender),
             "delete_opt_out_record": delete_opt_out,
             "counts": counts,
         },

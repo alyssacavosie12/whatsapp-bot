@@ -6,7 +6,7 @@ import logging
 from collections.abc import Callable
 
 from bot.message_models import InboxStorageResult, IncomingMessage
-from bot.opt_out_keywords import is_opt_out_request
+from bot.opt_out_keywords import is_opt_out_request as default_is_opt_out_request
 from bot.sensitive_filter import (
     SENSITIVE_REDACTED_MESSAGE_TYPE,
     classify_sensitive_message,
@@ -17,19 +17,21 @@ logger = logging.getLogger(__name__)
 
 RecordOptOut = Callable[..., bool]
 IsFirstContact = Callable[[str], bool]
-StoreIncomingMessage = Callable[[str, str, str, str, object], None]
+StoreIncomingMessage = Callable[[str, str, str, str, str], None]
+OptOutDetector = Callable[[str], tuple[bool, str | None, str | None]]
 
 
 def record_opt_out_if_requested(
     incoming: IncomingMessage,
     *,
     record_opt_out: RecordOptOut,
+    opt_out_detector: OptOutDetector = default_is_opt_out_request,
 ) -> bool:
     """Record text-message opt-out requests and stop further processing."""
     if not incoming.is_text:
         return False
 
-    opted_out, opt_out_keyword, opt_out_lang = is_opt_out_request(incoming.text)
+    opted_out, opt_out_keyword, opt_out_lang = opt_out_detector(incoming.text)
     if not opted_out:
         return False
 
@@ -49,7 +51,12 @@ def record_opt_out_if_requested(
 
 
 def _stored_message_body(incoming: IncomingMessage) -> tuple[str, str, str | None]:
-    """Return message type/body for storage and the sensitivity category."""
+    """Return message type/body for storage and the sensitivity category.
+
+    Sensitive messages are redacted before storage to reduce privacy risk and
+    support data-minimization expectations under privacy laws such as LFPDPPP
+    and GDPR-style review standards.
+    """
     sensitive_category = classify_sensitive_message(incoming.text) if incoming.is_text else None
     if sensitive_category:
         return (
@@ -70,6 +77,7 @@ def store_incoming_for_inbox(
     """Queue safe inbound-message persistence for the admin inbox."""
     stored_message_type, stored_body, sensitive_category = _stored_message_body(incoming)
     first_contact = is_first_contact(incoming.sender_id)
+
     store_incoming_message(
         incoming.message_id,
         incoming.sender_id,
@@ -77,6 +85,7 @@ def store_incoming_for_inbox(
         stored_message_type,
         stored_body,
     )
+
     return InboxStorageResult(
         is_first_contact=first_contact,
         sensitive_category=sensitive_category,

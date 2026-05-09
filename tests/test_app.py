@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any
 
 import requests
 
 from tests.support import make_app_modules
 
 
-def _make_app(monkeypatch=None):
+def _make_app(monkeypatch: Any = None) -> Any:
     """Build a fresh Flask app for one test via the application factory.
 
     Returns (app_module, flask_app). Module-level monkeypatches go on
@@ -23,7 +24,7 @@ def _make_app(monkeypatch=None):
     return app_module, flask_app
 
 
-def test_root_and_health_routes(content_file):
+def test_root_and_health_routes(content_file: Any) -> None:
     _app_module, flask_app = _make_app()
     client = flask_app.test_client()
 
@@ -33,7 +34,7 @@ def test_root_and_health_routes(content_file):
     assert response.get_json()["components"]["anthropic"] == "ok"
 
 
-def test_privacy_notice_page_contains_lfpdppp_operational_sections(content_file):
+def test_privacy_notice_page_contains_lfpdppp_operational_sections(content_file: Any) -> None:
     _app_module, flask_app = _make_app()
 
     response = flask_app.test_client().get("/privacy")
@@ -54,8 +55,9 @@ def test_privacy_notice_page_contains_lfpdppp_operational_sections(content_file)
     assert "Ally@TulumBotox.com" in body
 
 
-def test_health_reports_postgres_degraded(content_file, monkeypatch):
+def test_health_reports_postgres_degraded(content_file: Any, monkeypatch: Any) -> None:
     import core.routes as health_routes
+    from core.database import DatabasePoolUnavailable
 
     _app_module, flask_app = _make_app()
 
@@ -65,7 +67,7 @@ def test_health_reports_postgres_degraded(content_file, monkeypatch):
     monkeypatch.setattr(
         health_routes,
         "get_db_pool",
-        lambda _url: (_ for _ in ()).throw(RuntimeError("down")),
+        lambda _url: (_ for _ in ()).throw(DatabasePoolUnavailable("down")),
     )
 
     response = flask_app.test_client().get("/health")
@@ -76,7 +78,7 @@ def test_health_reports_postgres_degraded(content_file, monkeypatch):
     assert body["components"]["postgres"] == "degraded"
 
 
-def test_webhook_verify_success(content_file, monkeypatch):
+def test_webhook_verify_success(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "VERIFY_TOKEN", "test-token")
     client = flask_app.test_client()
@@ -89,7 +91,7 @@ def test_webhook_verify_success(content_file, monkeypatch):
     assert response.data.decode() == "12345"
 
 
-def test_webhook_verify_forbidden(content_file, monkeypatch):
+def test_webhook_verify_forbidden(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "VERIFY_TOKEN", "test-token")
     client = flask_app.test_client()
@@ -103,7 +105,7 @@ def test_webhook_verify_forbidden(content_file, monkeypatch):
     )
 
 
-def test_post_non_json_returns_415(content_file, monkeypatch):
+def test_post_non_json_returns_415(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     client = flask_app.test_client()
 
@@ -113,7 +115,7 @@ def test_post_non_json_returns_415(content_file, monkeypatch):
     assert response.get_json()["status"] == "unsupported content type"
 
 
-def test_post_empty_json_returns_400(content_file, monkeypatch):
+def test_post_empty_json_returns_400(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     client = flask_app.test_client()
 
@@ -123,7 +125,7 @@ def test_post_empty_json_returns_400(content_file, monkeypatch):
     assert response.get_json()["status"] == "no data"
 
 
-def test_post_status_update_returns_no_messages(content_file, monkeypatch):
+def test_post_status_update_returns_no_messages(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     client = flask_app.test_client()
 
@@ -135,7 +137,7 @@ def test_post_status_update_returns_no_messages(content_file, monkeypatch):
     assert response.get_json()["status"] == "no messages"
 
 
-def test_post_invalid_webhook_schema_returns_400(content_file, monkeypatch):
+def test_post_invalid_webhook_schema_returns_400(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     client = flask_app.test_client()
 
@@ -147,11 +149,11 @@ def test_post_invalid_webhook_schema_returns_400(content_file, monkeypatch):
     assert response.get_json()["status"] == "invalid payload"
 
 
-def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
+def test_text_message_uses_faq_and_sends_response(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
-    def fake_send(to_phone, text):
+    def fake_send(to_phone: Any, text: Any) -> Any:
         sent.append((to_phone, text))
         return SimpleNamespace(status_code=200)
 
@@ -182,7 +184,9 @@ def test_text_message_uses_faq_and_sends_response(content_file, monkeypatch):
     assert sent == [("37368826828", "Hey there! Welcome to Tulum Botox.")]
 
 
-def test_first_contact_adds_privacy_notice_to_faq_response(content_file, monkeypatch):
+def test_first_contact_adds_privacy_notice_to_faq_response(
+    content_file: Any, monkeypatch: Any
+) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
@@ -224,7 +228,7 @@ def test_first_contact_adds_privacy_notice_to_faq_response(content_file, monkeyp
     ]
 
 
-def test_returning_contact_does_not_add_privacy_notice(content_file, monkeypatch):
+def test_returning_contact_does_not_add_privacy_notice(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
@@ -259,7 +263,7 @@ def test_returning_contact_does_not_add_privacy_notice(content_file, monkeypatch
     assert sent == [("37368826828", "Hey there! Welcome to Tulum Botox.")]
 
 
-def test_text_message_falls_back_to_ai(content_file, monkeypatch):
+def test_text_message_falls_back_to_ai(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
@@ -304,9 +308,9 @@ def test_text_message_falls_back_to_ai(content_file, monkeypatch):
 
 
 def test_sensitive_faq_miss_routes_to_human_without_ai_and_redacts_storage(
-    content_file,
-    monkeypatch,
-):
+    content_file: Any,
+    monkeypatch: Any,
+) -> None:
     from inbox import service as inbox_service
 
     app_module, flask_app = _make_app(monkeypatch)
@@ -365,7 +369,7 @@ def test_sensitive_faq_miss_routes_to_human_without_ai_and_redacts_storage(
     assert "Botox" not in stored[0][4]
 
 
-def test_aesthetic_faq_miss_routes_to_human_without_ai(content_file, monkeypatch):
+def test_aesthetic_faq_miss_routes_to_human_without_ai(content_file: Any, monkeypatch: Any) -> None:
     from inbox import service as inbox_service
 
     app_module, flask_app = _make_app(monkeypatch)
@@ -420,7 +424,9 @@ def test_aesthetic_faq_miss_routes_to_human_without_ai(content_file, monkeypatch
     assert "HarmonyCa" not in stored[0][4]
 
 
-def test_ai_human_handoff_fallback_does_not_add_disclosure(content_file, monkeypatch):
+def test_ai_human_handoff_fallback_does_not_add_disclosure(
+    content_file: Any, monkeypatch: Any
+) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
@@ -463,7 +469,7 @@ def test_ai_human_handoff_fallback_does_not_add_disclosure(content_file, monkeyp
     assert sent == [("37368826828", "Human EN: A team member will get back to you.")]
 
 
-def test_human_handoff_does_not_double_reply(content_file, monkeypatch):
+def test_human_handoff_does_not_double_reply(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
@@ -500,7 +506,7 @@ def test_human_handoff_does_not_double_reply(content_file, monkeypatch):
     assert sent == [("37368826828", "Human EN: A team member will get back to you.")]
 
 
-def test_media_message_uses_media_response(content_file, monkeypatch):
+def test_media_message_uses_media_response(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
@@ -522,7 +528,7 @@ def test_media_message_uses_media_response(content_file, monkeypatch):
     assert sent == [("37368826828", "Media EN: A team member will review it shortly.")]
 
 
-def test_unknown_message_type_uses_unknown_response(content_file, monkeypatch):
+def test_unknown_message_type_uses_unknown_response(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     sent = []
 
@@ -544,10 +550,10 @@ def test_unknown_message_type_uses_unknown_response(content_file, monkeypatch):
     assert sent == [("37368826828", "Unknown EN: Please send us a text message.")]
 
 
-def test_processing_exception_returns_200(content_file, monkeypatch):
+def test_processing_exception_returns_200(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
 
-    def fail(_text):
+    def fail(_text: Any) -> Any:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(app_module, "find_best_faq_match", fail)
@@ -576,7 +582,7 @@ def test_processing_exception_returns_200(content_file, monkeypatch):
     assert response.get_json()["status"] == "ok"
 
 
-def test_send_whatsapp_message_missing_config(content_file, monkeypatch):
+def test_send_whatsapp_message_missing_config(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app()
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "")
@@ -590,10 +596,10 @@ def test_send_whatsapp_message_missing_config(content_file, monkeypatch):
     assert app_module.send_whatsapp_message("37368826828", "hello") is None
 
 
-def test_send_whatsapp_message_success(content_file, monkeypatch):
+def test_send_whatsapp_message_success(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app()
 
-    def fake_post(url, headers, json, timeout):
+    def fake_post(url: Any, headers: Any, json: Any, timeout: Any) -> Any:
         assert "v23.0" in url
         assert headers["Authorization"] == "Bearer token"
         assert json["to"] == "37368826828"
@@ -609,10 +615,10 @@ def test_send_whatsapp_message_success(content_file, monkeypatch):
     assert response.status_code == 200
 
 
-def test_send_whatsapp_message_failure_status(content_file, monkeypatch):
+def test_send_whatsapp_message_failure_status(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app()
 
-    def fake_post(url, headers, json, timeout):
+    def fake_post(url: Any, headers: Any, json: Any, timeout: Any) -> Any:
         assert "111/messages" in url
         assert headers["Authorization"] == "Bearer token"
         assert json["to"] == "37368826828"
@@ -628,10 +634,10 @@ def test_send_whatsapp_message_failure_status(content_file, monkeypatch):
     assert response.status_code == 401
 
 
-def test_send_whatsapp_message_request_exception(content_file, monkeypatch):
+def test_send_whatsapp_message_request_exception(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app()
 
-    def fake_post(*args, **kwargs):
+    def fake_post(*args: Any, **kwargs: Any) -> Any:
         raise requests.Timeout("timeout")
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "token")
@@ -642,12 +648,14 @@ def test_send_whatsapp_message_request_exception(content_file, monkeypatch):
     assert app_module.send_whatsapp_message("37368826828", "hello") is None
 
 
-def test_send_whatsapp_message_retries_transient_status(content_file, monkeypatch):
+def test_send_whatsapp_message_retries_transient_status(
+    content_file: Any, monkeypatch: Any
+) -> None:
     app_module, flask_app = _make_app()
     statuses = [503, 502, 200]
     sleeps = []
 
-    def fake_post(*_args, **_kwargs):
+    def fake_post(*_args: Any, **_kwargs: Any) -> Any:
         return SimpleNamespace(status_code=statuses.pop(0), text="status")
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "token")
@@ -661,11 +669,13 @@ def test_send_whatsapp_message_retries_transient_status(content_file, monkeypatc
     assert sleeps == [1.0, 2.0]
 
 
-def test_send_whatsapp_message_retries_timeout_then_succeeds(content_file, monkeypatch):
+def test_send_whatsapp_message_retries_timeout_then_succeeds(
+    content_file: Any, monkeypatch: Any
+) -> None:
     app_module, flask_app = _make_app()
     attempts = {"count": 0}
 
-    def fake_post(*_args, **_kwargs):
+    def fake_post(*_args: Any, **_kwargs: Any) -> Any:
         attempts["count"] += 1
         if attempts["count"] == 1:
             raise requests.Timeout("timeout")
@@ -682,7 +692,7 @@ def test_send_whatsapp_message_retries_timeout_then_succeeds(content_file, monke
     assert attempts["count"] == 2
 
 
-def test_whatsapp_messages_url_uses_current_graph_version(monkeypatch):
+def test_whatsapp_messages_url_uses_current_graph_version(monkeypatch: Any) -> None:
     """URL is built lazily so monkeypatching the version takes effect on next call."""
     from bot import whatsapp_client
 
@@ -695,9 +705,9 @@ def test_whatsapp_messages_url_uses_current_graph_version(monkeypatch):
 
 
 def test_warn_if_graph_api_version_deprecated_logs_for_known_dead_version(
-    monkeypatch,
-    caplog,
-):
+    monkeypatch: Any,
+    caplog: Any,
+) -> None:
     """Startup warning fires when GRAPH_API_VERSION matches a deprecated entry."""
     import logging as stdlib_logging
 
@@ -711,7 +721,9 @@ def test_warn_if_graph_api_version_deprecated_logs_for_known_dead_version(
     assert any("deprecated" in record.message.lower() for record in caplog.records)
 
 
-def test_warn_if_graph_api_version_deprecated_silent_on_supported(monkeypatch, caplog):
+def test_warn_if_graph_api_version_deprecated_silent_on_supported(
+    monkeypatch: Any, caplog: Any
+) -> None:
     """No warning when the version isn't in the deprecation list."""
     import logging as stdlib_logging
 

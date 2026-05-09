@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from bot.message_models import IncomingMessage
 from core.sender_id import mask_sender_id, parse_sender_id
@@ -16,9 +16,28 @@ logger = logging.getLogger(__name__)
 MAX_SENDER_NAME_LENGTH: Final = 64
 TEXT_MESSAGE_TYPE: Final = "text"
 
+IntakeStatus = Literal[
+    "duplicate",
+    "invalid sender",
+    "opted out",
+    "rate limited",
+]
+
 SeenMessage = Callable[[str], bool]
 AllowSenderMessage = Callable[[str], bool]
 IsOptedOut = Callable[[str], bool]
+
+__all__ = [
+    "AllowSenderMessage",
+    "IntakeResult",
+    "IntakeStatus",
+    "IsOptedOut",
+    "MAX_SENDER_NAME_LENGTH",
+    "SeenMessage",
+    "TEXT_MESSAGE_TYPE",
+    "intake_incoming_message",
+    "sanitize_sender_name",
+]
 
 
 @dataclass(frozen=True)
@@ -26,7 +45,7 @@ class IntakeResult:
     """Result of validating and normalizing an inbound webhook message."""
 
     message: IncomingMessage | None
-    status: str | None = None
+    status: IntakeStatus | None = None
 
 
 def sanitize_sender_name(sender_name: str) -> str:
@@ -35,7 +54,12 @@ def sanitize_sender_name(sender_name: str) -> str:
 
 
 def _extract_sender_name(value: dict[str, Any]) -> str:
-    """Return the sender profile name from a webhook value object."""
+    """Return the sender profile name from a webhook value object.
+
+    The sender name is untrusted display data. It may be used in logs, prompts,
+    and team notifications after sanitization, but should not drive business
+    decisions or security checks.
+    """
     contacts = value.get("contacts", [{}])
     if not contacts or not isinstance(contacts, list):
         return ""

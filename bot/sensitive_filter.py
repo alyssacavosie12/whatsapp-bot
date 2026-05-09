@@ -4,9 +4,29 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Final
+from typing import Final, Literal
 
 SENSITIVE_REDACTED_MESSAGE_TYPE: Final = "text_sensitive_redacted"
+
+MEDICAL_SAFETY_CATEGORY: Final = "medical_safety"
+AESTHETIC_CONSULTATION_CATEGORY: Final = "aesthetic_consultation"
+AESTHETIC_SERVICE_INTEREST_CATEGORY: Final = "aesthetic_service_interest"
+
+SensitiveCategory = Literal[
+    "medical_safety",
+    "aesthetic_consultation",
+    "aesthetic_service_interest",
+]
+
+__all__ = [
+    "AESTHETIC_CONSULTATION_CATEGORY",
+    "AESTHETIC_SERVICE_INTEREST_CATEGORY",
+    "MEDICAL_SAFETY_CATEGORY",
+    "SENSITIVE_REDACTED_MESSAGE_TYPE",
+    "SensitiveCategory",
+    "classify_sensitive_message",
+    "redacted_sensitive_body",
+]
 
 MEDICAL_SAFETY_RE: Final = re.compile(
     r"\b("
@@ -47,26 +67,33 @@ PERSONAL_INTENT_RE: Final = re.compile(
 
 
 def _fold_accents(text: str) -> str:
+    """Return ASCII text with accents removed."""
     normalized = unicodedata.normalize("NFKD", text)
     return normalized.encode("ascii", "ignore").decode("ascii")
 
 
-def classify_sensitive_message(text: str) -> str | None:
-    """Return a sensitivity category when text should avoid AI and full storage."""
+def classify_sensitive_message(text: str) -> SensitiveCategory | None:
+    """Return a sensitivity category when text should avoid AI and full storage.
+
+    Medical safety indicators always take precedence over aesthetic procedure
+    terms. This ensures messages mentioning risks, symptoms, pregnancy,
+    medications, allergies, or contraindications are routed to human handoff
+    even if they also mention Botox/fillers/etc.
+    """
     normalized = " ".join(_fold_accents(str(text or "")).split())
     if not normalized:
         return None
 
     if MEDICAL_SAFETY_RE.search(normalized):
-        return "medical_safety"
+        return MEDICAL_SAFETY_CATEGORY
 
     if not PROCEDURE_OR_CONCERN_RE.search(normalized):
         return None
 
     if PERSONAL_INTENT_RE.search(normalized):
-        return "aesthetic_consultation"
+        return AESTHETIC_CONSULTATION_CATEGORY
 
-    return "aesthetic_service_interest"
+    return AESTHETIC_SERVICE_INTEREST_CATEGORY
 
 
 def redacted_sensitive_body(category: str) -> str:

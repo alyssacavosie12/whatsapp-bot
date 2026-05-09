@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field, replace
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
+
+from bot.processor_dependencies import MessageProcessorDependencies, MessageProcessorSettings
 
 
 class AppModuleProxy:
@@ -104,7 +107,71 @@ def make_app_modules() -> tuple[AppModuleProxy, Any]:
     from inbox import service as inbox_service
     from webhook import routes as webhook_routes
 
-    webhook_routes.run_in_background = lambda target, events: target(events)
-    inbox_service.run_store_in_background = lambda target, *args: target(*args)
-    inbox_service.is_first_contact = lambda _sender: False
+    def run_webhook_inline(target: Any, events: Any) -> None:
+        target(events)
+
+    def run_store_inline(target: Any, *args: Any) -> None:
+        target(*args)
+
+    def returning_contact(_sender: str) -> bool:
+        return False
+
+    webhook_routes.run_in_background = cast(Any, run_webhook_inline)
+    inbox_service.run_store_in_background = cast(Any, run_store_inline)
+    inbox_service.is_first_contact = cast(Any, returning_contact)
     return AppModuleProxy(app), app.create_app()
+
+
+@dataclass
+class MessageProcessorHarness:
+    """Captured side effects for dependency-injected processor tests."""
+
+    sent: list[tuple[str, str]] = field(default_factory=list)
+    chatwoot_sent: list[tuple[int | str, str]] = field(default_factory=list)
+    notifications: list[str] = field(default_factory=list)
+    stored: list[tuple[str, str, str, str, object]] = field(default_factory=list)
+    opt_outs: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
+
+
+def make_message_dependencies(
+    **overrides: Any,
+) -> tuple[MessageProcessorDependencies, MessageProcessorHarness]:
+    """Return injectable message dependencies plus captured side effects."""
+    harness = MessageProcessorHarness()
+
+    def record_opt_out(sender_external_id: str, **kwargs: Any) -> bool:
+        harness.opt_outs.append((sender_external_id, kwargs))
+        return True
+
+    def store_incoming_message(
+        message_id: str,
+        sender_id: str,
+        sender_name: str,
+        message_type: str,
+        body: object,
+    ) -> None:
+        harness.stored.append((message_id, sender_id, sender_name, message_type, body))
+
+    dependencies = MessageProcessorDependencies(
+        seen_message=lambda _message_id: False,
+        allow_sender_message=lambda _sender_id: True,
+        is_opted_out=lambda _sender_id: False,
+        record_opt_out=record_opt_out,
+        is_first_contact=lambda _sender_id: False,
+        store_incoming_message=store_incoming_message,
+        find_best_faq_match=lambda _text: "FAQ response",
+        get_ai_response=lambda _text, _sender_name: "AI response",
+        send_whatsapp_message=lambda sender_id, text: harness.sent.append((sender_id, text)),
+        send_chatwoot_message=lambda conversation_id, text: harness.chatwoot_sent.append(
+            (conversation_id, text)
+        ),
+        notify_team=lambda message: harness.notifications.append(message),
+        is_opt_out_request=lambda _text: (False, None, None),
+        settings=MessageProcessorSettings(
+            bot_disclosure=False,
+            incoming_message_log_max_chars=120,
+            log_incoming_messages=False,
+            max_incoming_text_chars=8000,
+        ),
+    )
+    return replace(dependencies, **overrides), harness

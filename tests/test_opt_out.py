@@ -13,6 +13,7 @@ Four layers:
 from __future__ import annotations
 
 import time
+from typing import Any
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -142,7 +143,7 @@ def test_opt_out_detection_tolerates_punctuation_and_case() -> None:
 # ─── Service layer (inbox/service.py) ─────────────────────────────────
 
 
-def test_is_opted_out_returns_false_when_inbox_not_configured(monkeypatch):
+def test_is_opted_out_returns_false_when_inbox_not_configured(monkeypatch: Any) -> None:
     """Without INBOX_ENABLED + DATABASE_URL the check is a cheap no-op."""
     import inbox.service as service
 
@@ -152,23 +153,24 @@ def test_is_opted_out_returns_false_when_inbox_not_configured(monkeypatch):
     assert service.is_opted_out(PHONE) is False
 
 
-def test_is_opted_out_fails_open_on_database_error(monkeypatch):
+def test_is_opted_out_fails_open_on_database_error(monkeypatch: Any) -> None:
     """A DB outage must not silence every customer — log and return False."""
     import inbox.service as service
     import inbox.store as store
+    from inbox.store_common import MessageStoreUnavailable
 
     monkeypatch.setattr(service, "INBOX_ENABLED", True)
     monkeypatch.setattr(service, "INBOX_DATABASE_URL", "postgresql://x")
 
-    def boom(*_args, **_kwargs):
-        raise RuntimeError("db down")
+    def boom(*_args: Any, **_kwargs: Any) -> Any:
+        raise MessageStoreUnavailable("db down")
 
     monkeypatch.setattr(store, "is_opted_out", boom)
 
     assert service.is_opted_out(PHONE) is False
 
 
-def test_is_first_contact_defaults_true_without_inbox(monkeypatch):
+def test_is_first_contact_defaults_true_without_inbox(monkeypatch: Any) -> None:
     """Without inbox history, first-contact disclosure should be shown."""
     import importlib
 
@@ -181,26 +183,27 @@ def test_is_first_contact_defaults_true_without_inbox(monkeypatch):
     assert service.is_first_contact(PHONE) is True
 
 
-def test_is_first_contact_fails_toward_showing_notice(monkeypatch):
+def test_is_first_contact_fails_toward_showing_notice(monkeypatch: Any) -> None:
     """A DB outage must not silently omit the Privacy Notice."""
     import importlib
 
     import inbox.service as service
     import inbox.store as store
+    from inbox.store_common import MessageStoreUnavailable
 
     service = importlib.reload(service)
     monkeypatch.setattr(service, "INBOX_ENABLED", True)
     monkeypatch.setattr(service, "INBOX_DATABASE_URL", "postgresql://x")
 
-    def boom(*_args, **_kwargs):
-        raise RuntimeError("db down")
+    def boom(*_args: Any, **_kwargs: Any) -> Any:
+        raise MessageStoreUnavailable("db down")
 
     monkeypatch.setattr(store, "has_incoming_message_for_sender", boom)
 
     assert service.is_first_contact(PHONE) is True
 
 
-def test_is_first_contact_false_when_sender_has_history(monkeypatch):
+def test_is_first_contact_false_when_sender_has_history(monkeypatch: Any) -> None:
     import importlib
 
     import inbox.service as service
@@ -214,18 +217,19 @@ def test_is_first_contact_false_when_sender_has_history(monkeypatch):
     assert service.is_first_contact(PHONE) is False
 
 
-def test_record_opt_out_swallows_db_errors(monkeypatch, caplog):
+def test_record_opt_out_swallows_db_errors(monkeypatch: Any, caplog: Any) -> None:
     """A failing record must not break the webhook handler."""
     import inbox.service as service
     import inbox.store as store
+    from inbox.store_common import MessageStoreUnavailable
 
     monkeypatch.setattr(service, "INBOX_ENABLED", True)
     monkeypatch.setattr(service, "INBOX_DATABASE_URL", "postgresql://x")
     monkeypatch.setattr(service, "INBOX_PROOF_SECRET", "s")
     monkeypatch.setattr(service, "INBOX_ENCRYPTION_KEY", "")
 
-    def boom(*_args, **_kwargs):
-        raise RuntimeError("db down")
+    def boom(*_args: Any, **_kwargs: Any) -> Any:
+        raise MessageStoreUnavailable("db down")
 
     monkeypatch.setattr(store, "record_opt_out", boom)
 
@@ -236,7 +240,7 @@ def test_record_opt_out_swallows_db_errors(monkeypatch, caplog):
 # ─── Router integration (bot/message_processor.py) ────────────────────
 
 
-def _opt_out_payload(body: str, *, message_id: str, phone: str = PHONE) -> dict:
+def _opt_out_payload(body: str, *, message_id: str, phone: str = PHONE) -> dict[str, Any]:
     return {
         "entry": [
             {
@@ -260,13 +264,13 @@ def _opt_out_payload(body: str, *, message_id: str, phone: str = PHONE) -> dict:
     }
 
 
-def _wire_router(app_module, monkeypatch):
+def _wire_router(app_module: Any, monkeypatch: Any) -> Any:
     """Mock signature, rate-limit, and outbound for router-level integration tests."""
     monkeypatch.setattr(app_module, "verify_meta_signature", lambda: True)
     monkeypatch.setattr(app_module, "allow_phone_message", lambda _phone: True)
 
 
-def test_opted_out_user_receives_zero_outbound(content_file, monkeypatch):
+def test_opted_out_user_receives_zero_outbound(content_file: Any, monkeypatch: Any) -> None:
     """A user whose phone is in inbox_opt_outs must get NO reply, not even media/unknown."""
     import inbox.service as service
 
@@ -288,7 +292,7 @@ def test_opted_out_user_receives_zero_outbound(content_file, monkeypatch):
     assert sent == [], "Opted-out user must receive no outbound message"
 
 
-def test_opted_out_user_does_not_trigger_faq_or_ai(content_file, monkeypatch):
+def test_opted_out_user_does_not_trigger_faq_or_ai(content_file: Any, monkeypatch: Any) -> None:
     """Silenced users skip the FAQ matcher and AI fallback entirely."""
     import inbox.service as service
 
@@ -298,14 +302,24 @@ def test_opted_out_user_does_not_trigger_faq_or_ai(content_file, monkeypatch):
     monkeypatch.setattr(app_module, "send_whatsapp_message", lambda to, text: None)
     monkeypatch.setattr(service, "is_opted_out", lambda _phone: True)
 
-    faq_calls = []
-    monkeypatch.setattr(app_module, "find_best_faq_match", lambda t: faq_calls.append(t) or "FAQ")
+    faq_calls: list[str] = []
 
-    ai_calls = []
+    def record_faq_call(text: str) -> str:
+        faq_calls.append(text)
+        return "FAQ"
+
+    monkeypatch.setattr(app_module, "find_best_faq_match", record_faq_call)
+
+    ai_calls: list[tuple[Any, ...]] = []
+
+    def record_ai_call(*args: Any, **_kwargs: Any) -> str:
+        ai_calls.append(args)
+        return "ai"
+
     monkeypatch.setattr(
         app_module,
         "get_ai_response",
-        lambda *args, **kwargs: ai_calls.append(args) or "ai",
+        record_ai_call,
     )
 
     client = flask_app.test_client()
@@ -315,7 +329,9 @@ def test_opted_out_user_does_not_trigger_faq_or_ai(content_file, monkeypatch):
     assert ai_calls == [], "AI must not be called for opted-out users"
 
 
-def test_stop_keyword_records_opt_out_and_sends_no_confirmation(content_file, monkeypatch):
+def test_stop_keyword_records_opt_out_and_sends_no_confirmation(
+    content_file: Any, monkeypatch: Any
+) -> None:
     """A fresh STOP records opt-out via service and sends no confirmation."""
     import inbox.service as service
 
@@ -330,7 +346,7 @@ def test_stop_keyword_records_opt_out_and_sends_no_confirmation(content_file, mo
 
     recorded = []
 
-    def fake_record(phone, **kwargs):
+    def fake_record(phone: Any, **kwargs: Any) -> Any:
         recorded.append((phone, kwargs))
         return True
 
@@ -349,7 +365,7 @@ def test_stop_keyword_records_opt_out_and_sends_no_confirmation(content_file, mo
     assert sent == [], "Opt-out must not send any outbound message"
 
 
-def test_stop_keyword_short_circuits_before_faq_and_ai(content_file, monkeypatch):
+def test_stop_keyword_short_circuits_before_faq_and_ai(content_file: Any, monkeypatch: Any) -> None:
     """STOP must not run FAQ matching or AI fallback."""
     import inbox.service as service
 
@@ -360,14 +376,23 @@ def test_stop_keyword_short_circuits_before_faq_and_ai(content_file, monkeypatch
     monkeypatch.setattr(service, "is_opted_out", lambda _phone: False)
     monkeypatch.setattr(service, "record_opt_out", lambda *a, **kw: True)
 
-    faq_calls = []
-    monkeypatch.setattr(app_module, "find_best_faq_match", lambda t: faq_calls.append(t) or None)
+    faq_calls: list[str] = []
 
-    ai_calls = []
+    def record_faq_call(text: str) -> None:
+        faq_calls.append(text)
+
+    monkeypatch.setattr(app_module, "find_best_faq_match", record_faq_call)
+
+    ai_calls: list[tuple[Any, ...]] = []
+
+    def record_ai_call(*args: Any, **_kwargs: Any) -> str:
+        ai_calls.append(args)
+        return "ai"
+
     monkeypatch.setattr(
         app_module,
         "get_ai_response",
-        lambda *args, **kwargs: ai_calls.append(args) or "ai",
+        record_ai_call,
     )
 
     client = flask_app.test_client()
@@ -377,7 +402,7 @@ def test_stop_keyword_short_circuits_before_faq_and_ai(content_file, monkeypatch
     assert ai_calls == [], "STOP must short-circuit before AI"
 
 
-def test_baja_records_opt_out_in_spanish(content_file, monkeypatch):
+def test_baja_records_opt_out_in_spanish(content_file: Any, monkeypatch: Any) -> None:
     """The Spanish keyword BAJA records the opt-out as language=es."""
     import inbox.service as service
 
@@ -392,7 +417,7 @@ def test_baja_records_opt_out_in_spanish(content_file, monkeypatch):
 
     recorded = []
 
-    def fake_record(phone, **kwargs):
+    def fake_record(phone: Any, **kwargs: Any) -> Any:
         recorded.append(kwargs)
         return True
 
@@ -409,7 +434,7 @@ def test_baja_records_opt_out_in_spanish(content_file, monkeypatch):
 # ─── ARCO endpoint (inbox/routes.py) ───────────────────────────────────
 
 
-def _configure_admin(app_module, monkeypatch):
+def _configure_admin(app_module: Any, monkeypatch: Any) -> Any:
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://x")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "configured-key")
@@ -429,7 +454,7 @@ def _configure_admin(app_module, monkeypatch):
     monkeypatch.setattr(app_module, "META_APP_SECRET", "csrf-secret")
 
 
-def _login_session(client, *, username: str = "owner", role: str = "admin") -> None:
+def _login_session(client: Any, *, username: str = "owner", role: str = "admin") -> None:
     with client.session_transaction() as sess:
         sess["admin_authenticated"] = True
         sess["inbox_username"] = username
@@ -437,7 +462,7 @@ def _login_session(client, *, username: str = "owner", role: str = "admin") -> N
         sess["inbox_last_seen_at"] = int(time.time())
 
 
-def test_arco_endpoint_rejects_viewer_role(content_file, monkeypatch):
+def test_arco_endpoint_rejects_viewer_role(content_file: Any, monkeypatch: Any) -> None:
     """Viewer role cannot trigger ARCO deletion (admin-only)."""
     app_module, flask_app = make_app_modules()
     _configure_admin(app_module, monkeypatch)
@@ -453,7 +478,7 @@ def test_arco_endpoint_rejects_viewer_role(content_file, monkeypatch):
     assert response.status_code == 403
 
 
-def test_arco_endpoint_requires_csrf_token(content_file, monkeypatch):
+def test_arco_endpoint_requires_csrf_token(content_file: Any, monkeypatch: Any) -> None:
     """Without a valid CSRF token the endpoint refuses (forged-form defense)."""
     app_module, flask_app = make_app_modules()
     _configure_admin(app_module, monkeypatch)
@@ -469,7 +494,7 @@ def test_arco_endpoint_requires_csrf_token(content_file, monkeypatch):
     assert response.status_code == 403
 
 
-def test_arco_endpoint_validates_phone(content_file, monkeypatch):
+def test_arco_endpoint_validates_phone(content_file: Any, monkeypatch: Any) -> None:
     """Empty or non-E.164 phone returns 400 and never calls the deletion service."""
     import inbox.service as service
 
@@ -503,7 +528,7 @@ def test_arco_endpoint_validates_phone(content_file, monkeypatch):
     assert deletes == [], "delete_user_data must not run for invalid input"
 
 
-def test_arco_endpoint_deletes_data_and_audits(content_file, monkeypatch):
+def test_arco_endpoint_deletes_data_and_audits(content_file: Any, monkeypatch: Any) -> None:
     """Happy path: returns counts, calls delete service, writes audit event."""
     import inbox.service as service
 
@@ -512,7 +537,7 @@ def test_arco_endpoint_deletes_data_and_audits(content_file, monkeypatch):
 
     deletes = []
 
-    def fake_delete(phone, *, delete_opt_out_record):
+    def fake_delete(phone: Any, *, delete_opt_out_record: Any) -> Any:
         deletes.append((phone, delete_opt_out_record))
         return {"messages": 3, "opt_in_proofs": 1, "opt_outs": 0}
 
@@ -540,7 +565,9 @@ def test_arco_endpoint_deletes_data_and_audits(content_file, monkeypatch):
     assert audits[0]["metadata"]["delete_opt_out_record"] is False
 
 
-def test_arco_endpoint_can_delete_opt_out_record_when_requested(content_file, monkeypatch):
+def test_arco_endpoint_can_delete_opt_out_record_when_requested(
+    content_file: Any, monkeypatch: Any
+) -> None:
     """Passing delete_opt_out_record=true also drops the opt-out evidence row."""
     import inbox.service as service
 
@@ -549,7 +576,7 @@ def test_arco_endpoint_can_delete_opt_out_record_when_requested(content_file, mo
 
     deletes = []
 
-    def fake_delete(phone, *, delete_opt_out_record):
+    def fake_delete(phone: Any, *, delete_opt_out_record: Any) -> Any:
         deletes.append((phone, delete_opt_out_record))
         return {"messages": 0, "opt_in_proofs": 0, "opt_outs": 1}
 
@@ -577,7 +604,7 @@ def test_arco_endpoint_can_delete_opt_out_record_when_requested(content_file, mo
 # ─── BSUID readiness ────────────────────────────────────────────────────
 
 
-def test_bsuid_sender_is_not_rejected_as_invalid(content_file, monkeypatch):
+def test_bsuid_sender_is_not_rejected_as_invalid(content_file: Any, monkeypatch: Any) -> None:
     """Webhook with a BSUID `from` (post June 2026) must not be dropped."""
     import inbox.service as service
 
@@ -601,7 +628,9 @@ def test_bsuid_sender_is_not_rejected_as_invalid(content_file, monkeypatch):
     assert sent and sent[0][0] == bsuid
 
 
-def test_bsuid_stop_keyword_records_opt_out_with_bsuid_type(content_file, monkeypatch):
+def test_bsuid_stop_keyword_records_opt_out_with_bsuid_type(
+    content_file: Any, monkeypatch: Any
+) -> None:
     """STOP from a BSUID sender records opt-out tagged sender_external_id_type='bsuid'."""
     import inbox.service as service
 
@@ -613,7 +642,7 @@ def test_bsuid_stop_keyword_records_opt_out_with_bsuid_type(content_file, monkey
 
     recorded = []
 
-    def fake_record(sender, **kwargs):
+    def fake_record(sender: Any, **kwargs: Any) -> Any:
         recorded.append((sender, kwargs))
         return True
 
@@ -630,7 +659,9 @@ def test_bsuid_stop_keyword_records_opt_out_with_bsuid_type(content_file, monkey
     assert recorded[0][1]["sender_external_id_type"] == "bsuid"
 
 
-def test_arco_endpoint_accepts_bsuid_via_external_id_field(content_file, monkeypatch):
+def test_arco_endpoint_accepts_bsuid_via_external_id_field(
+    content_file: Any, monkeypatch: Any
+) -> None:
     """ARCO Cancelación works for BSUID subjects too, not only E.164 phones."""
     import inbox.service as service
 
@@ -639,7 +670,7 @@ def test_arco_endpoint_accepts_bsuid_via_external_id_field(content_file, monkeyp
 
     deletes = []
 
-    def fake_delete(sender_id, *, delete_opt_out_record):
+    def fake_delete(sender_id: Any, *, delete_opt_out_record: Any) -> Any:
         deletes.append((sender_id, delete_opt_out_record))
         return {"messages": 0, "opt_in_proofs": 0, "opt_outs": 1}
 

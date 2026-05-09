@@ -6,6 +6,7 @@ import logging
 from typing import Final
 
 from inbox.store import cleanup_expired_messages, record_audit_event
+from inbox.store_common import STORE_OPERATION_ERRORS
 from settings import INBOX_DATABASE_URL, INBOX_RETENTION_DAYS
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def main() -> int:
                 "retention_days": INBOX_RETENTION_DAYS,
             },
         )
-    except Exception as exc:
+    except STORE_OPERATION_ERRORS as exc:
         logger.error("Inbox retention cleanup failed: %s", exc.__class__.__name__)
         return 1
 

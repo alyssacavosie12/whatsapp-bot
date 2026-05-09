@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 from werkzeug.security import generate_password_hash
 
@@ -9,7 +10,7 @@ from inbox.store import InboxMessage
 from tests.support import make_app_modules
 
 
-def _make_app(monkeypatch=None):
+def _make_app(monkeypatch: Any = None) -> Any:
     """Build a fresh Flask app for one test via the application factory.
 
     Returns (app_module, flask_app); module-level monkeypatches go on
@@ -26,7 +27,7 @@ def _make_app(monkeypatch=None):
     return app_module, flask_app
 
 
-def _configure_admin(app_module, monkeypatch):
+def _configure_admin(app_module: Any, monkeypatch: Any) -> Any:
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
     monkeypatch.setattr(app_module, "INBOX_DATABASE_URL", "postgresql://inbox")
     monkeypatch.setattr(app_module, "INBOX_ENCRYPTION_KEY", "configured-key")
@@ -46,7 +47,7 @@ def _configure_admin(app_module, monkeypatch):
     monkeypatch.setattr(app_module, "META_APP_SECRET", "csrf-secret")
 
 
-def _login_session(client, *, username: str = "owner", role: str = "admin") -> None:
+def _login_session(client: Any, *, username: str = "owner", role: str = "admin") -> None:
     """Mark the Flask test client as logged in to the admin panel."""
     with client.session_transaction() as sess:
         sess["admin_authenticated"] = True
@@ -55,7 +56,7 @@ def _login_session(client, *, username: str = "owner", role: str = "admin") -> N
         sess["inbox_last_seen_at"] = int(time.time())
 
 
-def _set_login_csrf(client, token: str) -> str:
+def _set_login_csrf(client: Any, token: str) -> str:
     """Install a login CSRF token in the test session."""
     with client.session_transaction() as sess:
         sess["inbox_login_csrf_token"] = token
@@ -90,9 +91,9 @@ def _message(
 
 
 def test_incoming_message_is_stored_when_inbox_is_configured(
-    content_file,
-    monkeypatch,
-):
+    content_file: Any,
+    monkeypatch: Any,
+) -> None:
     app_module, flask_app = _make_app(monkeypatch)
 
     stored = []
@@ -110,7 +111,7 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
         lambda to, text: sent.append((to, text)),
     )
 
-    def fake_record(database_url, **kwargs):
+    def fake_record(database_url: Any, **kwargs: Any) -> Any:
         stored.append((database_url, kwargs))
 
     monkeypatch.setattr(app_module, "record_incoming_message", fake_record)
@@ -171,7 +172,9 @@ def test_incoming_message_is_stored_when_inbox_is_configured(
     assert sent == [("37368826828", "Hey there! Welcome to Tulum Botox.")]
 
 
-def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
+def test_inbox_store_failure_does_not_block_webhook(content_file: Any, monkeypatch: Any) -> None:
+    from inbox.store_common import MessageStoreUnavailable
+
     app_module, flask_app = _make_app(monkeypatch)
 
     sent = []
@@ -185,8 +188,8 @@ def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
         lambda to, text: sent.append((to, text)),
     )
 
-    def fail_record(*_args, **_kwargs):
-        raise RuntimeError("db down")
+    def fail_record(*_args: Any, **_kwargs: Any) -> Any:
+        raise MessageStoreUnavailable("db down")
 
     monkeypatch.setattr(app_module, "record_incoming_message", fail_record)
 
@@ -220,7 +223,7 @@ def test_inbox_store_failure_does_not_block_webhook(content_file, monkeypatch):
     assert sent == [("37368826828", "Hey there! Welcome to Tulum Botox.")]
 
 
-def test_inbox_requires_encryption_key_when_configured(content_file, monkeypatch):
+def test_inbox_requires_encryption_key_when_configured(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
 
     monkeypatch.setattr(app_module, "INBOX_ENABLED", True)
@@ -241,7 +244,7 @@ def test_inbox_requires_encryption_key_when_configured(content_file, monkeypatch
     assert b"Inbox encryption is not configured" in response.data
 
 
-def test_admin_login_is_rate_limited(content_file, monkeypatch):
+def test_admin_login_is_rate_limited(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -262,17 +265,21 @@ def test_admin_login_is_rate_limited(content_file, monkeypatch):
     assert response.status_code == 429
 
 
-def test_failed_admin_login_is_recorded(content_file, monkeypatch):
+def test_failed_admin_login_is_recorded(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
-    recorded = []
+    recorded: list[Any] = []
+
+    def record_auth_failure(keys: Any) -> bool:
+        recorded.append(keys)
+        return False
 
     monkeypatch.setattr(app_module, "is_inbox_auth_limited", lambda _keys: False)
     monkeypatch.setattr(
         app_module,
         "record_inbox_auth_failure",
-        lambda keys: recorded.append(keys) or False,
+        record_auth_failure,
     )
 
     client = flask_app.test_client()
@@ -291,7 +298,7 @@ def test_failed_admin_login_is_recorded(content_file, monkeypatch):
     assert recorded
 
 
-def test_admin_messages_redirects_to_login(content_file, monkeypatch):
+def test_admin_messages_redirects_to_login(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -302,7 +309,9 @@ def test_admin_messages_redirects_to_login(content_file, monkeypatch):
     assert "/admin/login" in response.headers["Location"]
 
 
-def test_admin_login_success_redirects_to_messages_and_audits(content_file, monkeypatch):
+def test_admin_login_success_redirects_to_messages_and_audits(
+    content_file: Any, monkeypatch: Any
+) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -332,7 +341,7 @@ def test_admin_login_success_redirects_to_messages_and_audits(content_file, monk
     assert audits[0][1]["action"] == "login_success"
 
 
-def test_admin_login_rejects_bad_csrf(content_file, monkeypatch):
+def test_admin_login_rejects_bad_csrf(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -351,7 +360,7 @@ def test_admin_login_rejects_bad_csrf(content_file, monkeypatch):
     assert b"Login form expired" in response.data
 
 
-def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch):
+def test_admin_messages_renders_for_viewer_and_audits(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -384,7 +393,9 @@ def test_admin_messages_renders_for_viewer_and_audits(content_file, monkeypatch)
     assert audits[0][1]["action"] == "view_messages"
 
 
-def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkeypatch):
+def test_admin_message_detail_renders_for_viewer_and_audits(
+    content_file: Any, monkeypatch: Any
+) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -423,7 +434,7 @@ def test_admin_message_detail_renders_for_viewer_and_audits(content_file, monkey
     assert audits[0][1]["target_message_id"] == 42
 
 
-def test_admin_message_detail_shows_delete_for_admin(content_file, monkeypatch):
+def test_admin_message_detail_shows_delete_for_admin(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -438,7 +449,7 @@ def test_admin_message_detail_shows_delete_for_admin(content_file, monkeypatch):
     assert b"Delete message" in response.data
 
 
-def test_admin_message_detail_returns_404_when_missing(content_file, monkeypatch):
+def test_admin_message_detail_returns_404_when_missing(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -453,22 +464,29 @@ def test_admin_message_detail_returns_404_when_missing(content_file, monkeypatch
     assert b"Message not found" in response.data
 
 
-def test_admin_can_soft_delete_message(content_file, monkeypatch):
+def test_admin_can_soft_delete_message(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
-    deleted = []
-    audits = []
+    deleted: list[dict[str, Any]] = []
+    audits: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+    def fake_soft_delete(*_args: Any, **kwargs: Any) -> bool:
+        deleted.append(kwargs)
+        return True
+
+    def fake_record_audit(*args: Any, **kwargs: Any) -> None:
+        audits.append((args, kwargs))
 
     monkeypatch.setattr(
         app_module,
         "soft_delete_message",
-        lambda *_args, **kwargs: deleted.append(kwargs) or True,
+        fake_soft_delete,
     )
     monkeypatch.setattr(
         app_module,
         "record_audit_event",
-        lambda *args, **kwargs: audits.append((args, kwargs)),
+        fake_record_audit,
     )
 
     token = app_module.inbox_csrf_token("owner", "delete", 42)
@@ -487,7 +505,7 @@ def test_admin_can_soft_delete_message(content_file, monkeypatch):
     assert audits[0][1]["action"] == "delete_message"
 
 
-def test_viewer_cannot_delete_message(content_file, monkeypatch):
+def test_viewer_cannot_delete_message(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -504,7 +522,7 @@ def test_viewer_cannot_delete_message(content_file, monkeypatch):
     assert response.status_code == 403
 
 
-def test_admin_logout_clears_session(content_file, monkeypatch):
+def test_admin_logout_clears_session(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
     _configure_admin(app_module, monkeypatch)
 
@@ -521,7 +539,7 @@ def test_admin_logout_clears_session(content_file, monkeypatch):
     assert "/admin/login" in follow_up.headers["Location"]
 
 
-def test_all_messages_in_payload_are_processed(content_file, monkeypatch):
+def test_all_messages_in_payload_are_processed(content_file: Any, monkeypatch: Any) -> None:
     app_module, flask_app = _make_app(monkeypatch)
 
     sent = []

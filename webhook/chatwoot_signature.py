@@ -26,9 +26,7 @@ def verify_chatwoot_signature() -> bool:
     the webhook (fail-closed) rather than accept unsigned events.
     """
     if not CHATWOOT_WEBHOOK_SECRET:
-        logger.error(
-            "CHATWOOT_WEBHOOK_SECRET is not set; refusing Chatwoot webhook"
-        )
+        logger.error("CHATWOOT_WEBHOOK_SECRET is not set; refusing Chatwoot webhook")
         return False
 
     signature = request.headers.get("X-Chatwoot-Signature", "").strip()

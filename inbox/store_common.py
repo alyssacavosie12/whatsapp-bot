@@ -6,7 +6,7 @@ import hashlib
 import os
 from typing import Any, Final
 
-from core.database import DatabasePoolUnavailable
+from core.database import DATABASE_OPERATION_ERRORS, DatabasePoolUnavailable
 from core.database import connect as pooled_connect
 
 MAX_STORED_BODY_CHARS: Final = 8000
@@ -20,6 +20,12 @@ MAX_STORED_MESSAGE_ID_CHARS: Final = 128
 
 class MessageStoreUnavailable(RuntimeError):
     """Raised when the inbox store cannot be used."""
+
+
+STORE_OPERATION_ERRORS: Final[tuple[type[BaseException], ...]] = (
+    MessageStoreUnavailable,
+    *DATABASE_OPERATION_ERRORS,
+)
 
 
 def _database_key(database_url: str) -> str:

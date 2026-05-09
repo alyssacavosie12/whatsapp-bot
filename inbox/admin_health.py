@@ -5,8 +5,8 @@ from __future__ import annotations
 from flask.typing import ResponseReturnValue
 
 from bot.ai_responder import anthropic_circuit_status
-from core.cache import get_redis
-from core.database import get_db_pool
+from core.cache import REDIS_OPERATION_ERRORS, get_redis
+from core.database import DATABASE_OPERATION_ERRORS, get_db_pool
 from inbox import service as inbox_service
 from inbox.admin_pages import render_admin_health_page
 from inbox.security import admin_response
@@ -25,7 +25,7 @@ def admin_health_components() -> dict[str, str]:
         try:
             get_redis(REDIS_URL).ping()
             components["redis"] = "ok"
-        except Exception:
+        except REDIS_OPERATION_ERRORS:
             components["redis"] = "degraded"
 
     database_url = inbox_service.inbox_database_url()
@@ -34,7 +34,7 @@ def admin_health_components() -> dict[str, str]:
             with get_db_pool(database_url).connection() as conn:
                 conn.execute("SELECT 1")
             components["postgres"] = "ok"
-        except Exception:
+        except DATABASE_OPERATION_ERRORS:
             components["postgres"] = "degraded"
 
     return components

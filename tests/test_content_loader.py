@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 
-def test_load_content_success(content_file):
+def test_load_content_success(content_file: Any) -> None:
     from bot import content_loader
 
     data = content_loader.load_content()
@@ -12,7 +13,7 @@ def test_load_content_success(content_file):
     assert len(data["faq"]) == 3
 
 
-def test_load_content_missing_file(tmp_path, monkeypatch):
+def test_load_content_missing_file(tmp_path: Any, monkeypatch: Any) -> None:
     from bot import content_loader
 
     monkeypatch.setattr(content_loader, "CONTENT_FILE", tmp_path / "missing.json")
@@ -25,7 +26,7 @@ def test_load_content_missing_file(tmp_path, monkeypatch):
     assert data["faq"] == []
 
 
-def test_load_content_invalid_json(tmp_path, monkeypatch):
+def test_load_content_invalid_json(tmp_path: Any, monkeypatch: Any) -> None:
     from bot import content_loader
 
     bad_file = tmp_path / "bot_content.json"
@@ -38,7 +39,7 @@ def test_load_content_invalid_json(tmp_path, monkeypatch):
     assert data["faq"] == []
 
 
-def test_load_content_root_must_be_object(tmp_path, monkeypatch):
+def test_load_content_root_must_be_object(tmp_path: Any, monkeypatch: Any) -> None:
     from bot import content_loader
 
     bad_file = tmp_path / "bot_content.json"
@@ -51,7 +52,7 @@ def test_load_content_root_must_be_object(tmp_path, monkeypatch):
     assert data["faq"] == []
 
 
-def test_get_faq_entries_filters_invalid_items(tmp_path, monkeypatch):
+def test_get_faq_entries_filters_invalid_items(tmp_path: Any, monkeypatch: Any) -> None:
     from bot import content_loader
 
     path = tmp_path / "bot_content.json"
@@ -65,7 +66,7 @@ def test_get_faq_entries_filters_invalid_items(tmp_path, monkeypatch):
     assert content_loader.get_faq_entries() == [{"ok": True}]
 
 
-def test_detect_language(content_file):
+def test_detect_language(content_file: Any) -> None:
     from bot.content_loader import detect_language
 
     assert detect_language("hi there") == "en"
@@ -75,7 +76,7 @@ def test_detect_language(content_file):
     assert detect_language("donde estan ubicados") == "es"
 
 
-def test_get_response_language_fallback(content_file):
+def test_get_response_language_fallback(content_file: Any) -> None:
     from bot.content_loader import get_response
 
     assert get_response("ai_fallback", "es").startswith("Fallback ES")
@@ -84,7 +85,7 @@ def test_get_response_language_fallback(content_file):
     assert get_response("does_not_exist", "en") == ""
 
 
-def test_get_response_handles_bad_responses_shape(tmp_path, monkeypatch):
+def test_get_response_handles_bad_responses_shape(tmp_path: Any, monkeypatch: Any) -> None:
     from bot import content_loader
 
     path = tmp_path / "bot_content.json"

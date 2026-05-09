@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Admin Conversation{% endblock %}
+
+{% block body %}
+  <a class="button" href="{{ url_for('admin.admin_conversations') }}">Back to conversations</a>
+  <a class="button" href="{{ url_for('admin.admin_index') }}">Dashboard</a>
+
+  <h1>Conversation</h1>
+  <p class="muted">
+    Conversation ID: {{ short_hash(conversation_id) }}
+    - Signed in as {{ user.username }}
+  </p>
+
+  {% for message in messages %}
+    <article class="message">
+      <div class="meta">
+        {{ format_dt(message.created_at) }} - {{ message.message_type }} - {{ message.sender_phone_masked }}
+      </div>
+      <div class="body">{{ message.body }}</div>
+    </article>
+  {% else %}
+    <p>No messages found.</p>
+  {% endfor %}
+{% endblock %}

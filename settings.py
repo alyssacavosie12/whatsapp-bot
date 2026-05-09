@@ -177,7 +177,9 @@ INBOX_VIEWER_PASSWORD_HASH: Final = os.getenv("INBOX_VIEWER_PASSWORD_HASH", "").
 # outbound transport the message processor uses.
 
 CHATWOOT_TRANSPORT: Final = _env_bool("CHATWOOT_TRANSPORT", default=False)
-CHATWOOT_BASE_URL: Final = os.getenv("CHATWOOT_BASE_URL", "https://app.chatwoot.com").strip().rstrip("/")
+CHATWOOT_BASE_URL: Final = (
+    os.getenv("CHATWOOT_BASE_URL", "https://app.chatwoot.com").strip().rstrip("/")
+)
 CHATWOOT_ACCOUNT_ID: Final = os.getenv("CHATWOOT_ACCOUNT_ID", "").strip()
 CHATWOOT_INBOX_ID: Final = os.getenv("CHATWOOT_INBOX_ID", "").strip()
 CHATWOOT_API_TOKEN: Final = os.getenv("CHATWOOT_API_TOKEN", "").strip()

@@ -11,6 +11,12 @@ from typing import Any, Final
 from bot.content_loader import detect_language, get_faq_entries
 from core.text_utils import normalize_text, text_tokens
 
+__all__ = [
+    "faq_lookup",
+    "find_best_faq_match",
+]
+
+
 # ─── JSON field names ────────────────────────────────────────
 
 KEYWORDS_FIELD: Final = "keywords"
@@ -18,6 +24,11 @@ QUESTION_FIELD: Final = "question"
 ANSWER_EN_FIELD: Final = "answer_en"
 ANSWER_ES_FIELD: Final = "answer_es"
 LEGACY_ANSWER_FIELD: Final = "answer"
+
+
+# ─── Language constants ──────────────────────────────────────
+
+SPANISH_LANGUAGE: Final = "es"
 
 
 # ─── Matching scores ─────────────────────────────────────────
@@ -35,12 +46,29 @@ MIN_SUBSTRING_LENGTH: Final = 4
 MIN_QUESTION_TOKEN_LENGTH: Final = 4
 
 
-FAQEntry = dict[str, Any]
+# bot_content.json is untyped external JSON. A TypedDict would be stricter, but
+# would also add boilerplate around optional/legacy fields. This alias keeps the
+# boundary honest while retaining simple runtime validation in the helpers below.
+type FAQEntry = dict[str, Any]
+
+
+def _entry_keywords(entry: FAQEntry) -> list[Any]:
+    """Return raw keyword values from an FAQ entry."""
+    keywords = entry.get(KEYWORDS_FIELD, [])
+    if not isinstance(keywords, list):
+        return []
+
+    return keywords
+
+
+def _entry_question(entry: FAQEntry) -> str:
+    """Return the FAQ question text from an entry."""
+    return str(entry.get(QUESTION_FIELD) or "")
 
 
 def _answer_for_language(entry: FAQEntry, lang: str) -> str:
     """Return Spanish answer when requested and available; otherwise English."""
-    if lang == "es" and entry.get(ANSWER_ES_FIELD):
+    if lang == SPANISH_LANGUAGE and entry.get(ANSWER_ES_FIELD):
         return str(entry[ANSWER_ES_FIELD])
 
     return str(entry.get(ANSWER_EN_FIELD) or entry.get(LEGACY_ANSWER_FIELD) or "")
@@ -68,7 +96,7 @@ def _score_keyword_match(message: str, message_tokens: set[str], keyword: str) -
 
 def _score_question_tokens(entry: FAQEntry, message_tokens: set[str]) -> int:
     """Give a small score boost when the user's words match FAQ question words."""
-    question_tokens = text_tokens(entry.get(QUESTION_FIELD, ""))
+    question_tokens = text_tokens(_entry_question(entry))
 
     return sum(
         QUESTION_TOKEN_SCORE
@@ -77,22 +105,23 @@ def _score_question_tokens(entry: FAQEntry, message_tokens: set[str]) -> int:
     )
 
 
-def _score_entry(entry: FAQEntry, message: str, message_tokens: set[str]) -> int:
-    """Calculate the total match score for one FAQ entry."""
-    keywords = entry.get(KEYWORDS_FIELD, [])
-
-    if not isinstance(keywords, list):
-        return 0
-
+def _score_keywords(entry: FAQEntry, message: str, message_tokens: set[str]) -> int:
+    """Score all configured keywords for one FAQ entry."""
     score = 0
 
-    for raw_keyword in keywords:
+    for raw_keyword in _entry_keywords(entry):
         keyword = normalize_text(raw_keyword)
         score += _score_keyword_match(message, message_tokens, keyword)
 
-    score += _score_question_tokens(entry, message_tokens)
-
     return score
+
+
+def _score_entry(entry: FAQEntry, message: str, message_tokens: set[str]) -> int:
+    """Calculate the total match score for one FAQ entry."""
+    return _score_keywords(entry, message, message_tokens) + _score_question_tokens(
+        entry,
+        message_tokens,
+    )
 
 
 def _required_score(message_tokens: set[str], threshold: int) -> int:
@@ -157,12 +186,7 @@ def faq_lookup(keyword: str) -> str | None:
         if not isinstance(entry, dict):
             continue
 
-        keywords = entry.get(KEYWORDS_FIELD, [])
-
-        if not isinstance(keywords, list):
-            continue
-
-        for raw_keyword in keywords:
+        for raw_keyword in _entry_keywords(entry):
             if normalized_keyword == normalize_text(raw_keyword):
                 return _answer_for_language(entry, lang)
 
