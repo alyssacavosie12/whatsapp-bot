@@ -11,7 +11,7 @@ import threading
 import time
 from typing import Final, Protocol, cast
 
-from core.cache import REDIS_OPERATION_ERRORS, get_redis
+from core.cache import get_redis
 from settings import (
     PHONE_RATE_LIMIT_MAX_MESSAGES,
     PHONE_RATE_LIMIT_WINDOW_SECONDS,
@@ -73,8 +73,7 @@ class _RedisFixedWindowRateLimiter:
     """Fixed-window limiter backed by Redis INCR + EXPIRE."""
 
     def __init__(self, url: str, max_events: int, window_seconds: int) -> None:
-        get_redis(url)
-        self._url = url
+        self._client = get_redis(url)
         self._max_events = max_events
         self._window_seconds = window_seconds
 
@@ -86,11 +85,11 @@ class _RedisFixedWindowRateLimiter:
         redis_key = f"{REDIS_KEY_PREFIX}{key}:{bucket}"
 
         try:
-            with get_redis(self._url).pipeline() as pipe:
+            with self._client.pipeline() as pipe:
                 pipe.incr(redis_key)
                 pipe.expire(redis_key, self._window_seconds)
                 count = cast(list[int], pipe.execute())[0]
-        except REDIS_OPERATION_ERRORS as exc:
+        except Exception as exc:
             logger.error(
                 "Redis rate limit unavailable, allowing message: %s",
                 exc.__class__.__name__,
@@ -114,7 +113,7 @@ def _build_backend() -> _RateLimitBackend:
                 max_events,
                 window_seconds,
             )
-        except REDIS_OPERATION_ERRORS as exc:
+        except Exception as exc:
             logger.error(
                 "Failed to initialize Redis rate limit, using local fallback: %s",
                 exc.__class__.__name__,

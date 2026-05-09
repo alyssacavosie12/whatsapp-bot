@@ -9,9 +9,9 @@ import secrets
 import time
 from collections.abc import Callable
 from threading import Thread
-from typing import Any, Final, cast
+from typing import Any, Final
 
-from flask import current_app, has_app_context, redirect, request, session, url_for
+from flask import redirect, request, session, url_for
 from flask.typing import ResponseReturnValue
 from werkzeug.security import check_password_hash
 
@@ -25,7 +25,6 @@ from inbox.auth_throttle import (
 )
 from inbox.compliance import build_inbound_opt_in_evidence
 from inbox.security import admin_response, client_ip
-from inbox.store_common import STORE_OPERATION_ERRORS
 from settings import (
     INBOX_ADMIN_PASSWORD_HASH,
     INBOX_ADMIN_USERNAME,
@@ -62,21 +61,6 @@ StoreTask = Callable[[str, str, str, str, object], None]
 def inbox_configured() -> bool:
     """Return True when the admin inbox can use a database."""
     return bool(INBOX_ENABLED and INBOX_DATABASE_URL)
-
-
-def inbox_enabled() -> bool:
-    """Return whether admin inbox storage is enabled."""
-    return INBOX_ENABLED
-
-
-def inbox_database_url() -> str:
-    """Return the configured admin inbox database URL."""
-    return INBOX_DATABASE_URL
-
-
-def inbox_encryption_key() -> str:
-    """Return the configured admin inbox encryption key."""
-    return INBOX_ENCRYPTION_KEY
 
 
 def inbox_auth_configured() -> bool:
@@ -345,7 +329,7 @@ def audit_inbox_action(
             user_agent=request.headers.get("User-Agent", ""),
             metadata=metadata or {},
         )
-    except STORE_OPERATION_ERRORS as exc:
+    except Exception as exc:
         logger.error("Failed to record inbox audit event: %s", exc.__class__.__name__)
 
 
@@ -358,18 +342,11 @@ def run_store_in_background(
     body: object,
 ) -> None:
     """Run inbox persistence without blocking the bot response path."""
-    flask_app = cast(Any, current_app)._get_current_object() if has_app_context() else None
-    args = (message_id, sender_phone, sender_name, message_type, body)
-
-    def worker() -> None:
-        if flask_app is None:
-            target(*args)
-            return
-
-        with flask_app.app_context():
-            target(*args)
-
-    Thread(target=worker, daemon=True).start()
+    Thread(
+        target=target,
+        args=(message_id, sender_phone, sender_name, message_type, body),
+        daemon=True,
+    ).start()
 
 
 def _store_incoming_message(
@@ -419,7 +396,7 @@ def _store_incoming_message(
             proof_secret=inbox_proof_secret(),
             encryption_key=INBOX_ENCRYPTION_KEY,
         )
-    except STORE_OPERATION_ERRORS:
+    except Exception:
         logger.exception("Failed to store incoming message")
 
 
@@ -455,7 +432,7 @@ def is_first_contact(sender_external_id: str) -> bool:
             INBOX_DATABASE_URL,
             sender_external_id,
         )
-    except STORE_OPERATION_ERRORS as exc:
+    except Exception as exc:
         logger.error(
             "first_contact_check_failed sender=%s error=%s",
             mask_phone(sender_external_id),
@@ -479,7 +456,7 @@ def is_opted_out(sender_external_id: str) -> bool:
 
     try:
         return inbox_store.is_opted_out(INBOX_DATABASE_URL, sender_external_id)
-    except STORE_OPERATION_ERRORS as exc:
+    except Exception as exc:
         logger.error(
             "opt_out_check_failed sender=%s error=%s",
             mask_phone(sender_external_id),
@@ -522,7 +499,7 @@ def record_opt_out(
             encryption_key=INBOX_ENCRYPTION_KEY,
             proof_secret=inbox_proof_secret(),
         )
-    except STORE_OPERATION_ERRORS as exc:
+    except Exception as exc:
         logger.error(
             "opt_out_record_failed sender=%s error=%s",
             mask_phone(sender_external_id),

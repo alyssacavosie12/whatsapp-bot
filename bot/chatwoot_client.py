@@ -13,8 +13,8 @@ Endpoint shape:
     Body:
         {"content": <text>, "message_type": "outgoing"}
 
-Retry behaviour handles transient 429/5xx and network errors so user messages
-are not lost on brief Chatwoot/API instability.
+Retry behaviour mirrors :mod:`bot.whatsapp_client` so transient 5xx and
+network errors do not lose user messages.
 """
 
 from __future__ import annotations
@@ -39,24 +39,6 @@ logger = logging.getLogger(__name__)
 
 # Status codes worth retrying — transient infrastructure errors.
 RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
-SUCCESS_STATUS_CODES = frozenset({200, 201})
-
-# Keep jitter deterministic and tiny. This avoids retry waves without making
-# tests flaky or introducing a global random dependency.
-JITTER_RATIO = 0.10
-
-__all__ = [
-    "CHATWOOT_ACCOUNT_ID",
-    "CHATWOOT_API_TOKEN",
-    "CHATWOOT_BASE_URL",
-    "CHATWOOT_MAX_RETRIES",
-    "CHATWOOT_REQUEST_TIMEOUT_SECONDS",
-    "CHATWOOT_RETRY_BACKOFF_SECONDS",
-    "messages_url",
-    "requests",
-    "send_message",
-    "time",
-]
 
 
 def messages_url(conversation_id: int | str) -> str:
@@ -82,58 +64,18 @@ def _summarize_chatwoot_error(response: requests.Response) -> str:
         value = body.get(key)
         if not value:
             continue
-
         if isinstance(value, list):
             value = "; ".join(str(item) for item in value[:3])
-
         fields.append(f"{key}={sanitize_untrusted_text(str(value), 80)}")
 
     return ", ".join(fields) or "body omitted"
 
 
-def _retry_delay_seconds(attempt: int) -> float:
-    """Return exponential backoff delay with small deterministic jitter.
-
-    ``attempt`` is 1-based. Attempt 1 waits roughly base seconds, attempt 2
-    roughly 2x base, attempt 3 roughly 4x base, etc. The small jitter prevents
-    synchronized retry waves if several requests fail at once.
-    """
-    base_delay: float = float(CHATWOOT_RETRY_BACKOFF_SECONDS) * float(2 ** max(0, attempt - 1))
-    jitter: float = base_delay * float(JITTER_RATIO) * float((attempt % 3) + 1)
-    return float(base_delay + jitter)
-
-
 def _sleep_before_retry(attempt: int, max_attempts: int) -> None:
-    """Sleep before the next retry using exponential backoff plus jitter."""
+    """Linear backoff between retries (matches whatsapp_client behaviour)."""
     if attempt >= max_attempts:
         return
-
-    time.sleep(_retry_delay_seconds(attempt))
-
-
-def _log_send_failure(
-    *,
-    level: int,
-    message: str,
-    status_code: int | None = None,
-    error: str | None = None,
-    attempt: int | None = None,
-    max_attempts: int | None = None,
-) -> None:
-    """Log Chatwoot failures with consistent key/value context."""
-    context: list[str] = []
-
-    if status_code is not None:
-        context.append(f"chatwoot_status={status_code}")
-    if error is not None:
-        context.append(f"chatwoot_error={error}")
-    if attempt is not None:
-        context.append(f"attempt={attempt}")
-    if max_attempts is not None:
-        context.append(f"max_attempts={max_attempts}")
-
-    suffix = f" {' '.join(context)}" if context else ""
-    logger.log(level, "%s%s", message, suffix)
+    time.sleep(CHATWOOT_RETRY_BACKOFF_SECONDS * attempt)
 
 
 def send_message(conversation_id: int | str, text: str) -> requests.Response | None:
@@ -177,52 +119,43 @@ def send_message(conversation_id: int | str, text: str) -> requests.Response | N
                 timeout=CHATWOOT_REQUEST_TIMEOUT_SECONDS,
             )
         except requests.RequestException as exc:
-            _log_send_failure(
-                level=logging.ERROR,
-                message="Chatwoot send failed at network layer",
-                error=exc.__class__.__name__,
-                attempt=attempt,
-                max_attempts=max_attempts,
+            logger.error(
+                "Chatwoot send attempt %s/%s failed at network layer: %s",
+                attempt,
+                max_attempts,
+                exc.__class__.__name__,
             )
             _sleep_before_retry(attempt, max_attempts)
             continue
 
         last_response = response
 
-        if response.status_code in SUCCESS_STATUS_CODES:
-            logger.info(
-                "Chatwoot reply sent conversation_id=%s chatwoot_status=%s",
-                conversation_id,
-                response.status_code,
-            )
+        if response.status_code == 200 or response.status_code == 201:
+            logger.info("Chatwoot reply sent to conversation %s", conversation_id)
             return response
 
         if response.status_code in RETRYABLE_STATUS_CODES:
-            _log_send_failure(
-                level=logging.WARNING,
-                message="Chatwoot send returned retryable status",
-                status_code=response.status_code,
-                attempt=attempt,
-                max_attempts=max_attempts,
+            logger.warning(
+                "Chatwoot send returned retryable status=%s (attempt %s/%s)",
+                response.status_code,
+                attempt,
+                max_attempts,
             )
             _sleep_before_retry(attempt, max_attempts)
             continue
 
-        _log_send_failure(
-            level=logging.ERROR,
-            message="Chatwoot send failed",
-            status_code=response.status_code,
-            error=_summarize_chatwoot_error(response),
+        logger.error(
+            "Chatwoot send failed: status=%s, error=%s",
+            response.status_code,
+            _summarize_chatwoot_error(response),
         )
         return response
 
     if last_response is not None:
-        _log_send_failure(
-            level=logging.ERROR,
-            message="Chatwoot send exhausted retries",
-            status_code=last_response.status_code,
-            error=_summarize_chatwoot_error(last_response),
-            max_attempts=max_attempts,
+        logger.error(
+            "Chatwoot send exhausted retries: status=%s, error=%s",
+            last_response.status_code,
+            _summarize_chatwoot_error(last_response),
         )
 
     return last_response

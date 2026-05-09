@@ -13,7 +13,7 @@ import time
 from collections import OrderedDict
 from typing import Final, Protocol
 
-from core.cache import REDIS_OPERATION_ERRORS, get_redis
+from core.cache import get_redis
 from settings import MAX_LOCAL_DEDUP_SIZE, MESSAGE_TTL_SECONDS, REDIS_URL
 
 logger = logging.getLogger(__name__)
@@ -68,8 +68,7 @@ class _RedisDedup:
     """Atomic Redis-backed dedup using SET NX EX. Fails open on Redis errors."""
 
     def __init__(self, url: str, ttl_seconds: int) -> None:
-        get_redis(url)
-        self._url = url
+        self._client = get_redis(url)
         self._ttl = ttl_seconds
 
     def seen(self, key: str) -> bool:
@@ -77,13 +76,8 @@ class _RedisDedup:
             return False
 
         try:
-            stored = get_redis(self._url).set(
-                REDIS_KEY_PREFIX + key,
-                "1",
-                nx=True,
-                ex=self._ttl,
-            )
-        except REDIS_OPERATION_ERRORS as exc:
+            stored = self._client.set(REDIS_KEY_PREFIX + key, "1", nx=True, ex=self._ttl)
+        except Exception as exc:
             logger.error(
                 "Redis dedup unavailable, allowing message: %s",
                 exc.__class__.__name__,
@@ -97,7 +91,7 @@ def _build_backend() -> _DedupBackend:
     if REDIS_URL:
         try:
             return _RedisDedup(REDIS_URL, MESSAGE_TTL_SECONDS)
-        except REDIS_OPERATION_ERRORS as exc:
+        except Exception as exc:
             logger.error(
                 "Failed to initialize Redis dedup, using local fallback: %s",
                 exc.__class__.__name__,

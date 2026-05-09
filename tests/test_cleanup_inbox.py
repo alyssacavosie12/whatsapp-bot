@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-def test_cleanup_main_records_retention_audit_event(monkeypatch: Any) -> None:
+def test_cleanup_main_records_retention_audit_event(monkeypatch):
     import scripts.cleanup_inbox as cleanup
 
     audit_calls: list[dict[str, Any]] = []
@@ -38,7 +38,7 @@ def test_cleanup_main_records_retention_audit_event(monkeypatch: Any) -> None:
     ]
 
 
-def test_cleanup_main_fails_without_database_url(monkeypatch: Any) -> None:
+def test_cleanup_main_fails_without_database_url(monkeypatch):
     import scripts.cleanup_inbox as cleanup
 
     monkeypatch.setattr(cleanup, "INBOX_DATABASE_URL", "")
@@ -46,7 +46,7 @@ def test_cleanup_main_fails_without_database_url(monkeypatch: Any) -> None:
     assert cleanup.main() == 1
 
 
-def test_railway_cleanup_service_is_configured_as_cron() -> None:
+def test_railway_cleanup_service_is_configured_as_cron():
     config = tomllib.loads(Path("railway.cleanup.toml").read_text(encoding="utf-8"))
 
     assert config["deploy"]["startCommand"] == "python -m scripts.cleanup_inbox"

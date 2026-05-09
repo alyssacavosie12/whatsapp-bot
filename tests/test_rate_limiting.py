@@ -14,12 +14,11 @@ that exhausting the IP limit returns 429 from /webhook.
 from __future__ import annotations
 
 import time
-from typing import Any
 
 # ─── Per-phone: _LocalFixedWindowRateLimiter ─────────────────────────
 
 
-def test_local_limiter_allows_up_to_max_events() -> None:
+def test_local_limiter_allows_up_to_max_events():
     from webhook.rate_limit import _LocalFixedWindowRateLimiter
 
     limiter = _LocalFixedWindowRateLimiter(max_events=3, window_seconds=60)
@@ -27,7 +26,7 @@ def test_local_limiter_allows_up_to_max_events() -> None:
     assert [limiter.allow("phone-1") for _ in range(3)] == [True, True, True]
 
 
-def test_local_limiter_blocks_after_max_events() -> None:
+def test_local_limiter_blocks_after_max_events():
     from webhook.rate_limit import _LocalFixedWindowRateLimiter
 
     limiter = _LocalFixedWindowRateLimiter(max_events=3, window_seconds=60)
@@ -39,7 +38,7 @@ def test_local_limiter_blocks_after_max_events() -> None:
     assert limiter.allow("phone-1") is False
 
 
-def test_local_limiter_separates_keys() -> None:
+def test_local_limiter_separates_keys():
     """Per-phone limit must be per-key — one chatty number doesn't block others."""
     from webhook.rate_limit import _LocalFixedWindowRateLimiter
 
@@ -51,7 +50,7 @@ def test_local_limiter_separates_keys() -> None:
     assert limiter.allow("phone-2") is True
 
 
-def test_local_limiter_resets_after_window_passes(monkeypatch: Any) -> None:
+def test_local_limiter_resets_after_window_passes(monkeypatch):
     from webhook.rate_limit import _LocalFixedWindowRateLimiter
 
     limiter = _LocalFixedWindowRateLimiter(max_events=2, window_seconds=60)
@@ -66,7 +65,7 @@ def test_local_limiter_resets_after_window_passes(monkeypatch: Any) -> None:
     assert limiter.allow("phone-1") is True
 
 
-def test_local_limiter_evicts_old_buckets_to_avoid_unbounded_memory(monkeypatch: Any) -> None:
+def test_local_limiter_evicts_old_buckets_to_avoid_unbounded_memory(monkeypatch):
     """Old keys from previous windows must not stay in the dict forever."""
     from webhook.rate_limit import _LocalFixedWindowRateLimiter
 
@@ -82,7 +81,7 @@ def test_local_limiter_evicts_old_buckets_to_avoid_unbounded_memory(monkeypatch:
     assert "phone-new" in limiter._counters
 
 
-def test_local_limiter_rejects_empty_key() -> None:
+def test_local_limiter_rejects_empty_key():
     """Empty key (e.g. a dropped sender id) must not bypass the limiter."""
     from webhook.rate_limit import _LocalFixedWindowRateLimiter
 
@@ -94,13 +93,13 @@ def test_local_limiter_rejects_empty_key() -> None:
 # ─── Per-phone: _RedisFixedWindowRateLimiter ─────────────────────────
 
 
-def _install_fake_redis(monkeypatch: Any, fake_client: Any) -> Any:
+def _install_fake_redis(monkeypatch, fake_client):
     from core.cache import reset_redis_clients
 
     class FakeRedisModule:
         class Redis:
             @staticmethod
-            def from_url(_url: Any, **_kwargs: Any) -> Any:
+            def from_url(_url, **_kwargs):
                 return fake_client
 
     import sys
@@ -109,36 +108,36 @@ def _install_fake_redis(monkeypatch: Any, fake_client: Any) -> Any:
     monkeypatch.setitem(sys.modules, "redis", FakeRedisModule)
 
 
-def test_redis_limiter_uses_pipeline_for_incr_and_expire(monkeypatch: Any) -> None:
+def test_redis_limiter_uses_pipeline_for_incr_and_expire(monkeypatch):
     """Redis limiter must batch INCR and EXPIRE in one pipeline round trip."""
     from webhook.rate_limit import _RedisFixedWindowRateLimiter
 
-    calls: list[tuple[Any, ...]] = []
+    calls = []
 
     class FakeRedis:
         counter = 0
         last_count = 0
 
-        def pipeline(self) -> Any:
+        def pipeline(self):
             return self
 
-        def __enter__(self) -> Any:
+        def __enter__(self):
             return self
 
-        def __exit__(self, *_args: Any) -> Any:
+        def __exit__(self, *_args):
             return False
 
-        def incr(self, key: Any) -> Any:
+        def incr(self, key):
             calls.append(("incr", key))
             FakeRedis.counter += 1
             FakeRedis.last_count = FakeRedis.counter
             return self
 
-        def expire(self, key: Any, seconds: Any) -> Any:
+        def expire(self, key, seconds):
             calls.append(("expire", key, seconds))
             return self
 
-        def execute(self) -> Any:
+        def execute(self):
             return [FakeRedis.last_count, True]
 
     _install_fake_redis(monkeypatch, FakeRedis())
@@ -155,27 +154,27 @@ def test_redis_limiter_uses_pipeline_for_incr_and_expire(monkeypatch: Any) -> No
     assert expire_calls[0][2] == 42
 
 
-def test_redis_limiter_fails_open_when_redis_is_down(monkeypatch: Any) -> None:
+def test_redis_limiter_fails_open_when_redis_is_down(monkeypatch):
     """A Redis outage must not drop legit messages — log and allow."""
     from webhook.rate_limit import _RedisFixedWindowRateLimiter
 
     class FakeRedis:
-        def pipeline(self) -> Any:
+        def pipeline(self):
             return self
 
-        def __enter__(self) -> Any:
+        def __enter__(self):
             return self
 
-        def __exit__(self, *_args: Any) -> Any:
+        def __exit__(self, *_args):
             return False
 
-        def incr(self, _key: Any) -> Any:
-            raise OSError("connection refused")
+        def incr(self, _key):
+            raise RuntimeError("connection refused")
 
-        def expire(self, *_args: Any, **_kwargs: Any) -> Any:
+        def expire(self, *_args, **_kwargs):
             pass
 
-        def execute(self) -> Any:
+        def execute(self):
             return [1, True]
 
     _install_fake_redis(monkeypatch, FakeRedis())
@@ -187,7 +186,7 @@ def test_redis_limiter_fails_open_when_redis_is_down(monkeypatch: Any) -> None:
 # ─── Per-phone: _AllowAllRateLimiter (max_events=0) ──────────────────
 
 
-def test_disabled_phone_limiter_always_allows(monkeypatch: Any) -> None:
+def test_disabled_phone_limiter_always_allows(monkeypatch):
     """Setting PHONE_RATE_LIMIT_MAX_MESSAGES=0 selects the allow-all backend."""
     import webhook.rate_limit as rl
     from webhook.rate_limit import _AllowAllRateLimiter
@@ -203,9 +202,7 @@ def test_disabled_phone_limiter_always_allows(monkeypatch: Any) -> None:
 # ─── Per-IP webhook limit: integration test ─────────────────────────
 
 
-def test_webhook_returns_429_when_ip_rate_limit_exceeded(
-    content_file: Any, monkeypatch: Any
-) -> None:
+def test_webhook_returns_429_when_ip_rate_limit_exceeded(content_file, monkeypatch):
     """Exhausting the per-IP webhook rate limit returns 429.
 
     The /webhook route is wrapped with the rate-limiter decorator that

@@ -12,10 +12,11 @@ of the bot's own replies or human-agent activity, not new customer input.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from threading import Thread
-from typing import Any, Final, cast
+from typing import Any
 
-from flask import Flask, current_app, has_app_context, jsonify, request
+from flask import Flask, jsonify, request
 from flask.typing import ResponseReturnValue
 
 from bot import message_processor
@@ -27,11 +28,6 @@ logger = logging.getLogger(__name__)
 
 CHATWOOT_INCOMING_MESSAGE_EVENT = "message_created"
 CHATWOOT_MESSAGE_TYPE_INCOMING = "incoming"
-CHATWOOT_PROCESSING_ERRORS: Final[tuple[type[BaseException], ...]] = (
-    RuntimeError,
-    TypeError,
-    ValueError,
-)
 
 
 def _should_process(event: dict[str, Any]) -> bool:
@@ -42,25 +38,19 @@ def _should_process(event: dict[str, Any]) -> bool:
     if event.get("message_type") != CHATWOOT_MESSAGE_TYPE_INCOMING:
         return False
 
-    if event.get("message_type") != "incoming":
+    if event.get("private") is True:
         return False
 
-    return event.get("private") is not True
+    return True
 
 
 def _run_in_background(event: dict[str, Any]) -> None:
     """Process the Chatwoot event off the request thread."""
-    flask_app = cast(Any, current_app)._get_current_object() if has_app_context() else None
 
     def worker() -> None:
         try:
-            if flask_app is None:
-                message_processor.process_chatwoot_message(event)
-                return
-
-            with flask_app.app_context():
-                message_processor.process_chatwoot_message(event)
-        except CHATWOOT_PROCESSING_ERRORS as exc:
+            message_processor.process_chatwoot_message(event)
+        except Exception as exc:
             logger.error(
                 "Chatwoot background worker failed: %s",
                 exc.__class__.__name__,

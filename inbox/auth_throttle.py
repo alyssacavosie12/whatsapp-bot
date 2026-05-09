@@ -8,7 +8,7 @@ import threading
 import time
 from typing import Final, Protocol, cast
 
-from core.cache import REDIS_OPERATION_ERRORS, get_redis
+from core.cache import get_redis
 from settings import (
     INBOX_AUTH_MAX_FAILED_ATTEMPTS,
     INBOX_AUTH_WINDOW_SECONDS,
@@ -96,8 +96,7 @@ class _RedisAuthThrottle:
     """Redis-backed fixed-window failed-login limiter."""
 
     def __init__(self, url: str, max_failures: int, window_seconds: int) -> None:
-        get_redis(url)
-        self._url = url
+        self._client = get_redis(url)
         self._max_failures = max_failures
         self._window_seconds = window_seconds
 
@@ -108,9 +107,9 @@ class _RedisAuthThrottle:
         try:
             value = cast(
                 bytes | str | int | None,
-                get_redis(self._url).get(self._redis_key(key)),
+                self._client.get(self._redis_key(key)),
             )
-        except REDIS_OPERATION_ERRORS as exc:
+        except Exception as exc:
             logger.error(
                 "Redis auth throttle unavailable, allowing auth attempt: %s",
                 exc.__class__.__name__,
@@ -128,11 +127,11 @@ class _RedisAuthThrottle:
 
         redis_key = self._redis_key(key)
         try:
-            with get_redis(self._url).pipeline() as pipe:
+            with self._client.pipeline() as pipe:
                 pipe.incr(redis_key)
                 pipe.expire(redis_key, self._window_seconds)
                 count = cast(list[int], pipe.execute())[0]
-        except REDIS_OPERATION_ERRORS as exc:
+        except Exception as exc:
             logger.error(
                 "Redis auth throttle unavailable, allowing auth attempt: %s",
                 exc.__class__.__name__,
@@ -146,8 +145,8 @@ class _RedisAuthThrottle:
             return
 
         try:
-            get_redis(self._url).delete(self._redis_key(key))
-        except REDIS_OPERATION_ERRORS as exc:
+            self._client.delete(self._redis_key(key))
+        except Exception as exc:
             logger.error(
                 "Redis auth throttle clear failed: %s",
                 exc.__class__.__name__,
@@ -167,7 +166,7 @@ def _build_backend() -> _AuthThrottleBackend:
     if REDIS_URL:
         try:
             return _RedisAuthThrottle(REDIS_URL, max_failures, window_seconds)
-        except REDIS_OPERATION_ERRORS as exc:
+        except Exception as exc:
             logger.error(
                 "Failed to initialize Redis auth throttle, using local fallback: %s",
                 exc.__class__.__name__,
