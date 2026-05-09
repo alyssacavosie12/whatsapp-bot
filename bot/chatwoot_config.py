@@ -23,28 +23,30 @@ CHATWOOT_REQUIRED_ENV_VARS: Final[tuple[str, ...]] = (
     "CHATWOOT_WEBHOOK_SECRET",
 )
 
+CHATWOOT_ENV_VALUES: Final[dict[str, object]] = {
+    "CHATWOOT_API_TOKEN": CHATWOOT_API_TOKEN,
+    "CHATWOOT_ACCOUNT_ID": CHATWOOT_ACCOUNT_ID,
+    "CHATWOOT_WEBHOOK_SECRET": CHATWOOT_WEBHOOK_SECRET,
+}
+
 
 def chatwoot_transport_misconfiguration() -> str | None:
     """Return a reason string when CHATWOOT_TRANSPORT is on but config is bad.
 
     Used by the Flask app factory to fail loudly at boot rather than
     discovering a missing env var on the first webhook delivery.
+
+    Example:
+        reason = chatwoot_transport_misconfiguration()
+        if reason:
+            raise RuntimeError(reason)
     """
     if not CHATWOOT_TRANSPORT:
         return None
 
-    missing = []
-    if not CHATWOOT_API_TOKEN:
-        missing.append("CHATWOOT_API_TOKEN")
-    if not CHATWOOT_ACCOUNT_ID:
-        missing.append("CHATWOOT_ACCOUNT_ID")
-    if not CHATWOOT_WEBHOOK_SECRET:
-        missing.append("CHATWOOT_WEBHOOK_SECRET")
+    missing = [name for name in CHATWOOT_REQUIRED_ENV_VARS if not CHATWOOT_ENV_VALUES.get(name)]
 
     if missing:
-        return (
-            "CHATWOOT_TRANSPORT is enabled but missing env vars: "
-            f"{', '.join(missing)}"
-        )
+        return f"CHATWOOT_TRANSPORT is enabled but missing env vars: {', '.join(missing)}"
 
     return None

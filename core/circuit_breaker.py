@@ -9,7 +9,16 @@ from threading import Lock
 
 @dataclass
 class CircuitBreaker:
-    """Track repeated external-service failures and short-circuit temporarily."""
+    """Track repeated external-service failures and short-circuit temporarily.
+
+    This is intentionally a small two-state circuit breaker:
+    - closed: calls are allowed
+    - open: calls should be skipped until ``recovery_timeout_seconds`` expires
+
+    It does not implement a separate half-open state, trial-call limit, or
+    success threshold. Callers decide when to check ``is_open`` and when to
+    record success/failure.
+    """
 
     failure_threshold: int = 5
     recovery_timeout_seconds: int = 60
@@ -21,21 +30,22 @@ class CircuitBreaker:
     def is_open(self) -> bool:
         """Return True when calls should be skipped until recovery timeout expires."""
         with self._lock:
-            if (
-                self._opened_at is not None
-                and time.time() - self._opened_at > self.recovery_timeout_seconds
-            ):
+            if self._opened_at is None:
+                return False
+
+            if time.monotonic() - self._opened_at > self.recovery_timeout_seconds:
                 self._failures = 0
                 self._opened_at = None
+                return False
 
-            return self._opened_at is not None
+            return True
 
     def record_failure(self) -> None:
         """Record one failed call and open the circuit after the configured threshold."""
         with self._lock:
             self._failures += 1
             if self._failures >= self.failure_threshold:
-                self._opened_at = time.time()
+                self._opened_at = time.monotonic()
 
     def record_success(self) -> None:
         """Reset failure state after a successful call."""

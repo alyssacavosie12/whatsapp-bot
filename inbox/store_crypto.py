@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from cryptography.fernet import InvalidToken
+
 from core.text_utils import sanitize_untrusted_text
 from inbox.store_common import (
     MAX_STORED_BODY_CHARS,
@@ -72,7 +74,7 @@ def _read_body(body: str, encrypted: bool, encryption_key: str) -> str:
 
     try:
         return cast(str, cipher.decrypt(body.encode("utf-8")).decode("utf-8"))
-    except Exception:
+    except (InvalidToken, TypeError, ValueError):
         return "[encrypted message unavailable: decrypt failed]"
 
 
@@ -93,7 +95,7 @@ def _read_sensitive_field(
 
     try:
         return cast(str, cipher.decrypt(value.encode("utf-8")).decode("utf-8"))
-    except Exception:
+    except (InvalidToken, TypeError, ValueError):
         return fallback
 
 

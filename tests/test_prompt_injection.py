@@ -19,6 +19,7 @@ intentionally kept out of CI.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -36,19 +37,19 @@ INJECTION_INPUTS = [
 ]
 
 
-def _capture_anthropic_call(monkeypatch):
+def _capture_anthropic_call(monkeypatch: Any) -> Any:
     """Patch anthropic.Anthropic and return a dict that records create() kwargs."""
     from bot import ai_responder
 
-    captured: dict = {}
+    captured: dict[str, Any] = {}
 
     class FakeMessages:
-        def create(self, **kwargs):
+        def create(self, **kwargs: Any) -> Any:
             captured.update(kwargs)
             return SimpleNamespace(content=[SimpleNamespace(text="canned reply")])
 
     class FakeClient:
-        def __init__(self, **_kwargs):
+        def __init__(self, **_kwargs: Any) -> None:
             self.messages = FakeMessages()
 
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")
@@ -58,10 +59,10 @@ def _capture_anthropic_call(monkeypatch):
 
 @pytest.mark.parametrize("injection", INJECTION_INPUTS)
 def test_injection_input_is_isolated_to_user_role(
-    content_file,
-    monkeypatch,
-    injection,
-):
+    content_file: Any,
+    monkeypatch: Any,
+    injection: Any,
+) -> None:
     """User-supplied text reaches Claude only via the `user` role.
 
     The message body never gets concatenated into the `system` prompt, so
@@ -80,10 +81,10 @@ def test_injection_input_is_isolated_to_user_role(
 
 @pytest.mark.parametrize("injection", INJECTION_INPUTS)
 def test_guardrail_prompt_is_prepended_for_every_input(
-    content_file,
-    monkeypatch,
-    injection,
-):
+    content_file: Any,
+    monkeypatch: Any,
+    injection: Any,
+) -> None:
     """GUARDRAIL_PROMPT is the first text the model reads, for any input.
 
     No request path (FAQ-miss, AI fallback, sanitization-stripped, etc.)
@@ -97,7 +98,7 @@ def test_guardrail_prompt_is_prepended_for_every_input(
     assert captured["system"].startswith(ai_responder.GUARDRAIL_PROMPT)
 
 
-def test_guardrail_prompt_covers_owasp_llm01_basics():
+def test_guardrail_prompt_covers_owasp_llm01_basics() -> None:
     """Lock the enumerated protections so a refactor cannot silently weaken them."""
     from bot import ai_responder
 
@@ -111,9 +112,9 @@ def test_guardrail_prompt_covers_owasp_llm01_basics():
 
 
 def test_sender_name_injection_cannot_break_customer_name_wrapper(
-    content_file,
-    monkeypatch,
-):
+    content_file: Any,
+    monkeypatch: Any,
+) -> None:
     """Attacker-controlled WhatsApp profile names cannot escape their wrapper.
 
     Names go through `sanitize_untrusted_text` before being slotted into

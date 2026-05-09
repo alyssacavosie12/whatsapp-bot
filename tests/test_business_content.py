@@ -13,9 +13,10 @@ fixture), not the synthetic SAMPLE_CONTENT used by the FAQ-matcher tests.
 from __future__ import annotations
 
 import re
+from typing import Any
 
 
-def test_botox_brand_question_mentions_both_brands(real_content):
+def test_botox_brand_question_mentions_both_brands(real_content: Any) -> None:
     """The brand answer must list both Allergan and Dysport."""
     from bot.faq import find_best_faq_match
 
@@ -27,11 +28,12 @@ def test_botox_brand_question_mentions_both_brands(real_content):
     assert "dysport" in lower
 
 
-def test_botox_is_described_as_neurotoxin_not_filler(real_content):
+def test_botox_is_described_as_neurotoxin_not_filler(real_content: Any) -> None:
     """The Botox-brand answer must classify Botox as a neurotoxin, never a filler."""
     from bot.faq import find_best_faq_match
 
     answer = find_best_faq_match("What brand of botox do you use?")
+    assert answer is not None
     lower = answer.lower()
 
     assert "neurotoxin" in lower
@@ -40,11 +42,12 @@ def test_botox_is_described_as_neurotoxin_not_filler(real_content):
     )
 
 
-def test_sculptra_is_described_as_biostimulator_not_filler(real_content):
+def test_sculptra_is_described_as_biostimulator_not_filler(real_content: Any) -> None:
     """Sculptra is a collagen biostimulator — must not be sold as a traditional filler."""
     from bot.faq import find_best_faq_match
 
     answer = find_best_faq_match("What is Sculptra?")
+    assert answer is not None
     lower = answer.lower()
 
     assert "biostimulator" in lower or "bioestimulador" in lower
@@ -59,11 +62,12 @@ def test_sculptra_is_described_as_biostimulator_not_filler(real_content):
             )
 
 
-def test_co2_laser_is_not_described_as_hair_removal(real_content):
+def test_co2_laser_is_not_described_as_hair_removal(real_content: Any) -> None:
     """CO2 laser is skin resurfacing — `hair removal` may appear only when negated."""
     from bot.faq import find_best_faq_match
 
     answer = find_best_faq_match("What is CO2 laser?")
+    assert answer is not None
     lower = answer.lower()
 
     assert "resurfacing" in lower
@@ -76,7 +80,7 @@ def test_co2_laser_is_not_described_as_hair_removal(real_content):
         )
 
 
-def test_botox_price_is_135_mxn_per_unit(real_content):
+def test_botox_price_is_135_mxn_per_unit(real_content: Any) -> None:
     """The Botox/Dysport pricing answer must read 135 MXN per unit."""
     from bot.faq import find_best_faq_match
 
@@ -87,7 +91,7 @@ def test_botox_price_is_135_mxn_per_unit(real_content):
     assert "mxn" in answer.lower(), "Price must be quoted in MXN, not USD"
 
 
-def test_business_context_redirects_medical_questions_to_consultation(real_content):
+def test_business_context_redirects_medical_questions_to_consultation(real_content: Any) -> None:
     """Pregnancy/allergies aren't separate FAQs — the AI must route them via business_context.
 
     There is no dedicated FAQ entry for medical safety questions, so they

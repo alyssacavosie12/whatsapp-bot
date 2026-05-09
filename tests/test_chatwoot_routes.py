@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 from itertools import count
+from typing import Any
 
 import pytest
 
@@ -42,8 +43,8 @@ def _event(
     sender_phone: str | None = PHONE,
     sender_name: str = "Maria",
     message_id: int | None = None,
-) -> dict:
-    payload: dict = {
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "event": event,
         "message_type": message_type,
         "private": private,
@@ -58,18 +59,18 @@ def _event(
     return payload
 
 
-def _body(event: dict) -> bytes:
+def _body(event: dict[str, Any]) -> bytes:
     return json.dumps(event, separators=(",", ":")).encode("utf-8")
 
 
-def _make_app(monkeypatch):
+def _make_app(monkeypatch: Any) -> Any:
     """Create a Flask app with Chatwoot wired and synchronous background work."""
     proxy, flask_app = make_app_modules()
 
     monkeypatch.setattr(chatwoot_signature, "CHATWOOT_WEBHOOK_SECRET", SECRET)
 
     # Run background processing inline so assertions can observe state.
-    def _run_inline(event):
+    def _run_inline(event: Any) -> Any:
         message_processor.process_chatwoot_message(event)
 
     monkeypatch.setattr(chatwoot_routes, "_run_in_background", _run_inline)
@@ -79,7 +80,7 @@ def _make_app(monkeypatch):
 # ─── Route-level assertions ────────────────────────────────────────
 
 
-def test_route_rejects_invalid_signature(monkeypatch):
+def test_route_rejects_invalid_signature(monkeypatch: Any) -> None:
     _, flask_app = _make_app(monkeypatch)
     body = _body(_event())
     response = flask_app.test_client().post(
@@ -93,7 +94,7 @@ def test_route_rejects_invalid_signature(monkeypatch):
     assert response.status_code == 401
 
 
-def test_route_rejects_missing_signature(monkeypatch):
+def test_route_rejects_missing_signature(monkeypatch: Any) -> None:
     _, flask_app = _make_app(monkeypatch)
     body = _body(_event())
     response = flask_app.test_client().post(
@@ -104,7 +105,7 @@ def test_route_rejects_missing_signature(monkeypatch):
     assert response.status_code == 401
 
 
-def test_route_ignores_outgoing_message(monkeypatch):
+def test_route_ignores_outgoing_message(monkeypatch: Any) -> None:
     _, flask_app = _make_app(monkeypatch)
     body = _body(_event(message_type="outgoing"))
     response = flask_app.test_client().post(
@@ -116,7 +117,7 @@ def test_route_ignores_outgoing_message(monkeypatch):
     assert response.get_json()["status"] == "ignored"
 
 
-def test_route_ignores_private_note(monkeypatch):
+def test_route_ignores_private_note(monkeypatch: Any) -> None:
     _, flask_app = _make_app(monkeypatch)
     body = _body(_event(private=True))
     response = flask_app.test_client().post(
@@ -128,7 +129,7 @@ def test_route_ignores_private_note(monkeypatch):
     assert response.get_json()["status"] == "ignored"
 
 
-def test_route_ignores_unknown_event(monkeypatch):
+def test_route_ignores_unknown_event(monkeypatch: Any) -> None:
     _, flask_app = _make_app(monkeypatch)
     body = _body(_event(event="conversation_updated"))
     response = flask_app.test_client().post(
@@ -140,7 +141,7 @@ def test_route_ignores_unknown_event(monkeypatch):
     assert response.get_json()["status"] == "ignored"
 
 
-def test_route_dispatches_incoming_message(monkeypatch):
+def test_route_dispatches_incoming_message(monkeypatch: Any) -> None:
     proxy, flask_app = _make_app(monkeypatch)
 
     sent: list[tuple[int | str, str]] = []
@@ -170,7 +171,7 @@ def test_route_dispatches_incoming_message(monkeypatch):
 
 
 @pytest.fixture()
-def processor_env(monkeypatch):
+def processor_env(monkeypatch: Any) -> Any:
     """Set up message_processor for direct unit tests against
     process_chatwoot_message without going through the Flask route."""
     proxy, _ = make_app_modules()
@@ -193,43 +194,41 @@ def processor_env(monkeypatch):
     return {"proxy": proxy, "sent": sent, "notifications": notifications}
 
 
-def test_processor_rejects_missing_conversation(processor_env):
+def test_processor_rejects_missing_conversation(processor_env: Any) -> None:
     event = _event(conversation_id=None)
     assert message_processor.process_chatwoot_message(event) == "invalid event"
 
 
-def test_processor_rejects_unknown_sender(processor_env):
+def test_processor_rejects_unknown_sender(processor_env: Any) -> None:
     event = _event(sender_phone="!@#")  # too short and non-URL-safe
     assert message_processor.process_chatwoot_message(event) == "invalid sender"
     assert processor_env["sent"] == []
 
 
-def test_processor_silences_opted_out_sender(processor_env, monkeypatch):
-    monkeypatch.setattr(
-        message_processor.inbox_service, "is_opted_out", lambda _phone: True
-    )
+def test_processor_silences_opted_out_sender(processor_env: Any, monkeypatch: Any) -> None:
+    monkeypatch.setattr(message_processor.inbox_service, "is_opted_out", lambda _phone: True)
     event = _event()
     assert message_processor.process_chatwoot_message(event) == "opted out"
     assert processor_env["sent"] == []
 
 
-def test_processor_drops_rate_limited(processor_env):
+def test_processor_drops_rate_limited(processor_env: Any) -> None:
     processor_env["proxy"].allow_phone_message = lambda _phone: False
     event = _event()
     assert message_processor.process_chatwoot_message(event) == "rate limited"
     assert processor_env["sent"] == []
 
 
-def test_processor_dedups_messages(processor_env):
-    seen = {}
+def test_processor_dedups_messages(processor_env: Any) -> None:
+    seen: dict[Any, bool] = {}
 
-    def _seen(message_id):
+    def _seen(message_id: Any) -> Any:
         return seen.setdefault(message_id, False)
 
-    def _record(message_id):
+    def _record(message_id: Any) -> Any:
         seen[message_id] = True
 
-    def fake_seen_message(message_id):
+    def fake_seen_message(message_id: Any) -> Any:
         was_seen = seen.get(message_id, False)
         if not was_seen:
             seen[message_id] = True
@@ -244,7 +243,7 @@ def test_processor_dedups_messages(processor_env):
     assert second == "duplicate"
 
 
-def test_processor_handles_human_handoff_keyword(processor_env, monkeypatch):
+def test_processor_handles_human_handoff_keyword(processor_env: Any, monkeypatch: Any) -> None:
     event = _event(content="HUMAN")
     result = message_processor.process_chatwoot_message(event)
     assert result == "ok"
@@ -253,8 +252,8 @@ def test_processor_handles_human_handoff_keyword(processor_env, monkeypatch):
     assert "HUMAN REQUESTED" in processor_env["notifications"][0]
 
 
-def test_processor_records_opt_out_without_reply(processor_env, monkeypatch):
-    recorded = {}
+def test_processor_records_opt_out_without_reply(processor_env: Any, monkeypatch: Any) -> None:
+    recorded: dict[str, Any] = {}
     monkeypatch.setattr(
         message_processor,
         "is_opt_out_request",
@@ -273,7 +272,7 @@ def test_processor_records_opt_out_without_reply(processor_env, monkeypatch):
     assert processor_env["sent"] == []
 
 
-def test_processor_replies_with_faq_match(processor_env, monkeypatch):
+def test_processor_replies_with_faq_match(processor_env: Any, monkeypatch: Any) -> None:
     monkeypatch.setattr(message_processor, "find_best_faq_match", lambda _: "FAQ ANSWER")
 
     event = _event(content="What is botox?")
@@ -286,7 +285,7 @@ def test_processor_replies_with_faq_match(processor_env, monkeypatch):
     assert "FAQ ANSWER" in text
 
 
-def test_processor_falls_back_to_ai(processor_env, monkeypatch):
+def test_processor_falls_back_to_ai(processor_env: Any, monkeypatch: Any) -> None:
     monkeypatch.setattr(message_processor, "find_best_faq_match", lambda _: None)
     monkeypatch.setattr(
         message_processor,
@@ -302,7 +301,7 @@ def test_processor_falls_back_to_ai(processor_env, monkeypatch):
     assert "AI ANSWER" in text
 
 
-def test_processor_too_long_message(processor_env, monkeypatch):
+def test_processor_too_long_message(processor_env: Any, monkeypatch: Any) -> None:
     monkeypatch.setattr(message_processor, "MAX_INCOMING_TEXT_CHARS", 16)
     event = _event(content="x" * 100)
     result = message_processor.process_chatwoot_message(event)
@@ -311,7 +310,7 @@ def test_processor_too_long_message(processor_env, monkeypatch):
     assert "too long" in text.lower()
 
 
-def test_processor_treats_non_text_as_media(processor_env, monkeypatch):
+def test_processor_treats_non_text_as_media(processor_env: Any, monkeypatch: Any) -> None:
     event = _event(content="", content_type="incoming_image")
     result = message_processor.process_chatwoot_message(event)
     assert result == "ok"
@@ -321,11 +320,11 @@ def test_processor_treats_non_text_as_media(processor_env, monkeypatch):
 # ─── Configuration validation ─────────────────────────────────────
 
 
-def test_misconfiguration_when_transport_off_returns_none():
+def test_misconfiguration_when_transport_off_returns_none() -> None:
     assert message_processor.chatwoot_transport_misconfiguration() is None
 
 
-def test_misconfiguration_when_transport_on_and_missing_vars(monkeypatch):
+def test_misconfiguration_when_transport_on_and_missing_vars(monkeypatch: Any) -> None:
     monkeypatch.setattr(message_processor, "CHATWOOT_TRANSPORT", True)
     monkeypatch.setattr(message_processor, "CHATWOOT_API_TOKEN", "")
     monkeypatch.setattr(message_processor, "CHATWOOT_ACCOUNT_ID", "")
@@ -338,7 +337,7 @@ def test_misconfiguration_when_transport_on_and_missing_vars(monkeypatch):
     assert "CHATWOOT_WEBHOOK_SECRET" in error
 
 
-def test_misconfiguration_passes_when_fully_configured(monkeypatch):
+def test_misconfiguration_passes_when_fully_configured(monkeypatch: Any) -> None:
     monkeypatch.setattr(message_processor, "CHATWOOT_TRANSPORT", True)
     monkeypatch.setattr(message_processor, "CHATWOOT_API_TOKEN", "tok")
     monkeypatch.setattr(message_processor, "CHATWOOT_ACCOUNT_ID", "164322")

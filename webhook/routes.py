@@ -6,12 +6,12 @@ import hmac
 import logging
 from collections.abc import Callable, Sequence
 from threading import Thread
-from typing import Any, cast
+from typing import Any, Final, cast
 
-from flask import Flask, jsonify, request
+from flask import Flask, current_app, has_app_context, jsonify, request
 from flask.typing import ResponseReturnValue
 
-from bot import call_processor, message_processor
+from bot import message_processor
 from core.text_utils import sanitize_untrusted_text
 from settings import VERIFY_TOKEN
 from webhook import signature as webhook_signature
@@ -28,6 +28,11 @@ WebhookEvent = tuple[str, dict[str, Any], dict[str, Any]]
 
 EVENT_KIND_MESSAGE = "message"
 EVENT_KIND_CALL = "call"
+WEBHOOK_PROCESSING_ERRORS: Final[tuple[type[BaseException], ...]] = (
+    RuntimeError,
+    TypeError,
+    ValueError,
+)
 
 
 def process_webhook_events(events: Sequence[WebhookEvent]) -> list[str]:
@@ -42,24 +47,20 @@ def process_webhook_events(events: Sequence[WebhookEvent]) -> list[str]:
         for kind, value, payload in events:
             try:
                 if kind == EVENT_KIND_MESSAGE:
-                    statuses.append(
-                        message_processor.process_webhook_message(value, payload)
-                    )
+                    statuses.append(message_processor.process_webhook_message(value, payload))
                 elif kind == EVENT_KIND_CALL:
-                    statuses.append(
-                        message_processor.process_call_event(value, payload)
-                    )
+                    statuses.append(message_processor.process_call_event(payload))
                 else:
                     logger.warning("Unknown webhook event kind: %s", kind)
                     statuses.append("ok")
-            except Exception as exc:
+            except WEBHOOK_PROCESSING_ERRORS as exc:
                 logger.error(
                     "Error processing %s event: %s",
                     kind,
                     exc.__class__.__name__,
                 )
                 statuses.append("ok")
-    except Exception as exc:
+    except WEBHOOK_PROCESSING_ERRORS as exc:
         logger.error("Error processing webhook: %s", exc.__class__.__name__)
 
     return statuses
@@ -75,11 +76,17 @@ def run_in_background(
         target: Function that processes parsed webhook events.
         events: Parsed webhook event triples.
     """
+    flask_app = cast(Any, current_app)._get_current_object() if has_app_context() else None
 
     def worker() -> None:
         try:
-            target(events)
-        except Exception as exc:
+            if flask_app is None:
+                target(events)
+                return
+
+            with flask_app.app_context():
+                target(events)
+        except WEBHOOK_PROCESSING_ERRORS as exc:
             logger.error("Webhook background worker failed: %s", exc.__class__.__name__)
 
     Thread(target=worker, daemon=True).start()
@@ -138,10 +145,7 @@ def register_webhook_routes(flask_app: Flask, webhook_rate_limit: RouteDecorator
             (EVENT_KIND_MESSAGE, value, message)
             for value, message in iter_webhook_messages(payload)
         )
-        events.extend(
-            (EVENT_KIND_CALL, value, call)
-            for value, call in iter_webhook_calls(payload)
-        )
+        events.extend((EVENT_KIND_CALL, value, call) for value, call in iter_webhook_calls(payload))
 
         if not events:
             return jsonify({"status": "no messages"}), 200

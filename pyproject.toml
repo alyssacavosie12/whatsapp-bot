@@ -86,7 +86,7 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["app.py", "settings.py", "bot", "core", "inbox", "webhook", "scripts"]
+files = ["app.py", "settings.py", "bot", "core", "inbox", "webhook", "scripts", "tests"]
 
 [[tool.mypy.overrides]]
 # Untyped third-party packages — silence missing-stubs noise.

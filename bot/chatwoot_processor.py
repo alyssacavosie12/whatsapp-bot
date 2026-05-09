@@ -5,29 +5,18 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from bot.ai_responder import get_ai_response
+from bot import message_processor
 from bot.chatwoot_intake import (
     build_chatwoot_incoming_message,
     extract_chatwoot_sender_phone,
 )
-from bot.faq import find_best_faq_match
 from bot.message_compliance import store_incoming_for_inbox
 from bot.message_dispatch import dispatch_response_plan
 from bot.message_logging import log_incoming_text_message
 from bot.message_responses import plan_message_response
-from bot.opt_out_keywords import is_opt_out_request
-from bot.reply_sinks import ChatwootReplySink
+from bot.processor_dependencies import MessageProcessorDependencies
 from core.sender_id import mask_sender_id, parse_sender_id
 from core.text_utils import sanitize_untrusted_text
-from inbox import service as inbox_service
-from settings import (
-    BOT_DISCLOSURE,
-    INCOMING_MESSAGE_LOG_MAX_CHARS,
-    LOG_INCOMING_MESSAGES,
-    MAX_INCOMING_TEXT_CHARS,
-)
-from webhook.dedup import seen_message
-from webhook.rate_limit import allow_phone_message
 
 logger = logging.getLogger(__name__)
 
@@ -50,17 +39,18 @@ def _chatwoot_conversation_id(event: dict[str, Any]) -> int | str | None:
 
 def _record_chatwoot_opt_out_if_requested(
     *,
+    dependencies: MessageProcessorDependencies,
     sender_id: str,
     sender_external_id_type: str,
     masked_sender: str,
     text: str,
 ) -> bool:
     """Record Chatwoot opt-out requests without sending a confirmation reply."""
-    opted_out, opt_out_keyword, opt_out_lang = is_opt_out_request(text)
+    opted_out, opt_out_keyword, opt_out_lang = dependencies.is_opt_out_request(text)
     if not opted_out:
         return False
 
-    inbox_service.record_opt_out(
+    dependencies.record_opt_out(
         sender_id,
         sender_external_id_type=sender_external_id_type,
         source="chatwoot_keyword",
@@ -75,19 +65,28 @@ def _record_chatwoot_opt_out_if_requested(
     return True
 
 
-def process_chatwoot_message(event: dict[str, Any]) -> str:
+def process_chatwoot_message(
+    event: dict[str, Any],
+    *,
+    dependencies: MessageProcessorDependencies | None = None,
+) -> str:
     """Process a Chatwoot agent-bot ``message_created`` event.
 
     Mirrors the safety contract of ``process_webhook_message`` for the
     Chatwoot transport: dedup, opt-out silence, rate limit, sensitive-text
     redaction, inbox persistence, FAQ/AI routing, and team handoff.
+
+    The returned status is intended for webhook worker logs, tests, and future
+    metrics. Customer-visible behavior is represented by the dispatched
+    response plan, not by this status string.
     """
+    deps = message_processor.resolve_message_processor_dependencies(dependencies)
     conversation_id = _chatwoot_conversation_id(event)
     if conversation_id is None:
         return "invalid event"
 
     message_id = str(event.get("id", "") or "")
-    if message_id and seen_message(f"chatwoot:{message_id}"):
+    if message_id and deps.seen_message(f"chatwoot:{message_id}"):
         logger.info(
             "Duplicate Chatwoot message ignored: %s",
             sanitize_untrusted_text(message_id, 80),
@@ -106,11 +105,11 @@ def process_chatwoot_message(event: dict[str, Any]) -> str:
     sender_id = sender.value
     masked = mask_sender_id(sender)
 
-    if inbox_service.is_opted_out(sender_id):
+    if deps.is_opted_out(sender_id):
         logger.info("Opted-out Chatwoot sender silenced: %s", masked)
         return "opted out"
 
-    if not allow_phone_message(sender_id):
+    if not deps.allow_sender_message(sender_id):
         logger.warning("Rate limit exceeded for Chatwoot sender %s", masked)
         return "rate limited"
 
@@ -122,6 +121,7 @@ def process_chatwoot_message(event: dict[str, Any]) -> str:
 
     # Strict opt-out: for Chatwoot we record and stop without confirmation.
     if incoming.is_text and _record_chatwoot_opt_out_if_requested(
+        dependencies=deps,
         sender_id=sender_id,
         sender_external_id_type=sender.id_type,
         masked_sender=masked,
@@ -131,8 +131,8 @@ def process_chatwoot_message(event: dict[str, Any]) -> str:
 
     storage = store_incoming_for_inbox(
         incoming,
-        is_first_contact=inbox_service.is_first_contact,
-        store_incoming_message=inbox_service.store_incoming_message,
+        is_first_contact=deps.is_first_contact,
+        store_incoming_message=deps.store_incoming_message,
     )
 
     if incoming.is_text:
@@ -141,25 +141,33 @@ def process_chatwoot_message(event: dict[str, Any]) -> str:
             incoming.sender_id,
             incoming.message_type,
             incoming.text,
-            log_text=LOG_INCOMING_MESSAGES,
-            max_text_chars=INCOMING_MESSAGE_LOG_MAX_CHARS,
+            log_text=deps.settings.log_incoming_messages,
+            max_text_chars=deps.settings.incoming_message_log_max_chars,
         )
 
     response_plan = plan_message_response(
         incoming,
         storage,
-        faq_matcher=find_best_faq_match,
-        ai_responder=get_ai_response,
-        max_text_chars=MAX_INCOMING_TEXT_CHARS,
-        bot_disclosure=BOT_DISCLOSURE,
+        faq_matcher=deps.find_best_faq_match,
+        ai_responder=deps.get_ai_response,
+        max_text_chars=deps.settings.max_incoming_text_chars,
+        bot_disclosure=deps.settings.bot_disclosure,
     )
 
-    sink = ChatwootReplySink(conversation_id=conversation_id)
     dispatch_response_plan(
         sender_id,
         response_plan,
-        send_message=sink.send,
-        notify_team=sink.notify_team,
+        send_message=lambda _sender_id, text: deps.send_chatwoot_message(
+            conversation_id,
+            text,
+        ),
+        notify_team=deps.notify_team,
     )
 
+    logger.info(
+        "Chatwoot message processed: status=%s sender=%s conversation_id=%s",
+        response_plan.status,
+        masked,
+        conversation_id,
+    )
     return response_plan.status

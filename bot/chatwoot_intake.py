@@ -2,44 +2,88 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 
 from bot.message_intake import TEXT_MESSAGE_TYPE, sanitize_sender_name
 from bot.message_models import IncomingMessage
 from core.sender_id import SenderId
 
 __all__ = [
+    "CHATWOOT_MEDIA_MESSAGE_TYPES",
     "build_chatwoot_incoming_message",
     "extract_chatwoot_sender_phone",
 ]
 
 
+CHATWOOT_MEDIA_MESSAGE_TYPES: Final[tuple[str, ...]] = (
+    "image",
+    "document",
+    "audio",
+    "video",
+)
+
+
+def _first_string_value(source: dict[str, Any], *keys: str) -> str:
+    """Return the first non-empty string value found in ``source``."""
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return ""
+
+
+def _sender_phone_from_conversation_meta(event: dict[str, Any]) -> str:
+    """Return sender phone or identifier from conversation.meta.sender."""
+    conversation = event.get("conversation", {})
+    if not isinstance(conversation, dict):
+        return ""
+
+    nested = conversation.get("meta", {})
+    if not isinstance(nested, dict):
+        return ""
+
+    sender = nested.get("sender", {})
+    if not isinstance(sender, dict):
+        return ""
+
+    return _first_string_value(sender, "phone_number", "identifier")
+
+
 def extract_chatwoot_sender_phone(event: dict[str, Any]) -> str:
     """Pull the customer's phone number or identifier from a Chatwoot event.
 
-    Chatwoot may expose the contact under ``sender`` or under
-    ``conversation.meta.sender``. We try both.
+    Chatwoot may expose the contact in several places depending on inbox type
+    and webhook shape. Prefer the direct sender object, then conversation
+    metadata, then contact-level fallbacks.
     """
     candidate = ""
 
     direct_sender = event.get("sender", {})
     if isinstance(direct_sender, dict):
-        phone = direct_sender.get("phone_number") or direct_sender.get("identifier")
-        if isinstance(phone, str) and phone:
-            candidate = phone
+        candidate = _first_string_value(
+            direct_sender,
+            "phone_number",
+            "identifier",
+        )
 
     if not candidate:
-        conversation = event.get("conversation", {})
-        if isinstance(conversation, dict):
-            nested = conversation.get("meta", {})
-            if isinstance(nested, dict):
-                sender = nested.get("sender", {})
-                if isinstance(sender, dict):
-                    phone = sender.get("phone_number") or sender.get("identifier")
-                    if isinstance(phone, str) and phone:
-                        candidate = phone
+        candidate = _sender_phone_from_conversation_meta(event)
 
-    candidate = candidate.strip()
+    if not candidate:
+        contact = event.get("contact", {})
+        if isinstance(contact, dict):
+            candidate = _first_string_value(
+                contact,
+                "phone_number",
+                "identifier",
+            )
+
+    if not candidate:
+        contact_inbox = event.get("contact_inbox", {})
+        if isinstance(contact_inbox, dict):
+            candidate = _first_string_value(contact_inbox, "source_id")
+
     if candidate.startswith("+"):
         candidate = candidate[1:]
 
@@ -52,7 +96,7 @@ def _chatwoot_message_type(content_type: str, is_text: bool) -> str:
         return TEXT_MESSAGE_TYPE
 
     normalized = content_type.lower()
-    for message_type in ("image", "document", "audio", "video"):
+    for message_type in CHATWOOT_MEDIA_MESSAGE_TYPES:
         if message_type in normalized:
             return message_type
 
@@ -62,11 +106,13 @@ def _chatwoot_message_type(content_type: str, is_text: bool) -> str:
 
 
 def _chatwoot_sender_name(event: dict[str, Any]) -> str:
+    """Return a sanitized customer display name from the Chatwoot event."""
     sender_data = event.get("sender", {})
-    raw_sender_name = (
-        sender_data.get("name", "") if isinstance(sender_data, dict) else ""
-    )
-    return sanitize_sender_name(raw_sender_name)
+    if isinstance(sender_data, dict):
+        raw_sender_name = sender_data.get("name", "")
+        return sanitize_sender_name(str(raw_sender_name or ""))
+
+    return ""
 
 
 def build_chatwoot_incoming_message(

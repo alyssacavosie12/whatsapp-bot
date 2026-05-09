@@ -21,9 +21,22 @@ from core.phone_utils import is_valid_phone, normalize_phone
 
 SenderIdType = Literal["phone", "bsuid"]
 
-# BSUID is opaque to us. Meta hasn't published an exact format, so we accept
-# anything that's clearly an identifier (8-128 ASCII URL-safe chars) and not
-# already a valid E.164 number.
+__all__ = [
+    "SenderId",
+    "SenderIdType",
+    "is_valid_recipient",
+    "mask_sender_id",
+    "mask_sender_id_str",
+    "parse_sender_id",
+]
+
+# BSUID is opaque to us. Meta has not published a strict long-term format, so
+# this intentionally remains permissive: 8-128 ASCII URL-safe identifier chars,
+# excluding valid E.164-like phone numbers which are detected first.
+#
+# If Meta later documents a required prefix, fixed length, or character set,
+# tighten this regex or move it to settings so deployments can track the
+# official contract without changing parsing call sites.
 _BSUID_RE: Final = re.compile(r"\A[A-Za-z0-9._:\-]{8,128}\Z")
 
 
@@ -51,8 +64,8 @@ class SenderId:
 def parse_sender_id(raw: str) -> SenderId | None:
     """Return a parsed sender id, or None for unrecognized input.
 
-    Phone numbers are normalized (Mexican 521... -> 52... rule from
-    `core.phone_utils.normalize_phone`); BSUIDs are returned verbatim.
+    Phone numbers are normalized by ``core.phone_utils.normalize_phone``;
+    BSUIDs are returned verbatim.
     """
     if not raw:
         return None
@@ -60,6 +73,9 @@ def parse_sender_id(raw: str) -> SenderId | None:
     candidate = raw.strip()
     if not candidate:
         return None
+
+    if any(char.isalpha() for char in candidate) and _BSUID_RE.fullmatch(candidate):
+        return SenderId(value=candidate, id_type="bsuid")
 
     normalized = normalize_phone(candidate)
     if normalized and is_valid_phone(normalized):
@@ -72,10 +88,10 @@ def parse_sender_id(raw: str) -> SenderId | None:
 
 
 def is_valid_recipient(value: str) -> bool:
-    """Return True when `value` is something we can address via Graph API.
+    """Return True when ``value`` is something we can address via Graph API.
 
     Used by the WhatsApp client to gate outbound sends. Mirrors
-    `parse_sender_id` but returns a bool for ergonomics in the send path.
+    ``parse_sender_id`` but returns a bool for ergonomics in the send path.
     """
     return parse_sender_id(value) is not None
 
@@ -83,7 +99,7 @@ def is_valid_recipient(value: str) -> bool:
 def mask_sender_id(sender: SenderId) -> str:
     """Return a privacy-preserving representation for logs.
 
-    For phones, defers to `core.phone_utils.mask_phone`. For BSUIDs, keeps
+    For phones, defers to ``core.phone_utils.mask_phone``. For BSUIDs, keeps
     the type prefix and the last 4 chars.
     """
     if sender.is_phone:
@@ -92,3 +108,16 @@ def mask_sender_id(sender: SenderId) -> str:
         return mask_phone(sender.value)
 
     return f"bsuid:***{sender.value[-4:]}" if len(sender.value) >= 4 else "bsuid:***"
+
+
+def mask_sender_id_str(raw: str) -> str:
+    """Parse and mask a raw sender id string for logs.
+
+    Use this helper at logging boundaries where only the raw webhook value is
+    available. It avoids accidentally logging full phone numbers or BSUIDs.
+    """
+    sender = parse_sender_id(raw)
+    if sender is None:
+        return "invalid"
+
+    return mask_sender_id(sender)

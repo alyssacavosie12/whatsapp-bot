@@ -10,51 +10,52 @@ fallbacks that the integration tests can't reach.
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 from flask import Flask
 
 # ─── webhook/events.py: malformed payload skipping ──────────────────
 
 
-def test_events_skips_non_list_entry():
+def test_events_skips_non_list_entry() -> None:
     from webhook.events import iter_webhook_messages
 
     assert list(iter_webhook_messages({"entry": "not a list"})) == []
 
 
-def test_events_skips_non_dict_entry_items():
+def test_events_skips_non_dict_entry_items() -> None:
     from webhook.events import iter_webhook_messages
 
     assert list(iter_webhook_messages({"entry": ["string", None]})) == []
 
 
-def test_events_skips_non_list_changes():
+def test_events_skips_non_list_changes() -> None:
     from webhook.events import iter_webhook_messages
 
     assert list(iter_webhook_messages({"entry": [{"changes": "bad"}]})) == []
 
 
-def test_events_skips_non_dict_change_items():
+def test_events_skips_non_dict_change_items() -> None:
     from webhook.events import iter_webhook_messages
 
     assert list(iter_webhook_messages({"entry": [{"changes": [None, 42]}]})) == []
 
 
-def test_events_skips_non_dict_value():
+def test_events_skips_non_dict_value() -> None:
     from webhook.events import iter_webhook_messages
 
     payload = {"entry": [{"changes": [{"value": "bad"}]}]}
     assert list(iter_webhook_messages(payload)) == []
 
 
-def test_events_skips_non_list_messages():
+def test_events_skips_non_list_messages() -> None:
     from webhook.events import iter_webhook_messages
 
     payload = {"entry": [{"changes": [{"value": {"messages": "bad"}}]}]}
     assert list(iter_webhook_messages(payload)) == []
 
 
-def test_events_skips_non_dict_message_items_but_yields_dicts():
+def test_events_skips_non_dict_message_items_but_yields_dicts() -> None:
     """Non-dict messages are skipped; valid dicts in the same list still come through."""
     from webhook.events import iter_webhook_messages
 
@@ -83,21 +84,21 @@ def test_events_skips_non_dict_message_items_but_yields_dicts():
 # ─── webhook/events.py: iter_webhook_calls ──────────────────────────
 
 
-def test_call_events_skips_when_calls_missing():
+def test_call_events_skips_when_calls_missing() -> None:
     from webhook.events import iter_webhook_calls
 
-    payload = {"entry": [{"changes": [{"value": {"messages": []}}]}]}
+    payload: dict[str, Any] = {"entry": [{"changes": [{"value": {"messages": []}}]}]}
     assert list(iter_webhook_calls(payload)) == []
 
 
-def test_call_events_skips_non_list_calls():
+def test_call_events_skips_non_list_calls() -> None:
     from webhook.events import iter_webhook_calls
 
     payload = {"entry": [{"changes": [{"value": {"calls": "not-a-list"}}]}]}
     assert list(iter_webhook_calls(payload)) == []
 
 
-def test_call_events_skips_non_dict_call_items_but_yields_dicts():
+def test_call_events_skips_non_dict_call_items_but_yields_dicts() -> None:
     """Non-dict call entries are skipped; valid dicts in the same list still come through."""
     from webhook.events import iter_webhook_calls
 
@@ -124,18 +125,17 @@ def test_call_events_skips_non_dict_call_items_but_yields_dicts():
     assert yielded[0][1]["status"] == "missed"
 
 
-def test_call_events_skips_non_dict_value():
+def test_call_events_skips_non_dict_value() -> None:
     from webhook.events import iter_webhook_calls
 
     payload = {"entry": [{"changes": [{"value": "not-a-dict"}]}]}
     assert list(iter_webhook_calls(payload)) == []
 
 
-
 # ─── webhook/schema.py: each error branch ───────────────────────────
 
 
-def test_manual_schema_rejects_non_object_payload():
+def test_manual_schema_rejects_non_object_payload() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload([])
@@ -143,7 +143,7 @@ def test_manual_schema_rejects_non_object_payload():
     assert "object" in err
 
 
-def test_manual_schema_rejects_missing_or_empty_entry():
+def test_manual_schema_rejects_missing_or_empty_entry() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload({"entry": []})
@@ -154,7 +154,7 @@ def test_manual_schema_rejects_missing_or_empty_entry():
     assert not ok
 
 
-def test_manual_schema_rejects_non_object_entry_item():
+def test_manual_schema_rejects_non_object_entry_item() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload({"entry": ["bad"]})
@@ -162,7 +162,7 @@ def test_manual_schema_rejects_non_object_entry_item():
     assert "entry items" in err
 
 
-def test_manual_schema_rejects_missing_or_empty_changes():
+def test_manual_schema_rejects_missing_or_empty_changes() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload({"entry": [{"changes": []}]})
@@ -170,7 +170,7 @@ def test_manual_schema_rejects_missing_or_empty_changes():
     assert "changes" in err
 
 
-def test_manual_schema_rejects_non_object_change_item():
+def test_manual_schema_rejects_non_object_change_item() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload({"entry": [{"changes": ["bad"]}]})
@@ -178,7 +178,7 @@ def test_manual_schema_rejects_non_object_change_item():
     assert "change items" in err
 
 
-def test_manual_schema_rejects_non_object_value():
+def test_manual_schema_rejects_non_object_value() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload({"entry": [{"changes": [{"value": "bad"}]}]})
@@ -186,7 +186,7 @@ def test_manual_schema_rejects_non_object_value():
     assert "value" in err
 
 
-def test_manual_schema_rejects_non_list_messages():
+def test_manual_schema_rejects_non_list_messages() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload(
@@ -196,7 +196,7 @@ def test_manual_schema_rejects_non_list_messages():
     assert "messages" in err
 
 
-def test_manual_schema_rejects_non_object_message_item():
+def test_manual_schema_rejects_non_object_message_item() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload(
@@ -206,7 +206,7 @@ def test_manual_schema_rejects_non_object_message_item():
     assert "message items" in err
 
 
-def test_manual_schema_rejects_non_string_from():
+def test_manual_schema_rejects_non_string_from() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload(
@@ -216,7 +216,7 @@ def test_manual_schema_rejects_non_string_from():
     assert "message.from" in err
 
 
-def test_manual_schema_rejects_non_string_type():
+def test_manual_schema_rejects_non_string_type() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload(
@@ -226,7 +226,7 @@ def test_manual_schema_rejects_non_string_type():
     assert "message.type" in err
 
 
-def test_manual_schema_rejects_non_object_text_payload():
+def test_manual_schema_rejects_non_object_text_payload() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload(
@@ -240,7 +240,7 @@ def test_manual_schema_rejects_non_object_text_payload():
     assert "text message" in err
 
 
-def test_manual_schema_accepts_valid_payload():
+def test_manual_schema_accepts_valid_payload() -> None:
     from webhook.schema import _manual_validate_webhook_payload
 
     ok, err = _manual_validate_webhook_payload(
@@ -258,7 +258,7 @@ def test_manual_schema_accepts_valid_payload():
     assert err == ""
 
 
-def test_validate_falls_back_to_manual_when_jsonschema_unavailable(monkeypatch):
+def test_validate_falls_back_to_manual_when_jsonschema_unavailable(monkeypatch: Any) -> None:
     """If jsonschema isn't installed, the manual validator must still run."""
     monkeypatch.setitem(sys.modules, "jsonschema", None)
 
@@ -272,7 +272,7 @@ def test_validate_falls_back_to_manual_when_jsonschema_unavailable(monkeypatch):
 # ─── webhook/http_hardening.py: optional-dep + empty-config branches ───
 
 
-def test_configure_talisman_is_a_noop_when_flask_talisman_missing(monkeypatch):
+def test_configure_talisman_is_a_noop_when_flask_talisman_missing(monkeypatch: Any) -> None:
     """Missing flask_talisman must log a warning and not crash."""
     monkeypatch.setitem(sys.modules, "flask_talisman", None)
 
@@ -280,23 +280,25 @@ def test_configure_talisman_is_a_noop_when_flask_talisman_missing(monkeypatch):
 
     app = Flask(__name__)
     # Should not raise; returns None.
-    assert configure_talisman(app, force_https=False) is None
+    configure_talisman(app, force_https=False)
 
 
-def test_build_webhook_rate_limit_is_passthrough_when_rate_limit_empty():
+def test_build_webhook_rate_limit_is_passthrough_when_rate_limit_empty() -> None:
     """Empty rate_limit must return an identity decorator (no limiting)."""
     from webhook.http_hardening import build_webhook_rate_limit
 
     app = Flask(__name__)
     decorator = build_webhook_rate_limit(app, key_func=lambda: "x", rate_limit="", storage_uri="")
 
-    def view():
+    def view() -> Any:
         return "ok"
 
     assert decorator(view) is view
 
 
-def test_build_webhook_rate_limit_is_passthrough_when_flask_limiter_missing(monkeypatch):
+def test_build_webhook_rate_limit_is_passthrough_when_flask_limiter_missing(
+    monkeypatch: Any,
+) -> None:
     """Missing flask_limiter must degrade to a passthrough, not crash."""
     monkeypatch.setitem(sys.modules, "flask_limiter", None)
 
@@ -307,7 +309,7 @@ def test_build_webhook_rate_limit_is_passthrough_when_flask_limiter_missing(monk
         app, key_func=lambda: "x", rate_limit="100/min", storage_uri=""
     )
 
-    def view():
+    def view() -> Any:
         return "ok"
 
     assert decorator(view) is view

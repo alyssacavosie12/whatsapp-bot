@@ -10,6 +10,7 @@ from inbox import service as inbox_service
 from inbox import store as inbox_store
 from inbox.admin_pages import render_admin_opt_outs_page
 from inbox.security import admin_response
+from inbox.store_common import STORE_OPERATION_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ def admin_opt_outs() -> ResponseReturnValue:
 
     try:
         opt_outs = inbox_store.list_opt_out_records(inbox_service.inbox_database_url())
-    except Exception:
+    except STORE_OPERATION_ERRORS:
         logger.exception("Failed to load opt-out records")
         return admin_response("Opt-outs are unavailable", 503)
 

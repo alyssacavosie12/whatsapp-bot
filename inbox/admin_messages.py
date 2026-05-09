@@ -10,6 +10,7 @@ from flask.typing import ResponseReturnValue
 from inbox import service as inbox_service
 from inbox import store as inbox_store
 from inbox.security import admin_response
+from inbox.store_common import STORE_OPERATION_ERRORS
 from inbox.views import render_admin_message_detail_page, render_admin_messages_page
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ def admin_messages() -> ResponseReturnValue:
             encryption_key=inbox_service.inbox_encryption_key(),
             decrypt=False,
         )
-    except Exception:
+    except STORE_OPERATION_ERRORS:
         logger.exception("Failed to load inbox messages")
         return admin_response("Inbox is unavailable", 503)
 
@@ -77,7 +78,7 @@ def admin_message_detail(message_id: int) -> ResponseReturnValue:
             encryption_key=inbox_service.inbox_encryption_key(),
             decrypt=False,
         )
-    except Exception:
+    except STORE_OPERATION_ERRORS:
         logger.exception("Failed to load inbox message")
         return admin_response("Inbox is unavailable", 503)
 
@@ -117,7 +118,7 @@ def admin_delete_message(message_id: int) -> ResponseReturnValue:
             message_id=message_id,
             deleted_by=user["username"],
         )
-    except Exception:
+    except STORE_OPERATION_ERRORS:
         logger.exception("Failed to delete inbox message")
         return admin_response("Inbox is unavailable", 503)
 

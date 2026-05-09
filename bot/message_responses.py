@@ -1,4 +1,4 @@
-"""Response routing for normalized inbound WhatsApp messages."""
+"""Response routing for normalized inbound WhatsApp and Chatwoot messages."""
 
 from __future__ import annotations
 
@@ -13,44 +13,98 @@ from settings import PRIVACY_NOTICE_URL
 
 logger = logging.getLogger(__name__)
 
+EN_LANGUAGE: Final = "en"
+ES_LANGUAGE: Final = "es"
+
+# Non-text WhatsApp/Chatwoot events usually do not contain enough user text to
+# infer language. Keep English as the deterministic default unless a future
+# conversation-preference layer provides a stored language.
+DEFAULT_NON_TEXT_LANGUAGE: Final = EN_LANGUAGE
+
 HUMAN_HANDOFF_KEYWORD: Final = "HUMAN"
 MEDIA_MESSAGE_TYPES: Final = {"image", "document", "audio", "video"}
+
 MESSAGE_TOO_LONG_FALLBACK: Final[dict[str, str]] = {
-    "en": "Thanks - that message is too long. Please send a shorter version.",
-    "es": "Gracias - ese mensaje es demasiado largo. Envia una version mas corta.",
+    EN_LANGUAGE: "Thanks - that message is too long. Please send a shorter version.",
+    ES_LANGUAGE: "Gracias - ese mensaje es demasiado largo. Envia una version mas corta.",
 }
+
 OPT_OUT_CONFIRMATION_FALLBACK: Final[dict[str, str]] = {
-    "en": (
+    EN_LANGUAGE: (
         "You've been unsubscribed. You will not receive further automated "
         "messages from Tulum BTX. To re-enable, contact us at tulumbotox.com."
     ),
-    "es": (
+    ES_LANGUAGE: (
         "Has cancelado la suscripcion. No recibiras mas mensajes automaticos "
         "de Tulum BTX. Para reactivar, contactanos en tulumbotox.com."
     ),
 }
+
 PRIVACY_NOTICE_SUFFIX_FALLBACK: Final[dict[str, str]] = {
-    "en": f"By chatting with us, you agree to our Privacy Notice: {PRIVACY_NOTICE_URL}",
-    "es": f"Al chatear con nosotros, aceptas nuestro Aviso de Privacidad: {PRIVACY_NOTICE_URL}",
+    EN_LANGUAGE: f"By chatting with us, you agree to our Privacy Notice: {PRIVACY_NOTICE_URL}",
+    ES_LANGUAGE: (
+        f"Al chatear con nosotros, aceptas nuestro Aviso de Privacidad: {PRIVACY_NOTICE_URL}"
+    ),
+}
+
+BOT_DISCLOSURE_FALLBACK: Final[dict[str, str]] = {
+    EN_LANGUAGE: "_This is an automated assistant. Reply HUMAN to speak with our team._",
+    ES_LANGUAGE: (
+        "_Este es un asistente automatizado. Responde HUMAN para hablar con nuestro equipo._"
+    ),
 }
 
 FaqMatcher = Callable[[str], str | None]
 AiResponder = Callable[[str, str], str]
 
+__all__ = [
+    "HUMAN_HANDOFF_KEYWORD",
+    "MEDIA_MESSAGE_TYPES",
+    "build_handoff_notification",
+    "get_bot_disclosure",
+    "get_message_too_long_response",
+    "get_opt_out_confirmation_response",
+    "get_privacy_notice_suffix",
+    "plan_message_response",
+    "with_first_contact_privacy_notice",
+]
+
+
+def _localized_fallback(fallbacks: dict[str, str], lang: str) -> str:
+    """Return a localized fallback, defaulting to English."""
+    return fallbacks.get(lang) or fallbacks[EN_LANGUAGE]
+
 
 def get_message_too_long_response(lang: str) -> str:
     """Return configured or built-in response for overlong customer messages."""
-    return get_response("message_too_long", lang) or MESSAGE_TOO_LONG_FALLBACK[lang]
+    return get_response("message_too_long", lang) or _localized_fallback(
+        MESSAGE_TOO_LONG_FALLBACK,
+        lang,
+    )
 
 
 def get_opt_out_confirmation_response(lang: str) -> str:
     """Return configured or built-in confirmation for an opt-out request."""
-    return get_response("opt_out_confirmation", lang) or OPT_OUT_CONFIRMATION_FALLBACK[lang]
+    return get_response("opt_out_confirmation", lang) or _localized_fallback(
+        OPT_OUT_CONFIRMATION_FALLBACK,
+        lang,
+    )
 
 
 def get_privacy_notice_suffix(lang: str) -> str:
     """Return the localized Privacy Notice line for first-contact replies."""
-    return get_response("privacy_notice_suffix", lang) or PRIVACY_NOTICE_SUFFIX_FALLBACK[lang]
+    return get_response("privacy_notice_suffix", lang) or _localized_fallback(
+        PRIVACY_NOTICE_SUFFIX_FALLBACK,
+        lang,
+    )
+
+
+def get_bot_disclosure(lang: str) -> str:
+    """Return the configured or built-in bot disclosure for AI replies."""
+    return get_response("bot_disclosure", lang) or _localized_fallback(
+        BOT_DISCLOSURE_FALLBACK,
+        lang,
+    )
 
 
 def with_first_contact_privacy_notice(
@@ -84,6 +138,7 @@ def build_handoff_notification(sender_name: str, sender: object) -> str:
                 f"Customer phone: +{sender.value}\n"
                 "Please respond to them directly."
             )
+
         return (
             "HUMAN REQUESTED\n"
             f"Customer name: {safe_name}\n"
@@ -112,6 +167,20 @@ def _first_contact_reply(
         lang,
         is_first_contact=storage.is_first_contact,
     )
+
+
+def _is_human_handoff_request(text: str) -> bool:
+    """Return True for the exact HUMAN handoff keyword, ignoring outer spaces."""
+    return text.strip().upper() == HUMAN_HANDOFF_KEYWORD
+
+
+def _append_bot_disclosure(response_text: str, lang: str) -> str:
+    """Append localized bot disclosure when configured text is available."""
+    disclosure = get_bot_disclosure(lang)
+    if not disclosure:
+        return response_text
+
+    return f"{response_text}\n\n{disclosure}"
 
 
 def _plan_text_response(
@@ -149,7 +218,7 @@ def _plan_text_response(
             )
         )
 
-    if incoming.text.upper() == HUMAN_HANDOFF_KEYWORD:
+    if _is_human_handoff_request(incoming.text):
         return ResponsePlan(
             reply_text=_first_contact_reply(
                 get_response("human_handoff", lang),
@@ -187,10 +256,47 @@ def _plan_text_response(
 
     human_handoff_response = get_response("human_handoff", lang)
     if bot_disclosure and not faq_answer and response_text != human_handoff_response:
-        response_text += "\n\n_This is an automated assistant. Reply HUMAN to speak with our team._"
+        response_text = _append_bot_disclosure(response_text, lang)
 
     return ResponsePlan(
         reply_text=_first_contact_reply(response_text, lang, storage),
+    )
+
+
+def _plan_media_response(
+    storage: InboxStorageResult,
+) -> ResponsePlan:
+    """Return generic media reply.
+
+    Non-text events do not carry enough reliable text to infer language, so
+    this intentionally uses English until a stored conversation-language
+    preference is introduced.
+    """
+    lang = DEFAULT_NON_TEXT_LANGUAGE
+    return ResponsePlan(
+        reply_text=_first_contact_reply(
+            get_response("media_response", lang),
+            lang,
+            storage,
+        )
+    )
+
+
+def _plan_unknown_response(
+    storage: InboxStorageResult,
+) -> ResponsePlan:
+    """Return generic unknown-message reply.
+
+    Unknown non-text events intentionally use English for the same reason as
+    media replies: there is no reliable message text for language detection.
+    """
+    lang = DEFAULT_NON_TEXT_LANGUAGE
+    return ResponsePlan(
+        reply_text=_first_contact_reply(
+            get_response("unknown_message", lang),
+            lang,
+            storage,
+        )
     )
 
 
@@ -215,18 +321,6 @@ def plan_message_response(
         )
 
     if incoming.message_type in MEDIA_MESSAGE_TYPES:
-        return ResponsePlan(
-            reply_text=_first_contact_reply(
-                get_response("media_response", "en"),
-                "en",
-                storage,
-            )
-        )
+        return _plan_media_response(storage)
 
-    return ResponsePlan(
-        reply_text=_first_contact_reply(
-            get_response("unknown_message", "en"),
-            "en",
-            storage,
-        )
-    )
+    return _plan_unknown_response(storage)
