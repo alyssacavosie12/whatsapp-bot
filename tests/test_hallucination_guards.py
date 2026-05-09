@@ -18,7 +18,6 @@ removes a guardrail phrase or adds promising copy that contradicts it.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
 
 import pytest
 
@@ -36,7 +35,7 @@ FORBIDDEN_FAQ_PHRASES = [
 # ─── business_context guardrails ──────────────────────────────────────
 
 
-def test_business_context_forbids_guaranteeing_or_inventing(real_content: Any) -> None:
+def test_business_context_forbids_guaranteeing_or_inventing(real_content):
     """The system prompt must explicitly forbid guarantees and invention."""
     from bot.content_loader import get_business_context
 
@@ -48,7 +47,7 @@ def test_business_context_forbids_guaranteeing_or_inventing(real_content: Any) -
     )
 
 
-def test_business_context_restricts_ai_to_known_content(real_content: Any) -> None:
+def test_business_context_restricts_ai_to_known_content(real_content):
     """The system prompt must scope the model to bot_content.json + FAQ.
 
     Without this rule, when asked about a treatment not listed (e.g.
@@ -64,7 +63,7 @@ def test_business_context_restricts_ai_to_known_content(real_content: Any) -> No
     )
 
 
-def test_business_context_redirects_unknown_questions_to_booking(real_content: Any) -> None:
+def test_business_context_redirects_unknown_questions_to_booking(real_content):
     """The system prompt must surface the booking URL as the redirect target.
 
     The booking URL is mentioned multiple times for different reasons (FAQ
@@ -84,7 +83,7 @@ def test_business_context_redirects_unknown_questions_to_booking(real_content: A
 
 
 @pytest.mark.parametrize("phrase", FORBIDDEN_FAQ_PHRASES)
-def test_no_faq_answer_contains_unconditional_promise(real_content: Any, phrase: Any) -> None:
+def test_no_faq_answer_contains_unconditional_promise(real_content, phrase):
     """No FAQ answer (EN or ES) may contain promising/miracle phrasing.
 
     These phrases overstate medical/cosmetic outcomes. They were absent
@@ -109,9 +108,9 @@ def test_no_faq_answer_contains_unconditional_promise(real_content: Any, phrase:
 
 
 def test_anti_hallucination_rules_reach_anthropic_system_prompt(
-    real_content: Any,
-    monkeypatch: Any,
-) -> None:
+    real_content,
+    monkeypatch,
+):
     """The real business_context is actually passed to Claude on every call.
 
     Closes the gap between "rules exist in bot_content.json" and "rules
@@ -121,15 +120,15 @@ def test_anti_hallucination_rules_reach_anthropic_system_prompt(
     """
     from bot import ai_responder
 
-    captured: dict[str, Any] = {}
+    captured: dict = {}
 
     class FakeMessages:
-        def create(self, **kwargs: Any) -> Any:
+        def create(self, **kwargs):
             captured.update(kwargs)
             return SimpleNamespace(content=[SimpleNamespace(text="canned reply")])
 
     class FakeClient:
-        def __init__(self, **_kwargs: Any) -> None:
+        def __init__(self, **_kwargs):
             self.messages = FakeMessages()
 
     monkeypatch.setattr(ai_responder, "ANTHROPIC_API_KEY", "fake-key")

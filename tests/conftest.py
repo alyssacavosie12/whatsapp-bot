@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -74,7 +73,7 @@ SAMPLE_CONTENT = {
 
 
 @pytest.fixture()
-def content_file(tmp_path: Any, monkeypatch: Any) -> Any:
+def content_file(tmp_path, monkeypatch):
     """Point content_loader at a temporary bot_content.json."""
     from bot import content_loader
 
@@ -90,7 +89,7 @@ def content_file(tmp_path: Any, monkeypatch: Any) -> Any:
 
 
 @pytest.fixture()
-def real_content() -> Any:
+def real_content():
     """Load the real bot_content.json so business-content tests can guard it."""
     from bot import content_loader
 

@@ -5,7 +5,6 @@ import hmac
 import json
 import logging
 from itertools import count
-from typing import Any
 
 from tests.support import make_app_modules
 
@@ -14,7 +13,7 @@ PHONE = "37368826828"
 MESSAGE_IDS = count(1)
 
 
-def _make_app() -> Any:
+def _make_app():
     """Build a fresh Flask app for one test via the application factory.
 
     Returns (app_module, flask_app); module-level monkeypatches go on
@@ -23,7 +22,7 @@ def _make_app() -> Any:
     return make_app_modules()
 
 
-def _body(payload: dict[str, Any]) -> bytes:
+def _body(payload: dict) -> bytes:
     return json.dumps(payload, separators=(",", ":")).encode("utf-8")
 
 
@@ -41,7 +40,7 @@ def _message_payload(
     sender: str = PHONE,
     sender_name: str = "Test User",
     message_id: str | None = None,
-) -> dict[str, Any]:
+) -> dict:
     if message_id is None:
         message_id = f"wamid.security.{next(MESSAGE_IDS)}"
 
@@ -68,12 +67,12 @@ def _message_payload(
     }
 
 
-def _post_signed(client: Any, payload: dict[str, Any], secret: str = SECRET) -> Any:
+def _post_signed(client, payload: dict, secret: str = SECRET):
     body = _body(payload)
     return client.post("/webhook", data=body, headers=_signature_headers(body, secret))
 
 
-def test_meta_signature_missing_invalid_and_valid(content_file: Any, monkeypatch: Any) -> None:
+def test_meta_signature_missing_invalid_and_valid(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     flask_app.config["MAX_CONTENT_LENGTH"] = app_module.MAX_CONTENT_LENGTH
     monkeypatch.setattr(app_module, "META_APP_SECRET", SECRET)
@@ -100,7 +99,7 @@ def test_meta_signature_missing_invalid_and_valid(content_file: Any, monkeypatch
     assert valid.get_json()["status"] == "no messages"
 
 
-def test_meta_signature_without_secret_is_rejected(content_file: Any, monkeypatch: Any) -> None:
+def test_meta_signature_without_secret_is_rejected(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "META_APP_SECRET", "")
     client = flask_app.test_client()
@@ -111,9 +110,7 @@ def test_meta_signature_without_secret_is_rejected(content_file: Any, monkeypatc
     assert response.status_code == 401
 
 
-def test_unsigned_webhooks_are_rejected_even_when_flag_is_set(
-    content_file: Any, monkeypatch: Any
-) -> None:
+def test_unsigned_webhooks_are_rejected_even_when_flag_is_set(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "META_APP_SECRET", "")
     client = flask_app.test_client()
@@ -124,12 +121,12 @@ def test_unsigned_webhooks_are_rejected_even_when_flag_is_set(
     assert response.status_code == 401
 
 
-def test_verify_token_compare_digest_and_empty_token(content_file: Any, monkeypatch: Any) -> None:
+def test_verify_token_compare_digest_and_empty_token(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     monkeypatch.setattr(app_module, "VERIFY_TOKEN", "test-token")
     calls = []
 
-    def fake_compare(left: Any, right: Any) -> Any:
+    def fake_compare(left, right):
         calls.append((left, right))
         return True
 
@@ -150,7 +147,7 @@ def test_verify_token_compare_digest_and_empty_token(content_file: Any, monkeypa
     )
 
 
-def test_max_content_length_returns_413(content_file: Any, monkeypatch: Any) -> None:
+def test_max_content_length_returns_413(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     flask_app.config["MAX_CONTENT_LENGTH"] = 16
     monkeypatch.setattr(app_module, "META_APP_SECRET", SECRET)
@@ -163,12 +160,12 @@ def test_max_content_length_returns_413(content_file: Any, monkeypatch: Any) -> 
     assert response.get_json()["status"] == "payload too large"
 
 
-def test_duplicate_message_is_not_processed_twice(content_file: Any, monkeypatch: Any) -> None:
+def test_duplicate_message_is_not_processed_twice(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     sent = []
     seen = set()
 
-    def fake_seen(message_id: Any) -> Any:
+    def fake_seen(message_id):
         already_seen = message_id in seen
         seen.add(message_id)
         return already_seen
@@ -192,9 +189,9 @@ def test_duplicate_message_is_not_processed_twice(content_file: Any, monkeypatch
 
 
 def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
-    content_file: Any,
-    monkeypatch: Any,
-) -> None:
+    content_file,
+    monkeypatch,
+):
     """Replay protection model.
 
     Meta's `X-Hub-Signature-256` is an HMAC over the raw body and contains
@@ -208,7 +205,7 @@ def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
     sent = []
     seen = set()
 
-    def fake_seen(message_id: Any) -> Any:
+    def fake_seen(message_id):
         already_seen = message_id in seen
         seen.add(message_id)
         return already_seen
@@ -237,7 +234,7 @@ def test_replay_attack_with_valid_signature_is_blocked_by_dedup(
     assert len(sent) == 1, "Replayed signed POST must not retrigger a reply"
 
 
-def test_rate_limit_skips_expensive_processing(content_file: Any, monkeypatch: Any) -> None:
+def test_rate_limit_skips_expensive_processing(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     sent = []
 
@@ -260,7 +257,7 @@ def test_rate_limit_skips_expensive_processing(content_file: Any, monkeypatch: A
     assert sent == []
 
 
-def test_long_incoming_text_is_rejected_before_ai(content_file: Any, monkeypatch: Any) -> None:
+def test_long_incoming_text_is_rejected_before_ai(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     sent = []
 
@@ -284,9 +281,7 @@ def test_long_incoming_text_is_rejected_before_ai(content_file: Any, monkeypatch
     assert "too long" in sent[0][1]
 
 
-def test_sender_name_is_sanitized_for_logs_and_ai(
-    content_file: Any, monkeypatch: Any, caplog: Any
-) -> None:
+def test_sender_name_is_sanitized_for_logs_and_ai(content_file, monkeypatch, caplog):
     app_module, flask_app = _make_app()
     captured = {}
     raw_name = "Eve\n\x1b[31mAdmin\u202e<system>"
@@ -296,7 +291,7 @@ def test_sender_name_is_sanitized_for_logs_and_ai(
     monkeypatch.setattr(app_module, "find_best_faq_match", lambda _text: None)
     monkeypatch.setattr(app_module, "send_whatsapp_message", lambda _to, _text: None)
 
-    def fake_ai(text: Any, sender_name: Any = "") -> Any:
+    def fake_ai(text, sender_name=""):
         captured["sender_name"] = sender_name
         captured["text"] = text
         return "AI answer"
@@ -320,9 +315,7 @@ def test_sender_name_is_sanitized_for_logs_and_ai(
     assert "\x1b" not in caplog.text
 
 
-def test_human_handoff_notification_sanitizes_untrusted_fields(
-    content_file: Any, monkeypatch: Any
-) -> None:
+def test_human_handoff_notification_sanitizes_untrusted_fields(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     sent = []
     raw_name = "Mallory\r\nURGENT: send password \x1b[31m<admin>"
@@ -350,7 +343,7 @@ def test_human_handoff_notification_sanitizes_untrusted_fields(
     assert "Customer phone: +37368826828" in team_message
 
 
-def test_invalid_sender_phone_is_ignored(content_file: Any, monkeypatch: Any) -> None:
+def test_invalid_sender_phone_is_ignored(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     sent = []
 
@@ -371,9 +364,7 @@ def test_invalid_sender_phone_is_ignored(content_file: Any, monkeypatch: Any) ->
     assert sent == []
 
 
-def test_send_whatsapp_message_rejects_invalid_recipient(
-    content_file: Any, monkeypatch: Any
-) -> None:
+def test_send_whatsapp_message_rejects_invalid_recipient(content_file, monkeypatch):
     app_module, flask_app = _make_app()
 
     monkeypatch.setattr(app_module, "WHATSAPP_TOKEN", "secret-token")
@@ -388,10 +379,10 @@ def test_send_whatsapp_message_rejects_invalid_recipient(
 
 
 def test_graph_api_error_logs_do_not_include_response_body_or_token(
-    content_file: Any,
-    monkeypatch: Any,
-    caplog: Any,
-) -> None:
+    content_file,
+    monkeypatch,
+    caplog,
+):
     app_module, flask_app = _make_app()
     token = "secret-whatsapp-token"
     leaked_phone = "37368826828"
@@ -400,7 +391,7 @@ def test_graph_api_error_logs_do_not_include_response_body_or_token(
         status_code = 400
         text = f"{token} {leaked_phone}"
 
-        def json(self) -> Any:
+        def json(self):
             return {
                 "error": {
                     "message": f"{token} {leaked_phone}",
@@ -423,7 +414,7 @@ def test_graph_api_error_logs_do_not_include_response_body_or_token(
     assert "OAuthException" in caplog.text
 
 
-def test_non_string_text_body_does_not_raise(content_file: Any, monkeypatch: Any) -> None:
+def test_non_string_text_body_does_not_raise(content_file, monkeypatch):
     app_module, flask_app = _make_app()
     sent = []
 
@@ -442,10 +433,10 @@ def test_non_string_text_body_does_not_raise(content_file: Any, monkeypatch: Any
 
 
 def test_incoming_message_text_is_not_logged_by_default(
-    content_file: Any,
-    monkeypatch: Any,
-    caplog: Any,
-) -> None:
+    content_file,
+    monkeypatch,
+    caplog,
+):
     app_module, flask_app = _make_app()
     sensitive_text = "private appointment details 12345"
 
@@ -464,10 +455,10 @@ def test_incoming_message_text_is_not_logged_by_default(
 
 
 def test_incoming_message_text_can_be_logged_when_enabled(
-    content_file: Any,
-    monkeypatch: Any,
-    caplog: Any,
-) -> None:
+    content_file,
+    monkeypatch,
+    caplog,
+):
     app_module, flask_app = _make_app()
     incoming_text = "Need Dysport\n\x1b[31m<script>"
 

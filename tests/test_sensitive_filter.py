@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from bot.sensitive_filter import classify_sensitive_message, redacted_sensitive_body
@@ -21,9 +19,9 @@ from bot.sensitive_filter import classify_sensitive_message, redacted_sensitive_
     ],
 )
 def test_classify_sensitive_message_detects_medical_and_personal_aesthetic(
-    text: Any,
-    category: Any,
-) -> None:
+    text,
+    category,
+):
     assert classify_sensitive_message(text) == category
 
 
@@ -35,11 +33,11 @@ def test_classify_sensitive_message_detects_medical_and_personal_aesthetic(
         "hello",
     ],
 )
-def test_classify_sensitive_message_allows_general_faq_questions(text: Any) -> None:
+def test_classify_sensitive_message_allows_general_faq_questions(text):
     assert classify_sensitive_message(text) is None
 
 
-def test_redacted_sensitive_body_contains_only_category_marker() -> None:
+def test_redacted_sensitive_body_contains_only_category_marker():
     body = redacted_sensitive_body("medical_safety")
 
     assert body == "[sensitive message redacted: category=medical_safety]"

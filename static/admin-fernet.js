@@ -1,10 +1,7 @@
 (() => {
   "use strict";
 
-  const KEY_STORAGE_NAME = "adminFernetKey";
-  const KEY_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
   const decoder = new TextDecoder();
-  let keyAutoClearTimer = 0;
 
   function base64UrlToBytes(value) {
     let normalized = value.trim().replace(/-/g, "+").replace(/_/g, "/");
@@ -102,6 +99,21 @@
     return document.querySelector("[data-fernet-key]");
   }
 
+  function getCurrentKey() {
+    const input = getKeyInput();
+    if (!input) {
+      return "";
+    }
+
+    const typedKey = input.value.trim();
+    if (typedKey) {
+      sessionStorage.setItem("adminFernetKey", typedKey);
+      return typedKey;
+    }
+
+    return sessionStorage.getItem("adminFernetKey") || "";
+  }
+
   function setStatus(text, isError = false) {
     const status = document.querySelector("[data-decrypt-status]");
     if (!status) {
@@ -113,74 +125,6 @@
     status.dataset.error = isError ? "true" : "false";
   }
 
-  function clearKeyAutoClearTimer() {
-    if (!keyAutoClearTimer) {
-      return;
-    }
-
-    clearTimeout(keyAutoClearTimer);
-    keyAutoClearTimer = 0;
-  }
-
-  function hasKeyMaterial() {
-    const input = getKeyInput();
-    const typedKey = input ? input.value.trim() : "";
-
-    return Boolean(typedKey || sessionStorage.getItem(KEY_STORAGE_NAME));
-  }
-
-  function clearStoredKey(message, isError = false) {
-    clearKeyAutoClearTimer();
-    sessionStorage.removeItem(KEY_STORAGE_NAME);
-
-    const input = getKeyInput();
-    if (input) {
-      input.value = "";
-    }
-
-    setStatus(message, isError);
-  }
-
-  function scheduleKeyAutoClear() {
-    clearKeyAutoClearTimer();
-
-    if (!hasKeyMaterial()) {
-      return;
-    }
-
-    keyAutoClearTimer = setTimeout(() => {
-      clearStoredKey("Key auto-cleared after 30 minutes of inactivity.", true);
-    }, KEY_IDLE_TIMEOUT_MS);
-  }
-
-  function recordKeyActivity() {
-    if (hasKeyMaterial()) {
-      scheduleKeyAutoClear();
-    }
-  }
-
-  function getCurrentKey() {
-    const input = getKeyInput();
-    if (!input) {
-      return "";
-    }
-
-    const typedKey = input.value.trim();
-    if (typedKey) {
-      sessionStorage.setItem(KEY_STORAGE_NAME, typedKey);
-      scheduleKeyAutoClear();
-      return typedKey;
-    }
-
-    const savedKey = sessionStorage.getItem(KEY_STORAGE_NAME) || "";
-
-    if (savedKey) {
-      scheduleKeyAutoClear();
-    }
-
-    return savedKey;
-  }
-
   async function decryptElement(element) {
     const key = getCurrentKey();
     if (!key) {
@@ -190,9 +134,6 @@
 
     const token = element.dataset.fernetToken || "";
     const output = element.querySelector("[data-decrypted-output]");
-    const decryptButton = element.querySelector("[data-decrypt-one]");
-    const hideButton = element.querySelector("[data-hide-decrypted]");
-    const result = element.querySelector("[data-decrypt-result]");
 
     if (!token || !output) {
       return;
@@ -202,15 +143,6 @@
       const plaintext = await decryptFernetToken(token, key);
       output.textContent = plaintext;
       output.hidden = false;
-      if (decryptButton) {
-        decryptButton.hidden = true;
-      }
-      if (hideButton) {
-        hideButton.hidden = false;
-      }
-      if (result) {
-        result.hidden = false;
-      }
       element.dataset.decrypted = "true";
       setStatus("Message decrypted locally in your browser.");
     } catch (error) {
@@ -232,88 +164,17 @@
     }
   }
 
-  function hideDecryptedElement(element) {
-    const output = element.querySelector("[data-decrypted-output]");
-    const decryptButton = element.querySelector("[data-decrypt-one]");
-    const hideButton = element.querySelector("[data-hide-decrypted]");
-    const result = element.querySelector("[data-decrypt-result]");
-
-    if (output) {
-      output.hidden = true;
-    }
-    if (decryptButton) {
-      decryptButton.hidden = false;
-    }
-    if (hideButton) {
-      hideButton.hidden = true;
-    }
-    if (result) {
-      result.hidden = true;
-    }
-
-    delete element.dataset.decrypted;
-  }
-
-  async function copyValue(button) {
-    const value = button.dataset.copyValue || "";
-    if (!value) {
-      return;
-    }
-
-    const originalText = button.textContent;
-
-    try {
-      await navigator.clipboard.writeText(value);
-      button.textContent = "Copied";
-      setTimeout(() => {
-        button.textContent = originalText;
-      }, 1500);
-    } catch (error) {
-      button.textContent = "Copy failed";
-      setTimeout(() => {
-        button.textContent = originalText;
-      }, 1500);
-    }
-  }
-
   document.addEventListener("DOMContentLoaded", () => {
     const input = getKeyInput();
-    const savedKey = sessionStorage.getItem(KEY_STORAGE_NAME);
+    const savedKey = sessionStorage.getItem("adminFernetKey");
 
     if (input && savedKey) {
       input.value = savedKey;
     }
 
-    scheduleKeyAutoClear();
-
-    if (input) {
-      input.addEventListener("input", recordKeyActivity);
-    }
-
-    for (const eventName of ["keydown", "touchstart"]) {
-      document.addEventListener(eventName, recordKeyActivity);
-    }
-
     document.addEventListener("click", (event) => {
-      recordKeyActivity();
-
       const target = event.target;
       if (!(target instanceof HTMLElement)) {
-        return;
-      }
-
-      const copyButton = target.closest("[data-copy-value]");
-      if (copyButton instanceof HTMLElement) {
-        void copyValue(copyButton);
-        return;
-      }
-
-      const hideDecrypted = target.closest("[data-hide-decrypted]");
-      if (hideDecrypted) {
-        const encryptedElement = hideDecrypted.closest("[data-fernet-token]");
-        if (encryptedElement instanceof HTMLElement) {
-          hideDecryptedElement(encryptedElement);
-        }
         return;
       }
 
@@ -331,7 +192,12 @@
       }
 
       if (target.closest("[data-forget-fernet-key]")) {
-        clearStoredKey("Fernet key removed from this browser tab.");
+        sessionStorage.removeItem("adminFernetKey");
+        const keyInput = getKeyInput();
+        if (keyInput) {
+          keyInput.value = "";
+        }
+        setStatus("Fernet key removed from this browser tab.");
       }
     });
   });

@@ -14,25 +14,24 @@ from __future__ import annotations
 
 import sys
 import time
-from typing import Any
 
 # ─── _AllowAllAuthThrottle ────────────────────────────────────────────
 
 
-def test_allow_all_throttle_never_limits_or_records() -> None:
+def test_allow_all_throttle_never_limits_or_records():
     from inbox.auth_throttle import _AllowAllAuthThrottle
 
     backend = _AllowAllAuthThrottle()
 
     assert backend.is_limited("any-key") is False
     assert backend.record_failure("any-key") is False
-    backend.clear("any-key")
+    assert backend.clear("any-key") is None
 
 
 # ─── _LocalAuthThrottle ───────────────────────────────────────────────
 
 
-def test_local_throttle_allows_until_threshold_then_limits() -> None:
+def test_local_throttle_allows_until_threshold_then_limits():
     from inbox.auth_throttle import _LocalAuthThrottle
 
     throttle = _LocalAuthThrottle(max_failures=3, window_seconds=60)
@@ -45,7 +44,7 @@ def test_local_throttle_allows_until_threshold_then_limits() -> None:
     assert throttle.is_limited("key") is True
 
 
-def test_local_throttle_empty_key_is_inert() -> None:
+def test_local_throttle_empty_key_is_inert():
     from inbox.auth_throttle import _LocalAuthThrottle
 
     throttle = _LocalAuthThrottle(max_failures=3, window_seconds=60)
@@ -56,7 +55,7 @@ def test_local_throttle_empty_key_is_inert() -> None:
     throttle.clear("")
 
 
-def test_local_throttle_clear_resets_counter() -> None:
+def test_local_throttle_clear_resets_counter():
     from inbox.auth_throttle import _LocalAuthThrottle
 
     throttle = _LocalAuthThrottle(max_failures=2, window_seconds=60)
@@ -69,7 +68,7 @@ def test_local_throttle_clear_resets_counter() -> None:
     assert throttle.is_limited("key") is False
 
 
-def test_local_throttle_resets_counter_when_window_rolls_over(monkeypatch: Any) -> None:
+def test_local_throttle_resets_counter_when_window_rolls_over(monkeypatch):
     from inbox.auth_throttle import _LocalAuthThrottle
 
     throttle = _LocalAuthThrottle(max_failures=2, window_seconds=60)
@@ -85,7 +84,7 @@ def test_local_throttle_resets_counter_when_window_rolls_over(monkeypatch: Any) 
     assert throttle.is_limited("key") is False
 
 
-def test_local_throttle_evicts_old_bucket_keys(monkeypatch: Any) -> None:
+def test_local_throttle_evicts_old_bucket_keys(monkeypatch):
     """Keys recorded in old buckets must not stay in the dict forever."""
     from inbox.auth_throttle import _LocalAuthThrottle
 
@@ -104,55 +103,55 @@ def test_local_throttle_evicts_old_bucket_keys(monkeypatch: Any) -> None:
 # ─── _RedisAuthThrottle ───────────────────────────────────────────────
 
 
-def _install_fake_redis(monkeypatch: Any, fake_client: Any) -> Any:
+def _install_fake_redis(monkeypatch, fake_client):
     from core.cache import reset_redis_clients
 
     class FakeRedisModule:
         class Redis:
             @staticmethod
-            def from_url(_url: Any, **_kwargs: Any) -> Any:
+            def from_url(_url, **_kwargs):
                 return fake_client
 
     reset_redis_clients()
     monkeypatch.setitem(sys.modules, "redis", FakeRedisModule)
 
 
-def test_redis_throttle_records_failure_with_pipeline(monkeypatch: Any) -> None:
+def test_redis_throttle_records_failure_with_pipeline(monkeypatch):
     """Redis throttle must batch INCR and EXPIRE in one pipeline round trip."""
     from inbox.auth_throttle import _RedisAuthThrottle
 
-    calls: list[tuple[Any, ...]] = []
+    calls = []
 
     class FakeRedis:
         counter = 0
         last_count = 0
 
-        def pipeline(self) -> Any:
+        def pipeline(self):
             return self
 
-        def __enter__(self) -> Any:
+        def __enter__(self):
             return self
 
-        def __exit__(self, *_args: Any) -> Any:
+        def __exit__(self, *_args):
             return False
 
-        def incr(self, key: Any) -> Any:
+        def incr(self, key):
             calls.append(("incr", key))
             FakeRedis.counter += 1
             FakeRedis.last_count = FakeRedis.counter
             return self
 
-        def expire(self, key: Any, seconds: Any) -> Any:
+        def expire(self, key, seconds):
             calls.append(("expire", key, seconds))
             return self
 
-        def execute(self) -> Any:
+        def execute(self):
             return [FakeRedis.last_count, True]
 
-        def get(self, _key: Any) -> Any:
+        def get(self, _key):
             return str(FakeRedis.counter)
 
-        def delete(self, _key: Any) -> Any:
+        def delete(self, _key):
             calls.append(("delete",))
 
     _install_fake_redis(monkeypatch, FakeRedis())
@@ -167,33 +166,33 @@ def test_redis_throttle_records_failure_with_pipeline(monkeypatch: Any) -> None:
     assert expire_calls[0][2] == 42
 
 
-def test_redis_throttle_is_limited_returns_false_when_no_record(monkeypatch: Any) -> None:
+def test_redis_throttle_is_limited_returns_false_when_no_record(monkeypatch):
     """A key with no recorded failures (`get` returns None) is not limited."""
     from inbox.auth_throttle import _RedisAuthThrottle
 
     class FakeRedis:
-        def get(self, _key: Any) -> Any:
+        def get(self, _key):
             return None
 
-        def pipeline(self) -> Any:
+        def pipeline(self):
             return self
 
-        def __enter__(self) -> Any:
+        def __enter__(self):
             return self
 
-        def __exit__(self, *_args: Any) -> Any:
+        def __exit__(self, *_args):
             return False
 
-        def incr(self, _key: Any) -> Any:
+        def incr(self, _key):
             return self
 
-        def expire(self, *_args: Any) -> Any:
+        def expire(self, *_args):
             return self
 
-        def execute(self) -> Any:
+        def execute(self):
             return [1, True]
 
-        def delete(self, *_args: Any) -> Any:
+        def delete(self, *_args):
             pass
 
     _install_fake_redis(monkeypatch, FakeRedis())
@@ -202,33 +201,33 @@ def test_redis_throttle_is_limited_returns_false_when_no_record(monkeypatch: Any
     assert throttle.is_limited("never-failed") is False
 
 
-def test_redis_throttle_fails_open_on_redis_error_in_is_limited(monkeypatch: Any) -> None:
+def test_redis_throttle_fails_open_on_redis_error_in_is_limited(monkeypatch):
     """A Redis outage must allow the auth attempt — log and return not-limited."""
     from inbox.auth_throttle import _RedisAuthThrottle
 
     class FakeRedis:
-        def get(self, _key: Any) -> Any:
-            raise OSError("connection refused")
+        def get(self, _key):
+            raise RuntimeError("connection refused")
 
-        def pipeline(self) -> Any:
+        def pipeline(self):
             return self
 
-        def __enter__(self) -> Any:
+        def __enter__(self):
             return self
 
-        def __exit__(self, *_args: Any) -> Any:
+        def __exit__(self, *_args):
             return False
 
-        def incr(self, _key: Any) -> Any:
-            raise OSError("connection refused")
+        def incr(self, _key):
+            raise RuntimeError("connection refused")
 
-        def expire(self, *_args: Any) -> Any:
+        def expire(self, *_args):
             pass
 
-        def delete(self, *_args: Any) -> Any:
-            raise OSError("connection refused")
+        def delete(self, *_args):
+            raise RuntimeError("connection refused")
 
-        def execute(self) -> Any:
+        def execute(self):
             return [1, True]
 
     _install_fake_redis(monkeypatch, FakeRedis())
@@ -240,34 +239,34 @@ def test_redis_throttle_fails_open_on_redis_error_in_is_limited(monkeypatch: Any
     throttle.clear("key")
 
 
-def test_redis_throttle_clear_calls_delete(monkeypatch: Any) -> None:
+def test_redis_throttle_clear_calls_delete(monkeypatch):
     from inbox.auth_throttle import _RedisAuthThrottle
 
-    calls: list[str] = []
+    calls = []
 
     class FakeRedis:
-        def get(self, _key: Any) -> Any:
+        def get(self, _key):
             return None
 
-        def pipeline(self) -> Any:
+        def pipeline(self):
             return self
 
-        def __enter__(self) -> Any:
+        def __enter__(self):
             return self
 
-        def __exit__(self, *_args: Any) -> Any:
+        def __exit__(self, *_args):
             return False
 
-        def incr(self, _key: Any) -> Any:
+        def incr(self, _key):
             return self
 
-        def expire(self, *_args: Any) -> Any:
+        def expire(self, *_args):
             return self
 
-        def execute(self) -> Any:
+        def execute(self):
             return [1, True]
 
-        def delete(self, key: Any) -> Any:
+        def delete(self, key):
             calls.append(key)
 
     _install_fake_redis(monkeypatch, FakeRedis())
@@ -278,23 +277,23 @@ def test_redis_throttle_clear_calls_delete(monkeypatch: Any) -> None:
     assert calls and calls[0].endswith("the-key")
 
 
-def test_redis_throttle_empty_key_is_inert(monkeypatch: Any) -> None:
+def test_redis_throttle_empty_key_is_inert(monkeypatch):
     from inbox.auth_throttle import _RedisAuthThrottle
 
     class FakeRedis:
-        def get(self, _key: Any) -> Any:
+        def get(self, _key):
             raise AssertionError("get must not be called for empty key")
 
-        def pipeline(self) -> Any:
+        def pipeline(self):
             raise AssertionError("pipeline must not be called for empty key")
 
-        def incr(self, _key: Any) -> Any:
+        def incr(self, _key):
             raise AssertionError("incr must not be called for empty key")
 
-        def expire(self, *_args: Any) -> Any:
+        def expire(self, *_args):
             pass
 
-        def delete(self, *_args: Any) -> Any:
+        def delete(self, *_args):
             raise AssertionError("delete must not be called for empty key")
 
     _install_fake_redis(monkeypatch, FakeRedis())
@@ -308,7 +307,7 @@ def test_redis_throttle_empty_key_is_inert(monkeypatch: Any) -> None:
 # ─── _build_backend selection logic ───────────────────────────────────
 
 
-def test_build_backend_returns_allow_all_when_max_failures_zero(monkeypatch: Any) -> None:
+def test_build_backend_returns_allow_all_when_max_failures_zero(monkeypatch):
     import inbox.auth_throttle as m
 
     monkeypatch.setattr(m, "INBOX_AUTH_MAX_FAILED_ATTEMPTS", 0)
@@ -318,7 +317,7 @@ def test_build_backend_returns_allow_all_when_max_failures_zero(monkeypatch: Any
     assert isinstance(backend, m._AllowAllAuthThrottle)
 
 
-def test_build_backend_falls_back_to_local_when_redis_init_fails(monkeypatch: Any) -> None:
+def test_build_backend_falls_back_to_local_when_redis_init_fails(monkeypatch):
     import inbox.auth_throttle as m
 
     monkeypatch.setattr(m, "INBOX_AUTH_MAX_FAILED_ATTEMPTS", 5)
@@ -327,8 +326,8 @@ def test_build_backend_falls_back_to_local_when_redis_init_fails(monkeypatch: An
     class BrokenRedisModule:
         class Redis:
             @staticmethod
-            def from_url(*_args: Any, **_kwargs: Any) -> Any:
-                raise ValueError("bad redis url")
+            def from_url(*_args, **_kwargs):
+                raise RuntimeError("bad redis url")
 
     monkeypatch.setitem(sys.modules, "redis", BrokenRedisModule)
 
@@ -337,7 +336,7 @@ def test_build_backend_falls_back_to_local_when_redis_init_fails(monkeypatch: An
     assert isinstance(backend, m._LocalAuthThrottle)
 
 
-def test_build_backend_chooses_local_when_no_redis_url(monkeypatch: Any) -> None:
+def test_build_backend_chooses_local_when_no_redis_url(monkeypatch):
     import inbox.auth_throttle as m
 
     monkeypatch.setattr(m, "INBOX_AUTH_MAX_FAILED_ATTEMPTS", 5)
@@ -351,7 +350,7 @@ def test_build_backend_chooses_local_when_no_redis_url(monkeypatch: Any) -> None
 # ─── Public helpers ────────────────────────────────────────────────────
 
 
-def test_inbox_auth_keys_are_stable_and_distinct() -> None:
+def test_inbox_auth_keys_are_stable_and_distinct():
     """Same inputs → same hashed keys; ip-only and ip+user keys are distinct."""
     from inbox.auth_throttle import inbox_auth_keys
 
@@ -367,7 +366,7 @@ def test_inbox_auth_keys_are_stable_and_distinct() -> None:
     assert keys_1[1] != keys_3[1]
 
 
-def test_inbox_auth_keys_normalize_case_and_blanks() -> None:
+def test_inbox_auth_keys_normalize_case_and_blanks():
     """Whitespace and case differences must collapse to the same key."""
     from inbox.auth_throttle import inbox_auth_keys
 
@@ -376,26 +375,26 @@ def test_inbox_auth_keys_normalize_case_and_blanks() -> None:
     assert inbox_auth_keys("", "") == inbox_auth_keys("unknown", "unknown")
 
 
-def test_public_helpers_drive_the_backend(monkeypatch: Any) -> None:
+def test_public_helpers_drive_the_backend(monkeypatch):
     """is_inbox_auth_limited / record_failure / clear delegate to _backend."""
     import inbox.auth_throttle as m
 
     class FakeBackend:
-        def __init__(self) -> None:
-            self.is_limited_calls: list[str] = []
-            self.record_calls: list[str] = []
-            self.clear_calls: list[str] = []
+        def __init__(self):
+            self.is_limited_calls = []
+            self.record_calls = []
+            self.clear_calls = []
             self.limited_keys = {"k1"}
 
-        def is_limited(self, key: Any) -> Any:
+        def is_limited(self, key):
             self.is_limited_calls.append(key)
             return key in self.limited_keys
 
-        def record_failure(self, key: Any) -> Any:
+        def record_failure(self, key):
             self.record_calls.append(key)
             return key == "trigger"
 
-        def clear(self, key: Any) -> Any:
+        def clear(self, key):
             self.clear_calls.append(key)
 
     fake = FakeBackend()

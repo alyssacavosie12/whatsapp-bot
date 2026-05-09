@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from typing import Any
 
 import pytest
 from flask import Flask
@@ -19,18 +18,18 @@ def _digest(body: bytes, secret: str = SECRET) -> str:
 
 
 @pytest.fixture()
-def flask_app() -> Any:
+def flask_app():
     """Minimal Flask app exposing a single route that calls the verifier."""
     app = Flask(__name__)
 
     @app.route("/probe", methods=["POST"])
-    def probe() -> Any:
+    def probe():  # type: ignore[no-redef]
         return ("ok" if chatwoot_signature.verify_chatwoot_signature() else "fail"), 200
 
     return app
 
 
-def test_rejects_when_secret_unset(flask_app: Any, monkeypatch: Any) -> None:
+def test_rejects_when_secret_unset(flask_app, monkeypatch):
     monkeypatch.setattr(chatwoot_signature, "CHATWOOT_WEBHOOK_SECRET", "")
     body = b'{"event":"message_created"}'
     response = flask_app.test_client().post(
@@ -41,14 +40,14 @@ def test_rejects_when_secret_unset(flask_app: Any, monkeypatch: Any) -> None:
     assert response.data == b"fail"
 
 
-def test_rejects_missing_header(flask_app: Any, monkeypatch: Any) -> None:
+def test_rejects_missing_header(flask_app, monkeypatch):
     monkeypatch.setattr(chatwoot_signature, "CHATWOOT_WEBHOOK_SECRET", SECRET)
     body = b'{"event":"message_created"}'
     response = flask_app.test_client().post("/probe", data=body)
     assert response.data == b"fail"
 
 
-def test_rejects_wrong_signature(flask_app: Any, monkeypatch: Any) -> None:
+def test_rejects_wrong_signature(flask_app, monkeypatch):
     monkeypatch.setattr(chatwoot_signature, "CHATWOOT_WEBHOOK_SECRET", SECRET)
     body = b'{"event":"message_created"}'
     response = flask_app.test_client().post(
@@ -59,7 +58,7 @@ def test_rejects_wrong_signature(flask_app: Any, monkeypatch: Any) -> None:
     assert response.data == b"fail"
 
 
-def test_accepts_valid_signature(flask_app: Any, monkeypatch: Any) -> None:
+def test_accepts_valid_signature(flask_app, monkeypatch):
     monkeypatch.setattr(chatwoot_signature, "CHATWOOT_WEBHOOK_SECRET", SECRET)
     body = b'{"event":"message_created","conversation":{"id":7}}'
     response = flask_app.test_client().post(
@@ -70,7 +69,7 @@ def test_accepts_valid_signature(flask_app: Any, monkeypatch: Any) -> None:
     assert response.data == b"ok"
 
 
-def test_signature_uses_constant_time_compare(flask_app: Any, monkeypatch: Any) -> None:
+def test_signature_uses_constant_time_compare(flask_app, monkeypatch):
     """The verifier must use hmac.compare_digest, not raw ==.
 
     Asserted indirectly: a signature that is the right length but wrong

@@ -10,14 +10,13 @@ DB (`_sha256`, `_fernet`, encryption round-trips) are tested directly.
 from __future__ import annotations
 
 import sys
-from typing import Any
 
 import pytest
 
 # ─── Helper functions (no DB needed) ───────────────────────────────────
 
 
-def test_database_key_is_stable_sha256() -> None:
+def test_database_key_is_stable_sha256():
     from inbox.store import _database_key
 
     assert _database_key("postgresql://x") == _database_key("postgresql://x")
@@ -25,7 +24,7 @@ def test_database_key_is_stable_sha256() -> None:
     assert len(_database_key("a")) == 64  # sha256 hex digest
 
 
-def test_auto_migrate_default_true(monkeypatch: Any) -> None:
+def test_auto_migrate_default_true(monkeypatch):
     from inbox.store import _auto_migrate_enabled
 
     monkeypatch.delenv("INBOX_AUTO_MIGRATE", raising=False)
@@ -46,29 +45,27 @@ def test_auto_migrate_default_true(monkeypatch: Any) -> None:
         ("", False),
     ],
 )
-def test_auto_migrate_parses_env_truthy_strings(
-    monkeypatch: Any, value: Any, expected: Any
-) -> None:
+def test_auto_migrate_parses_env_truthy_strings(monkeypatch, value, expected):
     from inbox.store import _auto_migrate_enabled
 
     monkeypatch.setenv("INBOX_AUTO_MIGRATE", value)
     assert _auto_migrate_enabled() is expected
 
 
-def test_sha256_empty_string_returns_empty() -> None:
+def test_sha256_empty_string_returns_empty():
     from inbox.store import _sha256
 
     assert _sha256("") == ""
     assert len(_sha256("hello")) == 64
 
 
-def test_fernet_returns_none_when_no_key() -> None:
+def test_fernet_returns_none_when_no_key():
     from inbox.store import _fernet
 
     assert _fernet("") is None
 
 
-def test_fernet_returns_cipher_when_key_valid() -> None:
+def test_fernet_returns_cipher_when_key_valid():
     from cryptography.fernet import Fernet
 
     from inbox.store import _fernet
@@ -81,14 +78,14 @@ def test_fernet_returns_cipher_when_key_valid() -> None:
     assert cipher.decrypt(encrypted) == b"hello"
 
 
-def test_fernet_raises_for_invalid_key() -> None:
+def test_fernet_raises_for_invalid_key():
     from inbox.store import MessageStoreUnavailable, _fernet
 
     with pytest.raises(MessageStoreUnavailable, match="invalid"):
         _fernet("not-a-valid-fernet-key")
 
 
-def test_prepare_body_without_encryption_returns_plaintext() -> None:
+def test_prepare_body_without_encryption_returns_plaintext():
     from inbox.store import _prepare_body
 
     text, encrypted, length, digest = _prepare_body("hello", encryption_key="")
@@ -99,7 +96,7 @@ def test_prepare_body_without_encryption_returns_plaintext() -> None:
     assert len(digest) == 64
 
 
-def test_prepare_body_with_encryption_returns_ciphertext() -> None:
+def test_prepare_body_with_encryption_returns_ciphertext():
     from cryptography.fernet import Fernet
 
     from inbox.store import _prepare_body
@@ -113,7 +110,7 @@ def test_prepare_body_with_encryption_returns_ciphertext() -> None:
     assert len(digest) == 64
 
 
-def test_prepare_sensitive_field_skips_encryption_when_empty() -> None:
+def test_prepare_sensitive_field_skips_encryption_when_empty():
     from cryptography.fernet import Fernet
 
     from inbox.store import _prepare_sensitive_field
@@ -127,13 +124,13 @@ def test_prepare_sensitive_field_skips_encryption_when_empty() -> None:
     assert digest == ""
 
 
-def test_read_body_returns_plaintext_when_not_encrypted() -> None:
+def test_read_body_returns_plaintext_when_not_encrypted():
     from inbox.store import _read_body
 
     assert _read_body("hello", encrypted=False, encryption_key="") == "hello"
 
 
-def test_read_body_returns_marker_when_key_missing() -> None:
+def test_read_body_returns_marker_when_key_missing():
     from inbox.store import _read_body
 
     result = _read_body("ciphertext", encrypted=True, encryption_key="")
@@ -142,7 +139,7 @@ def test_read_body_returns_marker_when_key_missing() -> None:
     assert "INBOX_ENCRYPTION_KEY" in result
 
 
-def test_read_body_round_trips_with_correct_key() -> None:
+def test_read_body_round_trips_with_correct_key():
     from cryptography.fernet import Fernet
 
     from inbox.store import _prepare_body, _read_body
@@ -153,7 +150,7 @@ def test_read_body_round_trips_with_correct_key() -> None:
     assert _read_body(ciphertext, encrypted=True, encryption_key=key) == "secret"
 
 
-def test_read_body_returns_decrypt_failed_marker_on_bad_ciphertext() -> None:
+def test_read_body_returns_decrypt_failed_marker_on_bad_ciphertext():
     from cryptography.fernet import Fernet
 
     from inbox.store import _read_body
@@ -165,7 +162,7 @@ def test_read_body_returns_decrypt_failed_marker_on_bad_ciphertext() -> None:
     assert "decrypt failed" in result
 
 
-def test_read_sensitive_field_falls_back_to_fallback_when_no_key() -> None:
+def test_read_sensitive_field_falls_back_to_fallback_when_no_key():
     from inbox.store import _read_sensitive_field
 
     assert (
@@ -179,7 +176,7 @@ def test_read_sensitive_field_falls_back_to_fallback_when_no_key() -> None:
     )
 
 
-def test_read_sensitive_field_falls_back_on_decrypt_failure() -> None:
+def test_read_sensitive_field_falls_back_on_decrypt_failure():
     from cryptography.fernet import Fernet
 
     from inbox.store import _read_sensitive_field
@@ -196,14 +193,14 @@ def test_read_sensitive_field_falls_back_on_decrypt_failure() -> None:
     )
 
 
-def test_connect_raises_when_database_url_missing() -> None:
+def test_connect_raises_when_database_url_missing():
     from inbox.store import MessageStoreUnavailable, _connect
 
     with pytest.raises(MessageStoreUnavailable, match="DATABASE_URL"):
         _connect("")
 
 
-def test_psycopg_modules_raises_when_psycopg_unavailable(monkeypatch: Any) -> None:
+def test_psycopg_modules_raises_when_psycopg_unavailable(monkeypatch):
     """If psycopg isn't installed, store usage must fail loudly, not silently."""
     monkeypatch.setitem(sys.modules, "psycopg", None)
 
@@ -221,40 +218,40 @@ def test_psycopg_modules_raises_when_psycopg_unavailable(monkeypatch: Any) -> No
 
 
 class _FakeCursor:
-    def __init__(self) -> None:
+    def __init__(self):
         self.executed: list[tuple[str, object]] = []
         self.rowcount = 0
-        self._fetchall_result: list[dict[str, Any]] = []
+        self._fetchall_result: list[dict] = []
 
-    def __enter__(self) -> Any:
+    def __enter__(self):
         return self
 
-    def __exit__(self, *_args: Any) -> Any:
+    def __exit__(self, *_args):
         return False
 
-    def execute(self, sql: Any, params: Any = None) -> Any:
+    def execute(self, sql, params=None):
         self.executed.append((sql, params))
 
-    def fetchall(self) -> Any:
+    def fetchall(self):
         return self._fetchall_result
 
 
 class _FakeConn:
-    def __init__(self) -> None:
+    def __init__(self):
         self._cursor = _FakeCursor()
 
-    def __enter__(self) -> Any:
+    def __enter__(self):
         return self
 
-    def __exit__(self, *_args: Any) -> Any:
+    def __exit__(self, *_args):
         return False
 
-    def cursor(self) -> Any:
+    def cursor(self):
         return self._cursor
 
 
 @pytest.fixture
-def fake_db(monkeypatch: Any) -> Any:
+def fake_db(monkeypatch):
     """Wire `inbox.store` to an in-memory fake psycopg.
 
     Returns the fake connection so tests can inspect the SQL + params that
@@ -266,10 +263,10 @@ def fake_db(monkeypatch: Any) -> Any:
 
     class FakePsycopg:
         @staticmethod
-        def connect(_url: Any, **_kwargs: Any) -> Any:
+        def connect(_url, **_kwargs):
             return fake_conn
 
-    def fake_jsonb(value: Any) -> Any:
+    def fake_jsonb(value):
         return ("__JSONB__", value)
 
     fake_dict_row = object()
@@ -290,7 +287,7 @@ def fake_db(monkeypatch: Any) -> Any:
 # ─── ensure_schema ────────────────────────────────────────────────────
 
 
-def test_ensure_schema_creates_tables_on_first_call(fake_db: Any) -> None:
+def test_ensure_schema_creates_tables_on_first_call(fake_db):
     from inbox.store import ensure_schema
 
     ensure_schema("postgresql://x")
@@ -301,7 +298,7 @@ def test_ensure_schema_creates_tables_on_first_call(fake_db: Any) -> None:
     assert "CREATE TABLE IF NOT EXISTS inbox_opt_in_proofs" in sqls
 
 
-def test_ensure_schema_is_idempotent(fake_db: Any) -> None:
+def test_ensure_schema_is_idempotent(fake_db):
     from inbox.store import ensure_schema
 
     ensure_schema("postgresql://x")
@@ -311,7 +308,7 @@ def test_ensure_schema_is_idempotent(fake_db: Any) -> None:
     assert len(fake_db._cursor.executed) == first_count
 
 
-def test_ensure_schema_skips_when_auto_migrate_disabled(fake_db: Any, monkeypatch: Any) -> None:
+def test_ensure_schema_skips_when_auto_migrate_disabled(fake_db, monkeypatch):
     from inbox.store import ensure_schema
 
     monkeypatch.setenv("INBOX_AUTO_MIGRATE", "false")
@@ -324,7 +321,7 @@ def test_ensure_schema_skips_when_auto_migrate_disabled(fake_db: Any, monkeypatc
 # ─── cleanup_expired_messages ─────────────────────────────────────────
 
 
-def test_cleanup_expired_messages_zero_retention_is_noop(fake_db: Any) -> None:
+def test_cleanup_expired_messages_zero_retention_is_noop(fake_db):
     from inbox.store import cleanup_expired_messages
 
     deleted = cleanup_expired_messages("postgresql://x", retention_days=0)
@@ -333,7 +330,7 @@ def test_cleanup_expired_messages_zero_retention_is_noop(fake_db: Any) -> None:
     assert fake_db._cursor.executed == []
 
 
-def test_cleanup_expired_messages_runs_three_deletes(fake_db: Any) -> None:
+def test_cleanup_expired_messages_runs_three_deletes(fake_db):
     from inbox.store import cleanup_expired_messages
 
     fake_db._cursor.rowcount = 5
@@ -346,7 +343,7 @@ def test_cleanup_expired_messages_runs_three_deletes(fake_db: Any) -> None:
 # ─── record_incoming_message ──────────────────────────────────────────
 
 
-def test_record_incoming_message_inserts_with_sanitized_params(fake_db: Any) -> None:
+def test_record_incoming_message_inserts_with_sanitized_params(fake_db):
     from inbox.store import record_incoming_message
 
     record_incoming_message(
@@ -380,7 +377,7 @@ def test_record_incoming_message_inserts_with_sanitized_params(fake_db: Any) -> 
 # ─── record_opt_in_proof ──────────────────────────────────────────────
 
 
-def test_record_opt_in_proof_requires_proof_secret(fake_db: Any) -> None:
+def test_record_opt_in_proof_requires_proof_secret(fake_db):
     from inbox.store import MessageStoreUnavailable, record_opt_in_proof
 
     with pytest.raises(MessageStoreUnavailable, match="INBOX_PROOF_SECRET"):
@@ -393,7 +390,7 @@ def test_record_opt_in_proof_requires_proof_secret(fake_db: Any) -> None:
         )
 
 
-def test_record_opt_in_proof_inserts_hmac(fake_db: Any) -> None:
+def test_record_opt_in_proof_inserts_hmac(fake_db):
     from inbox.store import record_opt_in_proof
 
     record_opt_in_proof(
@@ -415,7 +412,7 @@ def test_record_opt_in_proof_inserts_hmac(fake_db: Any) -> None:
     assert isinstance(proof_hmac, str) and len(proof_hmac) == 64  # sha256 hex
 
 
-def test_record_opt_in_proof_accepts_string_evidence(fake_db: Any) -> None:
+def test_record_opt_in_proof_accepts_string_evidence(fake_db):
     """Pre-serialized string evidence must be passed through unchanged."""
     from inbox.store import record_opt_in_proof
 
@@ -435,7 +432,7 @@ def test_record_opt_in_proof_accepts_string_evidence(fake_db: Any) -> None:
 # ─── first-contact lookup ─────────────────────────────────────────────
 
 
-def test_has_incoming_message_for_sender_uses_sender_hash(fake_db: Any) -> None:
+def test_has_incoming_message_for_sender_uses_sender_hash(fake_db):
     from inbox.store import _sha256, has_incoming_message_for_sender
 
     fake_db._cursor._fetchall_result = [{"exists": 1}]
@@ -448,7 +445,7 @@ def test_has_incoming_message_for_sender_uses_sender_hash(fake_db: Any) -> None:
     assert params == (_sha256("37368826828"),)
 
 
-def test_has_incoming_message_for_sender_returns_false_without_rows(fake_db: Any) -> None:
+def test_has_incoming_message_for_sender_returns_false_without_rows(fake_db):
     from inbox.store import has_incoming_message_for_sender
 
     fake_db._cursor._fetchall_result = []
@@ -459,7 +456,7 @@ def test_has_incoming_message_for_sender_returns_false_without_rows(fake_db: Any
 # ─── list_messages ────────────────────────────────────────────────────
 
 
-def _row(**overrides: Any) -> Any:
+def _row(**overrides):
     base = {
         "id": 1,
         "whatsapp_message_id": "wamid.1",
@@ -481,7 +478,7 @@ def _row(**overrides: Any) -> Any:
     return base
 
 
-def test_list_messages_no_query_returns_inbox_messages(fake_db: Any) -> None:
+def test_list_messages_no_query_returns_inbox_messages(fake_db):
     from inbox.store import InboxMessage, list_messages
 
     fake_db._cursor._fetchall_result = [_row(), _row(id=2)]
@@ -495,7 +492,7 @@ def test_list_messages_no_query_returns_inbox_messages(fake_db: Any) -> None:
     assert any("WHERE deleted_at IS NULL" in s for s in selects)
 
 
-def test_list_messages_with_query_uses_search_branch(fake_db: Any) -> None:
+def test_list_messages_with_query_uses_search_branch(fake_db):
     from inbox.store import list_messages
 
     fake_db._cursor._fetchall_result = []
@@ -505,7 +502,7 @@ def test_list_messages_with_query_uses_search_branch(fake_db: Any) -> None:
     assert any("ILIKE" in s for s in selects)
 
 
-def test_list_messages_with_query_and_include_deleted(fake_db: Any) -> None:
+def test_list_messages_with_query_and_include_deleted(fake_db):
     from inbox.store import list_messages
 
     fake_db._cursor._fetchall_result = []
@@ -517,7 +514,7 @@ def test_list_messages_with_query_and_include_deleted(fake_db: Any) -> None:
     assert all("deleted_at IS NULL" not in s for s in selects)
 
 
-def test_list_messages_include_deleted_no_query(fake_db: Any) -> None:
+def test_list_messages_include_deleted_no_query(fake_db):
     from inbox.store import list_messages
 
     fake_db._cursor._fetchall_result = []
@@ -532,7 +529,7 @@ def test_list_messages_include_deleted_no_query(fake_db: Any) -> None:
 # ─── soft_delete_message ──────────────────────────────────────────────
 
 
-def test_soft_delete_message_runs_update_and_returns_rowcount(fake_db: Any) -> None:
+def test_soft_delete_message_runs_update_and_returns_rowcount(fake_db):
     from inbox.store import soft_delete_message
 
     fake_db._cursor.rowcount = 1
@@ -549,7 +546,7 @@ def test_soft_delete_message_runs_update_and_returns_rowcount(fake_db: Any) -> N
     assert params[1] == 42
 
 
-def test_soft_delete_message_returns_false_when_nothing_deleted(fake_db: Any) -> None:
+def test_soft_delete_message_returns_false_when_nothing_deleted(fake_db):
     from inbox.store import soft_delete_message
 
     fake_db._cursor.rowcount = 0
@@ -560,7 +557,7 @@ def test_soft_delete_message_returns_false_when_nothing_deleted(fake_db: Any) ->
 # ─── record_audit_event ───────────────────────────────────────────────
 
 
-def test_record_audit_event_inserts_with_jsonb_metadata(fake_db: Any) -> None:
+def test_record_audit_event_inserts_with_jsonb_metadata(fake_db):
     from inbox.store import record_audit_event
 
     record_audit_event(
@@ -589,7 +586,7 @@ def test_record_audit_event_inserts_with_jsonb_metadata(fake_db: Any) -> None:
     assert params[6] == ("__JSONB__", {"result_count": 5})
 
 
-def test_record_audit_event_handles_no_metadata(fake_db: Any) -> None:
+def test_record_audit_event_handles_no_metadata(fake_db):
     from inbox.store import record_audit_event
 
     record_audit_event(
